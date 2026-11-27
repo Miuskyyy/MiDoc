@@ -1747,7 +1747,7 @@
         box.innerHTML = `
           <div>
             <label class="block text-xs font-semibold mb-1">Mode Pemisahan PDF</label>
-            <select id="optSplitMode" onchange="document.getElementById('splitRangeBox').classList.toggle('hidden', this.value !== 'range')" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+            <select id="optSplitMode" onchange="updateSplitPdfMode(this.value)" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
               <option value="all">Pecah Semua Halaman Menjadi File Satuan (ZIP)</option>
               <option value="range">Ekstrak Nomor Halaman Tertentu (1 PDF)</option>
             </select>
@@ -1757,6 +1757,12 @@
             <input id="optPageRange" type="text" value="1-2" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
           </div>
         `;
+        if (toolObj.id === 'extract-pdf-pages') {
+          document.getElementById('optSplitMode').value = 'range';
+          updateSplitPdfMode('range');
+        } else {
+          updateSplitPdfMode('all');
+        }
       } else if (engine === 'pdf-to-image') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Halaman_Gambar';
@@ -2148,6 +2154,16 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
         rowInput.value = rows;
         drawSplitterLivePreview();
       }
+    }
+
+    function updateSplitPdfMode(mode) {
+      const rangeMode = mode === 'range';
+      document.getElementById('splitRangeBox')?.classList.toggle('hidden', !rangeMode);
+      const ext = document.getElementById('outputExtBadge');
+      const label = document.getElementById('executeBtnLabel');
+      if (ext) ext.textContent = rangeMode ? '.pdf' : '.zip';
+      if (label) label.textContent = rangeMode ? 'Ekstrak Halaman Terpilih ke PDF' : 'Pisahkan Semua Halaman ke ZIP';
+      updateFilenamePreviewHint();
     }
 
     function updateResizeMode(mode) {
@@ -3552,14 +3568,16 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
     async function runCropPdf(baseName) {
       const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
       if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
-      const margin = parseInt(document.getElementById('optPdfCropMargin').value, 10) || 36;
+      const margin = Number(document.getElementById('optPdfCropMargin').value);
+      if (!Number.isFinite(margin) || margin < 0) throw new Error('Margin crop harus berupa angka nol atau lebih.');
       const outPdf = await PDFLib.PDFDocument.create();
       for (const item of pdfItems) {
         const src = await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0));
         const pages = await outPdf.copyPages(src, src.getPageIndices());
         pages.forEach(p => {
           const { width, height } = p.getSize();
-          p.setCropBox(margin, margin, Math.max(50, width - margin * 2), Math.max(50, height - margin * 2));
+          if (margin * 2 >= width || margin * 2 >= height) throw new Error('Margin ' + margin + ' pt terlalu besar untuk halaman PDF berukuran ' + width.toFixed(1) + ' × ' + height.toFixed(1) + ' pt.');
+          p.setCropBox(margin, margin, width - margin * 2, height - margin * 2);
           outPdf.addPage(p);
         });
       }
