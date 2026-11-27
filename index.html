@@ -722,7 +722,7 @@
           { id: 'watermark-image', name: 'Watermark & Teks Gambar', desc: 'Tambahkan teks hak cipta atau label pada foto', icon: 'type', engine: 'watermark-image' },
           { id: 'photo-signature', name: 'Foto + Tanda Tangan & Stempel Digital', desc: 'Gabungkan pas foto dengan gambar tanda tangan/stempel', icon: 'pen-tool', engine: 'overlay-images' },
           { id: 'color-filters', name: 'Filter Warna (Grayscale, Sepia, Invert, Kontras, Blur)', desc: 'Sesuaikan pencahayaan, hitam-putih, sepia, kontras, atau pixelate', icon: 'sliders', engine: 'filters-image' },
-          { id: 'remove-exif', name: 'Image Format Converter (JPG / PNG / WebP)', desc: 'Ubah format gambar dan bersihkan metadata gambar melalui ekspor ulang', icon: 'file-image', engine: 'convert-image' }
+          { id: 'remove-exif', name: 'Konversi Format Gambar & Hapus Metadata', desc: 'Konversi JPG, PNG, WebP, AVIF, BMP, dan bersihkan metadata melalui ekspor ulang', icon: 'file-image', engine: 'convert-image' }
         ]
       },
       {
@@ -1524,6 +1524,23 @@
             Setiap kartu di sebelah kiri langsung menampilkan simulasi kertas PDF & area margin secara real-time.
           </div>
         `;
+        if (toolObj.id === 'image-to-pdf') {
+          box.insertAdjacentHTML('beforeend', `
+            <div>
+              <label class="block text-xs font-semibold mb-1.5">Kualitas & Ukuran File PDF</label>
+              <select id="optImagePdfQuality" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+                <option value="very-low">Very Low — ukuran paling kecil</option>
+                <option value="low">Low — ringan</option>
+                <option value="medium">Medium — seimbang</option>
+                <option value="high" selected>High — kualitas tinggi</option>
+                <option value="original">Same as Image — 100% / kualitas asli</option>
+              </select>
+              <p class="mt-1.5 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                Kualitas lebih rendah akan menurunkan resolusi dan kompresi gambar di dalam PDF. File gambar asli tidak diubah.
+              </p>
+            </div>
+          `);
+        }
       } else if (engine === 'split-pdf') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Split_PDF';
@@ -1656,17 +1673,30 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
         box.innerHTML = `
           <div>
             <label class="block text-xs font-semibold mb-1">Format Tujuan</label>
-            <select id="optTargetFormat" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
-              <option value="image/jpeg">JPG (.jpg)</option>
+            <select id="optTargetFormat" onchange="updateConvertImageOptions()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="image/jpeg">JPG / JPEG (.jpg)</option>
               <option value="image/png" selected>PNG (.png)</option>
               <option value="image/webp">WebP (.webp)</option>
+              <option value="image/avif">AVIF (.avif) — jika browser mendukung</option>
+              <option value="image/bmp">BMP (.bmp)</option>
             </select>
           </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1">Warna Latar (untuk PNG ke JPG)</label>
+          <div id="optConvertQualityGroup">
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <label for="optConvertQuality">Kualitas Output</label>
+              <span id="optConvertQualityLabel" class="font-mono text-accent">85%</span>
+            </div>
+            <input id="optConvertQuality" type="range" min="10" max="100" value="85" oninput="document.getElementById('optConvertQualityLabel').textContent = this.value + '%'" class="w-full accent-accent" />
+          </div>
+          <div id="optBgFillGroup">
+            <label class="block text-xs font-semibold mb-1">Warna Latar (untuk JPG/JPEG)</label>
             <input id="optBgFill" type="color" value="#ffffff" class="w-full h-8 rounded-sm border border-zinc-300 dark:border-darkLine bg-transparent" />
           </div>
+          <p class="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+            AVIF bergantung pada dukungan encoder browser. GIF yang dikonversi menjadi gambar statis hanya mengambil frame yang dapat dibaca browser.
+          </p>
         `;
+        updateConvertImageOptions();
       } else if (engine === 'resize-image') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Resize_Gambar';
@@ -2198,7 +2228,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       const entries = filesArray.map(file => {
         state.dropCounter++;
         const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-        const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(file.name);
+        const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp|avif|heic|heif|tif|tiff|svg)$/i.test(file.name);
         const entry = {
           id: 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
           dropOrder: state.dropCounter,
@@ -3036,6 +3066,9 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       const pageSizeOpt = document.getElementById('optPageSize')?.value || 'A4';
       const marginOpt = parseInt(document.getElementById('optMargin')?.value || '20', 10);
       const orientOpt = document.getElementById('optOrientation')?.value || 'auto';
+      const imagePdfQuality = state.activeToolObj?.id === 'image-to-pdf'
+        ? (document.getElementById('optImagePdfQuality')?.value || 'high')
+        : 'high';
 
       for (let i = 0; i < state.items.length; i++) {
         const item = state.items[i];
@@ -3053,8 +3086,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
           });
         } else if (item.isImage && item.thumbUrl) {
           const canvas = await renderItemToCanvas(item);
-          const jpgBytes = await fetch(canvas.toDataURL('image/jpeg', 0.92)).then(r => r.arrayBuffer());
-          const img = await outPdf.embedJpg(jpgBytes);
+          const img = await embedCanvasImageForPdf(outPdf, item, canvas, imagePdfQuality);
 
           let pw = img.width + marginOpt * 2;
           let ph = img.height + marginOpt * 2;
@@ -3269,6 +3301,137 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       finishWithBlob(new Blob([fullText], { type: 'text/plain;charset=utf-8' }), finalName, `Teks berhasil diekstrak dari dokumen PDF.`);
     }
 
+    function updateConvertImageOptions() {
+      const target = document.getElementById('optTargetFormat')?.value || 'image/png';
+      const isLossy = ['image/jpeg', 'image/webp', 'image/avif'].includes(target);
+      const qualityGroup = document.getElementById('optConvertQualityGroup');
+      const backgroundGroup = document.getElementById('optBgFillGroup');
+      if (qualityGroup) qualityGroup.classList.toggle('hidden', !isLossy);
+      if (backgroundGroup) backgroundGroup.classList.toggle('hidden', target !== 'image/jpeg');
+    }
+
+    function imageMimeToExtension(mime) {
+      const type = (mime || '').toLowerCase().split(';')[0];
+      const extensions = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'image/avif': 'avif',
+        'image/bmp': 'bmp'
+      };
+      return extensions[type] || 'png';
+    }
+
+    function canvasToBlobStrict(canvas, mime, quality) {
+      return new Promise((resolve, reject) => {
+        if (!canvas || typeof canvas.toBlob !== 'function') {
+          reject(new Error('Browser tidak mendukung ekspor format gambar ini.'));
+          return;
+        }
+        canvas.toBlob(blob => {
+          if (!blob) {
+            reject(new Error('Browser gagal membuat file gambar.'));
+            return;
+          }
+          const requested = (mime || '').toLowerCase();
+          const actual = (blob.type || '').toLowerCase();
+          if (actual !== requested) {
+            const label = requested === 'image/avif' ? 'AVIF' : requested;
+            reject(new Error(`Browser ini belum mendukung ekspor ${label}. Pilih format JPG, PNG, atau WebP.`));
+            return;
+          }
+          resolve(blob);
+        }, mime, quality);
+      });
+    }
+
+    function canvasToBmpBlob(canvas) {
+      const width = canvas.width;
+      const height = canvas.height;
+      const source = canvas.getContext('2d').getImageData(0, 0, width, height).data;
+      const rowStride = Math.ceil((width * 3) / 4) * 4;
+      const pixelBytes = rowStride * height;
+      const buffer = new ArrayBuffer(54 + pixelBytes);
+      const view = new DataView(buffer);
+      const bytes = new Uint8Array(buffer);
+
+      // BITMAPFILEHEADER.
+      view.setUint16(0, 0x4D42, true);
+      view.setUint32(2, 54 + pixelBytes, true);
+      view.setUint16(6, 0, true);
+      view.setUint16(8, 0, true);
+      view.setUint32(10, 54, true);
+
+      // BITMAPINFOHEADER (24-bit, uncompressed BI_RGB).
+      view.setUint32(14, 40, true);
+      view.setInt32(18, width, true);
+      view.setInt32(22, height, true);
+      view.setUint16(26, 1, true);
+      view.setUint16(28, 24, true);
+      view.setUint32(30, 0, true);
+      view.setUint32(34, pixelBytes, true);
+      view.setInt32(38, 2835, true);
+      view.setInt32(42, 2835, true);
+      view.setUint32(46, 0, true);
+      view.setUint32(50, 0, true);
+
+      for (let y = 0; y < height; y++) {
+        const targetRow = 54 + (height - 1 - y) * rowStride;
+        for (let x = 0; x < width; x++) {
+          const sourceIndex = (y * width + x) * 4;
+          const targetIndex = targetRow + x * 3;
+          const alpha = source[sourceIndex + 3] / 255;
+          const red = Math.round(source[sourceIndex] * alpha + 255 * (1 - alpha));
+          const green = Math.round(source[sourceIndex + 1] * alpha + 255 * (1 - alpha));
+          const blue = Math.round(source[sourceIndex + 2] * alpha + 255 * (1 - alpha));
+          bytes[targetIndex] = blue;
+          bytes[targetIndex + 1] = green;
+          bytes[targetIndex + 2] = red;
+        }
+      }
+      return new Blob([buffer], { type: 'image/bmp' });
+    }
+
+    async function embedCanvasImageForPdf(pdfDoc, item, canvas, qualityMode) {
+      const profiles = {
+        'very-low': { scale: 0.52, quality: 0.34 },
+        low: { scale: 0.68, quality: 0.50 },
+        medium: { scale: 0.84, quality: 0.68 },
+        high: { scale: 1, quality: 0.86 }
+      };
+
+      if (qualityMode === 'original') {
+        const sourceType = (item.type || '').toLowerCase();
+        if (sourceType.includes('png') && item.rotation === 0 && item.arrayBuffer) {
+          return pdfDoc.embedPng(item.arrayBuffer);
+        }
+        if ((sourceType.includes('jpeg') || sourceType.includes('jpg')) && item.rotation === 0 && item.arrayBuffer) {
+          return pdfDoc.embedJpg(item.arrayBuffer);
+        }
+        if (sourceType.includes('jpeg') || sourceType.includes('jpg')) {
+          const jpeg = await canvasToBlobStrict(canvas, 'image/jpeg', 1);
+          return pdfDoc.embedJpg(await jpeg.arrayBuffer());
+        }
+        const png = await canvasToBlobStrict(canvas, 'image/png');
+        return pdfDoc.embedPng(await png.arrayBuffer());
+      }
+
+      const profile = profiles[qualityMode] || profiles.high;
+      const scaled = profile.scale < 1
+        ? resizeCanvas(canvas, Math.max(1, Math.round(canvas.width * profile.scale)), Math.max(1, Math.round(canvas.height * profile.scale)), 'stretch')
+        : canvas;
+      const whiteCanvas = document.createElement('canvas');
+      whiteCanvas.width = scaled.width;
+      whiteCanvas.height = scaled.height;
+      const ctx = whiteCanvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, whiteCanvas.width, whiteCanvas.height);
+      ctx.drawImage(scaled, 0, 0);
+
+      const jpeg = await canvasToBlobStrict(whiteCanvas, 'image/jpeg', profile.quality);
+      return pdfDoc.embedJpg(await jpeg.arrayBuffer());
+    }
+
     // --- ENGINE 11: BATCH IMAGE OPERATIONS ---
     async function runBatchImageProcess(baseName, mode) {
       const imgItems = state.items.filter(i => i.isImage && i.thumbUrl);
@@ -3369,8 +3532,11 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
           mime = 'image/png';
         }
 
-        const ext = mime === 'image/png' ? 'png' : (mime === 'image/webp' ? 'webp' : 'jpg');
-        const blob = await new Promise(r => outCanvas.toBlob(r, mime, quality));
+        const blob = mime === 'image/bmp'
+          ? canvasToBmpBlob(outCanvas)
+          : await canvasToBlobStrict(outCanvas, mime, quality);
+        const outputMime = blob.type || mime;
+        const ext = imageMimeToExtension(outputMime);
         const innerName = `${firstClean}_${String(i + 1).padStart(2, '0')}.${ext}`;
         zip.file(innerName, blob);
         if (imgItems.length === 1) {
