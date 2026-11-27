@@ -2087,7 +2087,7 @@
         extBadge.textContent = '.gif';
         filenameInput.value = 'MiDoc_Animasi';
         btnLabel.textContent = 'Buat GIF Animasi';
-        box.innerHTML = '<div><label class="block text-xs font-semibold mb-1">Mode GIF</label><select id="optGifMode" onchange="updateGifToolMode()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="create" selected>Buat GIF dari rangkaian gambar</option><option value="extract">Ekstrak frame dari file GIF</option></select></div><p id="gifModeDescription" class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-200 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">Pilih minimal dua gambar statis. Urutan kartu menjadi urutan frame GIF.</p><div id="gifCreateOptions" class="space-y-3"><div><label class="block text-xs font-semibold mb-1">Durasi setiap frame (ms)</label><input id="optGifDelay" type="number" min="20" max="10000" step="10" value="250" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" /></div><div><label class="block text-xs font-semibold mb-1">Pengulangan</label><select id="optGifRepeat" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="0" selected>Berulang terus</option><option value="-1">Putar satu kali</option><option value="3">Ulangi 3 kali</option></select></div><div><label class="block text-xs font-semibold mb-1">Lebar maksimum</label><select id="optGifMaxWidth" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="0" selected>Ikuti ukuran gambar pertama</option><option value="480">480 px</option><option value="720">720 px</option><option value="1080">1080 px</option></select></div></div><p id="gifExtractOptions" class="hidden p-2.5 rounded-sm border border-zinc-200 dark:border-darkLine text-[11px] text-zinc-500">Pilih tepat satu file GIF animasi. Semua frame akan disimpan sebagai PNG dalam arsip ZIP.</p>';
+        box.innerHTML = '<div><label class="block text-xs font-semibold mb-1">Mode GIF</label><select id="optGifMode" onchange="updateGifToolMode()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="create" selected>Buat GIF dari rangkaian gambar</option><option value="extract">Ekstrak frame dari file GIF</option></select></div><p id="gifModeDescription" class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-200 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">Pilih minimal dua gambar statis. Urutan kartu menjadi urutan frame GIF.</p><div id="gifCreateOptions" class="space-y-3"><div><label class="block text-xs font-semibold mb-1">Durasi setiap frame (ms)</label><input id="optGifDelay" type="number" min="20" max="10000" step="10" value="250" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" /></div><div><label class="block text-xs font-semibold mb-1">Pengulangan</label><select id="optGifRepeat" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="0" selected>Berulang terus</option><option value="-1">Putar satu kali</option><option value="3">Ulangi 3 kali</option></select></div><div><label class="block text-xs font-semibold mb-1">Lebar maksimum</label><select id="optGifMaxWidth" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="0" selected>Ikuti proporsi gambar (maks. 1080 px)</option><option value="480">480 px</option><option value="720">720 px</option><option value="1080">1080 px</option></select></div></div><p id="gifExtractOptions" class="hidden p-2.5 rounded-sm border border-zinc-200 dark:border-darkLine text-[11px] text-zinc-500">Pilih tepat satu file GIF animasi. Semua frame akan disimpan sebagai PNG dalam arsip ZIP.</p>';
         updateGifToolMode();
       } else if (engine === 'zip-maker') {
         extBadge.textContent = '.zip';
@@ -4503,6 +4503,7 @@
     async function createAnimatedGif(baseName) {
       const images = state.items.filter(item => item.isImage && item.thumbUrl);
       if (images.length < 2) throw new Error('GIF Maker memerlukan minimal dua gambar statis.');
+      if (images.length > 150) throw new Error('GIF Maker menerima maksimal 150 frame dalam satu animasi. Kurangi jumlah gambar agar browser tetap stabil.');
       if (typeof window.GIF !== 'function') throw new Error('GIF encoder belum berhasil dimuat. Periksa koneksi internet lalu muat ulang halaman.');
       const sourceFrames = [];
       for (let i = 0; i < images.length; i++) {
@@ -4511,8 +4512,12 @@
       }
       const first = sourceFrames[0];
       const maxWidth = parseInt(document.getElementById('optGifMaxWidth')?.value || '0', 10);
-      const outputWidth = maxWidth > 0 ? Math.min(first.width, maxWidth) : first.width;
+      const requestedWidth = maxWidth > 0 ? Math.min(first.width, maxWidth) : Math.min(first.width, 1080);
+      const outputWidth = Math.max(1, requestedWidth);
       const outputHeight = Math.max(1, Math.round(first.height * outputWidth / first.width));
+      if (outputWidth > 2400 || outputHeight > 4000 || outputWidth * outputHeight > 6000000) {
+        throw new Error('Ukuran frame GIF terlalu besar. Pilih batas lebar 480, 720, atau 1080 px agar dapat dibuat dengan aman.');
+      }
       const delay = Math.max(20, Math.min(10000, parseInt(document.getElementById('optGifDelay')?.value || '250', 10)));
       const repeat = parseInt(document.getElementById('optGifRepeat')?.value || '0', 10);
       const prepared = [];
