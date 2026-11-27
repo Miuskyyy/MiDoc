@@ -62,10 +62,10 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
           const html = fs.readFileSync('index.html', 'utf8');
-          const tools = [...html.matchAll(/\\{\\s*id:\\s*'([^']+)',\\s*name:\\s*'([^']+)'[^}]*engine:\\s*'([^']+)'/g)]
+          const tools = [...html.matchAll(/\{\s*id:\s*'([^']+)',\s*name:\s*'([^']+)'[^}]*engine:\s*'([^']+)'/g)]
             .map(match => ({ id: match[1], name: match[2], engine: match[3] }));
-          const policyBlock = html.match(/const TOOL_INPUT_RULES = \\{([\\s\\S]*?)\\n    \\};/)?.[1] || '';
-          const policies = [...policyBlock.matchAll(/'([^']+)'\\s*:/g)].map(match => match[1]);
+          const policyBlock = html.match(/const TOOL_INPUT_RULES = \{([\s\S]*?)\n    \};/)?.[1] || '';
+          const policies = [...policyBlock.matchAll(/'([^']+)'\s*:/g)].map(match => match[1]);
           const missing = tools.filter(tool => !policies.includes(tool.id));
           if (!tools.length) throw new Error('Tool catalog could not be read.');
           if (missing.length) throw new Error('Missing input policy: ' + missing.map(tool => tool.id).join(', '));
@@ -97,9 +97,11 @@ jobs:
           ];
           const missingMarkers = required.filter(([, marker]) => !html.includes(marker)).map(([label]) => label);
           if (missingMarkers.length) throw new Error('Missing expected behavior: ' + missingMarkers.join(', '));
-          const finish = html.match(/function finishWithBlob\\([\\s\\S]*?\\n    \\}/)?.[0] || '';
-          if (!finish.includes('reDownloadBtn') || /link\\.click\\(\\)/.test(finish)) {
-            throw new Error('Results must be presented first and downloaded only after explicit user action.');
+          const finish = html.match(/function finishWithBlob\([\s\S]*?\n    \}/)?.[0] || '';
+          const userAction = finish.indexOf("reDownloadBtn').onclick");
+          const downloadCall = finish.indexOf('link.click()');
+          if (userAction < 0 || (downloadCall >= 0 && downloadCall < userAction)) {
+            throw new Error('Results must be shown first and downloaded only after the user clicks the download button.');
           }
           console.log('MiDoc audit checks passed for ' + tools.length + ' tools; all have explicit input rules.');
           NODE
