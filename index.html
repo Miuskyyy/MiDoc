@@ -187,9 +187,7 @@
           <div id="navSearchDropdown" class="hidden absolute right-0 mt-1 w-80 max-h-96 overflow-y-auto rounded-sm bg-white dark:bg-darkSurface border border-zinc-300 dark:border-darkLine p-1.5 z-50"></div>
         </div>
 
-        <span class="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-mono text-zinc-600 dark:text-zinc-400">
-          Lokal • Tanpa Upload Server
-        </span>
+
 
         <!-- Theme Switcher -->
         <button onclick="toggleTheme()" class="p-2 rounded-sm border border-zinc-200 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent" title="Ganti Tema Terang / Gelap">
@@ -863,7 +861,9 @@
       splitterSelectedItemId: null,
       activeMenu: null,
       previewDisplayMode: 'full', // 'full' | 'fit'
-      previewZoom: 100
+      previewZoom: 100,
+      zipArchiveFiles: [],
+      zipArchiveSourceName: null
     };
 
     let toolNavigationRequestId = 0;
@@ -907,11 +907,14 @@
 
     function navigateToHome(options = {}) {
       closeMegaMenu();
-      // Cancel any pending workspace transition before returning home.
-      toolNavigationRequestId += 1;
-      if (options.updateHistory !== false && window.location.hash) {
-        window.history.pushState({ view: 'home' }, '', window.location.pathname + window.location.search);
+      if (!options.fromRoute) {
+        const target = window.location.pathname + window.location.search;
+        const current = window.location.pathname + window.location.search + window.location.hash;
+        if (current === target) window.location.reload();
+        else window.location.assign(target);
+        return;
       }
+
       state.currentView = 'home';
       document.title = HOME_DOCUMENT_TITLE;
       document.getElementById('homeDirectoryView').classList.remove('hidden');
@@ -924,16 +927,28 @@
     }
 
     function restoreRouteFromLocation() {
-      const match = window.location.hash.match(/^#tool=([^&]+)/);
-      if (match) {
-        const toolId = decodeURIComponent(match[1]);
-        const exists = getAllToolsFlat().some(tool => tool.id === toolId);
-        if (exists) {
-          openToolWorkspace(toolId, { updateHistory: false, showLoading: false });
-          return;
+      const routeParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const toolId = routeParams.get('tool');
+      const transferId = routeParams.get('transfer');
+
+      if (toolId && getAllToolsFlat().some(tool => tool.id === toolId)) {
+        openToolWorkspace(toolId, { fromRoute: true });
+        if (transferId) {
+          consumePendingToolTransfer(transferId)
+            .then(async files => {
+              if (files.length) {
+                await ingestFilesInExactOrder(files);
+                window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + '#tool=' + encodeURIComponent(toolId));
+              }
+            })
+            .catch(error => {
+              console.error(error);
+              showToast('File antar-alat tidak dapat dipulihkan: ' + error.message, 'error');
+            });
         }
+        return;
       }
-      navigateToHome({ updateHistory: false });
+      navigateToHome({ fromRoute: true });
     }
 
     function updateNavbarActiveCategory(activeKey) {
@@ -959,92 +974,147 @@
     }
 
     function openToolWorkspace(toolId, options = {}) {
-      const allTools = getAllToolsFlat();
-      const found = allTools.find(t => t.id === toolId);
+      const found = getAllToolsFlat().find(tool => tool.id === toolId);
       if (!found) return;
 
-      const updateHistory = options.updateHistory !== false;
-      const showLoading = options.showLoading !== false;
-      const nextHash = '#tool=' + encodeURIComponent(toolId);
-      if (updateHistory && window.location.hash !== nextHash) {
-        window.history.pushState({ toolId }, '', nextHash);
-      }
-
-      const requestId = ++toolNavigationRequestId;
-      const overlay = document.getElementById('toolLoadingOverlay');
-      if (showLoading) {
-        document.getElementById('toolLoadingTitle').textContent = 'Membuka ' + found.name;
-        overlay.classList.remove('hidden');
-        overlay.setAttribute('aria-hidden', 'false');
-      } else {
-        overlay.classList.add('hidden');
-        overlay.setAttribute('aria-hidden', 'true');
+      if (!options.fromRoute) {
+        const target = window.location.pathname + window.location.search + '#tool=' + encodeURIComponent(toolId);
+        const current = window.location.pathname + window.location.search + window.location.hash;
+        if (current === target) window.location.reload();
+        else window.location.assign(target);
+        return;
       }
 
       closeMegaMenu();
-      const searchDropdown = document.getElementById('navSearchDropdown');
-      if (searchDropdown) searchDropdown.classList.add('hidden');
+      state.activeToolObj = found;
+      state.activeEngine = found.engine;
+      state.currentView = 'workspace';
+      document.title = 'MiDoc - ' + found.name;
+
+      document.getElementById('homeDirectoryView').classList.add('hidden');
+      document.getElementById('toolWorkspaceView').classList.remove('hidden');
+      document.getElementById('toolLoadingOverlay').classList.add('hidden');
+      document.getElementById('toolLoadingOverlay').setAttribute('aria-hidden', 'true');
       document.getElementById('mobileNavDrawer').classList.add('hidden');
 
-      // Let the browser paint the loading state before rebuilding the workspace.
-      window.requestAnimationFrame(() => {
-        if (requestId !== toolNavigationRequestId) return;
+      const navCategory = NAV_CATEGORIES.find(category => category.toolIds.includes(found.id));
+      const navGroup = navCategory
+        ? NAV_GROUPS.find(group => group.categoryIds.includes(navCategory.id))
+        : null;
+      updateNavbarActiveCategory(navGroup ? navGroup.id : 'home');
 
-        state.activeToolObj = found;
-        state.activeEngine = found.engine;
-        state.currentView = 'workspace';
+      document.getElementById('wsGroupLabel').textContent = navCategory ? navCategory.label : found.groupTitle;
+      document.getElementById('wsTitle').textContent = found.name;
+      document.getElementById('wsDesc').textContent = found.desc;
+      document.getElementById('wsIconBox').innerHTML = `<i data-lucide="${found.icon}" class="w-5 h-5"></i>`;
 
-        document.title = 'MiDoc - ' + found.name;
-        document.getElementById('homeDirectoryView').classList.add('hidden');
-        document.getElementById('toolWorkspaceView').classList.remove('hidden');
+      const bridge = document.getElementById('crossToolBridgeContainer');
+      if (found.engine === 'join-images') {
+        bridge.innerHTML = `
+          <button onclick="navigateToToolWithCurrentImages('image-splitter')" class="px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-semibold flex items-center gap-1.5">
+            <i data-lucide="grid" class="w-3.5 h-3.5 text-accent"></i>
+            <span>Buka Image Splitter (Pemisah Grid)</span>
+          </button>
+        `;
+      } else if (found.engine === 'image-splitter') {
+        bridge.innerHTML = `
+          <button onclick="navigateToToolWithCurrentImages('join-images')" class="px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-semibold flex items-center gap-1.5">
+            <i data-lucide="columns" class="w-3.5 h-3.5 text-accent"></i>
+            <span>Buka Image Joiner (Gabung Gambar)</span>
+          </button>
+        `;
+      } else {
+        bridge.innerHTML = '';
+      }
 
-        const navCategory = NAV_CATEGORIES.find(category => category.toolIds.includes(found.id));
-        const navGroup = navCategory
-          ? NAV_GROUPS.find(group => group.categoryIds.includes(navCategory.id))
-          : null;
-        updateNavbarActiveCategory(navGroup ? navGroup.id : 'home');
+      document.getElementById('resultOutputBox').classList.add('hidden');
+      document.getElementById('progressContainer').classList.add('hidden');
+      renderEngineSettings(found);
+      renderWorkspaceItems();
+      updateFilenamePreviewHint();
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      lucide.createIcons();
+    }
 
-        document.getElementById('wsGroupLabel').textContent = navCategory ? navCategory.label : found.groupTitle;
-        document.getElementById('wsTitle').textContent = found.name;
-        document.getElementById('wsDesc').textContent = found.desc;
-        document.getElementById('wsIconBox').innerHTML = `<i data-lucide="${found.icon}" class="w-5 h-5"></i>`;
-
-        // Keep the Joiner <-> Splitter bridge available between related tools.
-        const bridge = document.getElementById('crossToolBridgeContainer');
-        if (found.engine === 'join-images') {
-          bridge.innerHTML = `
-            <button onclick="openToolWorkspace('image-splitter')" class="px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-semibold flex items-center gap-1.5">
-              <i data-lucide="grid" class="w-3.5 h-3.5 text-accent"></i>
-              <span>Buka Image Splitter (Pemisah Grid)</span>
-            </button>
-          `;
-        } else if (found.engine === 'image-splitter') {
-          bridge.innerHTML = `
-            <button onclick="openToolWorkspace('join-images')" class="px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-semibold flex items-center gap-1.5">
-              <i data-lucide="columns" class="w-3.5 h-3.5 text-accent"></i>
-              <span>Buka Image Joiner (Gabung Gambar)</span>
-            </button>
-          `;
-        } else {
-          bridge.innerHTML = '';
+    function openToolTransferDatabase() {
+      return new Promise((resolve, reject) => {
+        if (!('indexedDB' in window)) {
+          reject(new Error('Browser tidak menyediakan penyimpanan transfer file.'));
+          return;
         }
-
-        document.getElementById('resultOutputBox').classList.add('hidden');
-        renderEngineSettings(found);
-        renderWorkspaceItems();
-        updateFilenamePreviewHint();
-        window.scrollTo({ top: 0, behavior: 'auto' });
-        lucide.createIcons();
-
-        if (showLoading) {
-          window.setTimeout(() => {
-            if (requestId === toolNavigationRequestId) {
-              overlay.classList.add('hidden');
-              overlay.setAttribute('aria-hidden', 'true');
-            }
-          }, 180);
-        }
+        const request = indexedDB.open('midoc-tool-transfer', 1);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains('pending')) db.createObjectStore('pending', { keyPath: 'id' });
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('Gagal membuka penyimpanan transfer.'));
       });
+    }
+
+    async function savePendingToolTransfer(files) {
+      const db = await openToolTransferDatabase();
+      const id = (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 'transfer_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+      const items = files.map(file => ({
+        name: file.name || 'MiDoc_File',
+        type: file.type || 'application/octet-stream',
+        lastModified: file.lastModified || Date.now(),
+        blob: file
+      }));
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction('pending', 'readwrite');
+        tx.objectStore('pending').put({ id, createdAt: Date.now(), items });
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error || new Error('Gagal menyimpan file sementara.'));
+        tx.onabort = () => reject(tx.error || new Error('Transfer file dibatalkan.'));
+      });
+      db.close();
+      return id;
+    }
+
+    async function consumePendingToolTransfer(id) {
+      const db = await openToolTransferDatabase();
+      const record = await new Promise((resolve, reject) => {
+        const tx = db.transaction('pending', 'readwrite');
+        const store = tx.objectStore('pending');
+        const request = store.get(id);
+        let value = null;
+        request.onsuccess = () => {
+          value = request.result || null;
+          if (value) store.delete(id);
+        };
+        request.onerror = () => reject(request.error || new Error('Gagal membaca file sementara.'));
+        tx.oncomplete = () => resolve(value);
+        tx.onerror = () => reject(tx.error || new Error('Gagal mengambil file sementara.'));
+        tx.onabort = () => reject(tx.error || new Error('Transfer file dibatalkan.'));
+      });
+      db.close();
+      return (record?.items || []).map(item => new File(
+        [item.blob], item.name, { type: item.type, lastModified: item.lastModified }
+      ));
+    }
+
+    async function navigateToToolWithFiles(toolId, files) {
+      if (!files || !files.length) {
+        openToolWorkspace(toolId);
+        return;
+      }
+      try {
+        const transferId = await savePendingToolTransfer(files);
+        const target = window.location.pathname + window.location.search +
+          '#tool=' + encodeURIComponent(toolId) + '&transfer=' + encodeURIComponent(transferId);
+        window.location.assign(target);
+      } catch (error) {
+        console.error(error);
+        showToast('Tidak dapat membawa file ke alat berikutnya: ' + error.message, 'error');
+      }
+    }
+
+    function navigateToToolWithCurrentImages(toolId) {
+      const files = state.items.filter(item => item.isImage && item.file).map(item => item.file);
+      return navigateToToolWithFiles(toolId, files);
     }
 
     function getAllToolsFlat() {
@@ -2712,10 +2782,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
         sendBtn.classList.remove('hidden');
         sendBtn.onclick = async () => {
           const joinedFile = state.lastProcessedImageFile;
-          state.items = [];
-          state.dropCounter = 0;
-          openToolWorkspace('image-splitter');
-          await ingestFilesInExactOrder([joinedFile]);
+          await navigateToToolWithFiles('image-splitter', [joinedFile]);
         };
       } else {
         sendBtn.classList.add('hidden');
