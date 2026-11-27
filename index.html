@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MiDoc — Studio Dokumen & Gambar Presisi Tinggi</title>
+  <title>MiDoc - Studio Dokumen &amp; Gambar</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts: Plus Jakarta Sans, IBM Plex Sans & JetBrains Mono -->
@@ -98,6 +98,29 @@
       background-size: 13px 13px;
     }
 
+    #desktopNavCategories {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    #desktopNavCategories::-webkit-scrollbar {
+      display: none;
+    }
+    #megaMenuContainer {
+      max-height: min(72vh, 620px);
+      overflow-y: auto;
+    }
+    @keyframes midocSpin {
+      to { transform: rotate(360deg); }
+    }
+    .midoc-loading-spinner {
+      width: 34px;
+      height: 34px;
+      border: 3px solid rgba(113, 113, 122, 0.22);
+      border-top-color: #2563EB;
+      border-radius: 50%;
+      animation: midocSpin 0.72s linear infinite;
+    }
+
     /* Subtle flat checkerboard for transparent PNGs */
     .checkerboard {
       background-image:
@@ -125,8 +148,8 @@
     <div class="max-w-[1440px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
       
       <!-- Left: Brand + Mega Menu Triggers -->
-      <div class="flex items-center h-full gap-1">
-        <button onclick="navigateToHome()" class="flex items-center gap-2.5 pr-4 h-full text-left focus:outline-none">
+      <div class="flex items-center h-full gap-1 flex-1 min-w-0">
+        <button onclick="navigateToHome()" class="flex items-center gap-2.5 pr-3 h-full text-left focus:outline-none shrink-0">
           <span class="w-7 h-7 rounded-sm bg-accent text-white font-display font-extrabold text-base flex items-center justify-center">
             M
           </span>
@@ -135,32 +158,18 @@
           </span>
         </button>
 
-        <!-- Desktop Mega Menu Triggers (Beranda tepat di samping MiDoc) -->
-        <nav class="hidden lg:flex items-center h-full" id="desktopNav">
-          <button onclick="navigateToHome()" id="navHomeBtn" class="h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-accent border-b-2 border-accent">
+        <!-- Desktop navigation: category tabs are populated from NAV_CATEGORIES -->
+        <nav class="hidden lg:flex items-center h-full flex-1 min-w-0" id="desktopNav">
+          <button onclick="navigateToHome()" id="navHomeBtn" class="h-full px-3 flex items-center gap-1.5 text-xs font-semibold text-accent border-b-2 border-accent whitespace-nowrap shrink-0">
             <span>Beranda</span>
           </button>
-
-          <button data-menu="pdf" class="nav-trigger h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-b-2 border-transparent">
-            <span>Alat PDF</span>
-            <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-70"></i>
-          </button>
-
-          <button data-menu="image" class="nav-trigger h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-b-2 border-transparent">
-            <span>Alat Gambar</span>
-            <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-70"></i>
-          </button>
-
-          <button data-menu="converter" class="nav-trigger h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-b-2 border-transparent">
-            <span>Konverter & Utilitas</span>
-            <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-70"></i>
-          </button>
+          <div id="desktopNavCategories" class="flex items-center h-full gap-0.5 flex-1 min-w-0 overflow-x-auto"></div>
         </nav>
       </div>
 
       <!-- Right: Quick Search, Theme Switcher, Mobile Toggle -->
       <div class="flex items-center gap-2">
-        <div class="relative hidden sm:block w-56 md:w-64">
+        <div class="relative hidden 2xl:block w-44 shrink-0">
           <i data-lucide="search" class="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
           <input
             id="navToolSearch"
@@ -171,7 +180,7 @@
           <div id="navSearchDropdown" class="hidden absolute right-0 mt-1 w-80 max-h-96 overflow-y-auto rounded-sm bg-white dark:bg-darkSurface border border-zinc-300 dark:border-darkLine p-1.5 z-50"></div>
         </div>
 
-        <span class="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-mono text-zinc-600 dark:text-zinc-400">
+        <span class="hidden 2xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-mono text-zinc-600 dark:text-zinc-400">
           Lokal • Tanpa Upload Server
         </span>
 
@@ -197,6 +206,14 @@
       <div id="mobileMenuContent" class="space-y-4"></div>
     </div>
   </header>
+
+  <div id="toolLoadingOverlay" class="hidden fixed inset-0 z-[100] bg-white/85 dark:bg-black/75 flex items-center justify-center px-5" role="status" aria-live="polite" aria-hidden="true">
+    <div class="w-full max-w-xs border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkSurface p-6 text-center">
+      <div class="midoc-loading-spinner mx-auto mb-4"></div>
+      <h2 id="toolLoadingTitle" class="font-display text-sm font-bold text-ink dark:text-white">Membuka alat...</h2>
+      <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Menyiapkan workspace MiDoc di perangkat ini</p>
+    </div>
+  </div>
 
   <!-- ==================== VIEW 1: BERANDA UTAMA (DIRECTORY HUB) ==================== -->
   <main id="homeDirectoryView" class="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-8 sm:py-10">
@@ -700,7 +717,7 @@
           { id: 'watermark-image', name: 'Watermark & Teks Gambar', desc: 'Tambahkan teks hak cipta atau label pada foto', icon: 'type', engine: 'watermark-image' },
           { id: 'photo-signature', name: 'Foto + Tanda Tangan & Stempel Digital', desc: 'Gabungkan pas foto dengan gambar tanda tangan/stempel', icon: 'pen-tool', engine: 'overlay-images' },
           { id: 'color-filters', name: 'Filter Warna (Grayscale, Sepia, Invert, Kontras, Blur)', desc: 'Sesuaikan pencahayaan, hitam-putih, sepia, kontras, atau pixelate', icon: 'sliders', engine: 'filters-image' },
-          { id: 'remove-exif', name: 'Hapus Metadata EXIF', desc: 'Bersihkan data lokasi GPS & info kamera dari file foto', icon: 'shield', engine: 'convert-image' }
+          { id: 'remove-exif', name: 'Image Format Converter (JPG / PNG / WebP)', desc: 'Ubah format gambar dan bersihkan metadata gambar melalui ekspor ulang', icon: 'file-image', engine: 'convert-image' }
         ]
       },
       {
@@ -717,6 +734,83 @@
           { id: 'password-gen', name: 'Password Generator', desc: 'Buat kata sandi acak kuat untuk pengamanan dokumen', icon: 'key-round', engine: 'password-gen' },
           { id: 'unit-converter', name: 'Konverter Satuan PX / CM / MM / Inch', desc: 'Konversi satuan desain grafis dan cetak secara presisi', icon: 'calculator', engine: 'dpi-calc' }
         ]
+      }
+    ];
+
+    // =========================================================================
+    // TOP NAVIGATION CATEGORIES (11zon-style grouped tool menus)
+    // Every entry points to an existing tool ID in DIRECTORY_GROUPS.
+    // =========================================================================
+    const NAV_CATEGORIES = [
+      {
+        id: 'pdf-optimize',
+        label: 'Optimize PDF',
+        icon: 'minimize-2',
+        description: 'Perkecil ukuran dokumen PDF.',
+        toolIds: ['compress-pdf']
+      },
+      {
+        id: 'pdf-merge-split',
+        label: 'Merge & Split',
+        icon: 'combine',
+        description: 'Gabungkan PDF dan gambar atau pisahkan halaman PDF.',
+        toolIds: ['merge-pdf', 'merge-pdf-image', 'split-pdf']
+      },
+      {
+        id: 'pdf-view-edit',
+        label: 'View & Edit',
+        icon: 'file-pen-line',
+        description: 'Atur halaman, putar, potong, ekstrak, dan tambahkan elemen PDF.',
+        toolIds: ['crop-pdf', 'organize-pdf', 'rotate-pdf', 'extract-pdf-pages', 'extract-pdf-images', 'page-number-pdf', 'watermark-pdf']
+      },
+      {
+        id: 'pdf-to',
+        label: 'Convert to PDF',
+        icon: 'file-input',
+        description: 'Ubah gambar dan dokumen menjadi PDF.',
+        toolIds: ['image-to-pdf', 'word-to-pdf', 'ppt-to-pdf', 'excel-to-pdf', 'txt-to-pdf', 'ebook-to-pdf']
+      },
+      {
+        id: 'pdf-from',
+        label: 'Convert from PDF',
+        icon: 'file-output',
+        description: 'Ekspor isi PDF menjadi gambar atau format teks.',
+        toolIds: ['pdf-to-image', 'pdf-to-word', 'pdf-to-ebook']
+      },
+      {
+        id: 'pdf-security',
+        label: 'PDF Security',
+        icon: 'shield-check',
+        description: 'Kelola perlindungan dokumen PDF.',
+        toolIds: ['protect-pdf']
+      },
+      {
+        id: 'image-optimize',
+        label: 'Optimize Image',
+        icon: 'image-down',
+        description: 'Kompres, ubah dimensi, dan siapkan gambar untuk kebutuhan cetak.',
+        toolIds: ['compress-image', 'resize-pixel', 'resize-official', 'bulk-resize', 'dpi-checker']
+      },
+      {
+        id: 'image-convert',
+        label: 'Convert Image',
+        icon: 'images',
+        description: 'Konversi format gambar dan kelola GIF.',
+        toolIds: ['remove-exif', 'gif-tools']
+      },
+      {
+        id: 'image-edit',
+        label: 'Edit Image',
+        icon: 'image-edit',
+        description: 'Potong, putar, gabungkan, susun, dan beri efek pada gambar.',
+        toolIds: ['image-splitter', 'join-images', 'stitch-screenshot', 'photo-collage', 'overlay-images', 'crop-circle', 'rotate-flip', 'rounded-corners', 'watermark-image', 'photo-signature', 'color-filters']
+      },
+      {
+        id: 'utilities',
+        label: 'Utilities & Batch',
+        icon: 'wrench',
+        description: 'Alat bantu file, arsip, penamaan, kode, dan konversi satuan.',
+        toolIds: ['batch-rename', 'zip-tools', 'color-picker', 'qr-generator', 'password-gen', 'unit-converter']
       }
     ];
 
@@ -740,6 +834,9 @@
       previewZoom: 100
     };
 
+    let toolNavigationRequestId = 0;
+    const HOME_DOCUMENT_TITLE = 'MiDoc - Studio Dokumen & Gambar';
+
     // =========================================================================
     // 3. INITIALIZATION & NAVIGATION
     // =========================================================================
@@ -748,6 +845,8 @@
       renderHomeDirectory('all', '');
       setupNavAndSearch();
       setupWorkspaceDragAndDrop();
+      window.addEventListener('popstate', restoreRouteFromLocation);
+      restoreRouteFromLocation();
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
           closeFullPreviewModal();
@@ -774,13 +873,32 @@
       }
     }
 
-    function navigateToHome() {
+    function navigateToHome(options = {}) {
       closeMegaMenu();
+      if (options.updateHistory !== false && window.location.hash) {
+        window.history.pushState({ view: 'home' }, '', window.location.pathname + window.location.search);
+      }
       state.currentView = 'home';
+      document.title = HOME_DOCUMENT_TITLE;
       document.getElementById('homeDirectoryView').classList.remove('hidden');
       document.getElementById('toolWorkspaceView').classList.add('hidden');
+      document.getElementById('toolLoadingOverlay').classList.add('hidden');
+      document.getElementById('toolLoadingOverlay').setAttribute('aria-hidden', 'true');
       updateNavbarActiveCategory('home');
       window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+
+    function restoreRouteFromLocation() {
+      const match = window.location.hash.match(/^#tool=([^&]+)/);
+      if (match) {
+        const toolId = decodeURIComponent(match[1]);
+        const exists = getAllToolsFlat().some(tool => tool.id === toolId);
+        if (exists) {
+          openToolWorkspace(toolId, { updateHistory: false, showLoading: false });
+          return;
+        }
+      }
+      navigateToHome({ updateHistory: false });
     }
 
     function updateNavbarActiveCategory(activeKey) {
@@ -805,50 +923,90 @@
       });
     }
 
-    function openToolWorkspace(toolId) {
-      closeMegaMenu();
+    function openToolWorkspace(toolId, options = {}) {
       const allTools = getAllToolsFlat();
-      const found = allTools.find(t => t.id === toolId) || allTools[0];
-      state.activeToolObj = found;
-      state.activeEngine = found.engine;
-      state.currentView = 'workspace';
+      const found = allTools.find(t => t.id === toolId);
+      if (!found) return;
 
-      document.getElementById('homeDirectoryView').classList.add('hidden');
-      document.getElementById('toolWorkspaceView').classList.remove('hidden');
-      updateNavbarActiveCategory(found.navCat);
-
-      // Update Workspace Header
-      document.getElementById('wsGroupLabel').textContent = found.groupTitle;
-      document.getElementById('wsTitle').textContent = found.name;
-      document.getElementById('wsDesc').textContent = found.desc;
-      document.getElementById('wsIconBox').innerHTML = `<i data-lucide="${found.icon}" class="w-5 h-5"></i>`;
-
-      // Configure Cross-Tool Bridge (e.g., Joiner <-> Splitter)
-      const bridge = document.getElementById('crossToolBridgeContainer');
-      if (found.engine === 'join-images') {
-        bridge.innerHTML = `
-          <button onclick="openToolWorkspace('image-splitter')" class="px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-semibold flex items-center gap-1.5">
-            <i data-lucide="grid" class="w-3.5 h-3.5 text-accent"></i>
-            <span>Buka Image Splitter (Pemisah Grid)</span>
-          </button>
-        `;
-      } else if (found.engine === 'image-splitter') {
-        bridge.innerHTML = `
-          <button onclick="openToolWorkspace('join-images')" class="px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-semibold flex items-center gap-1.5">
-            <i data-lucide="columns" class="w-3.5 h-3.5 text-accent"></i>
-            <span>Buka Image Joiner (Gabung Gambar)</span>
-          </button>
-        `;
-      } else {
-        bridge.innerHTML = '';
+      const updateHistory = options.updateHistory !== false;
+      const showLoading = options.showLoading !== false;
+      const nextHash = '#tool=' + encodeURIComponent(toolId);
+      if (updateHistory && window.location.hash !== nextHash) {
+        window.history.pushState({ toolId }, '', nextHash);
       }
 
-      document.getElementById('resultOutputBox').classList.add('hidden');
-      renderEngineSettings(found);
-      renderWorkspaceItems();
-      updateFilenamePreviewHint();
-      window.scrollTo({ top: 0, behavior: 'auto' });
-      lucide.createIcons();
+      const requestId = ++toolNavigationRequestId;
+      const overlay = document.getElementById('toolLoadingOverlay');
+      if (showLoading) {
+        document.getElementById('toolLoadingTitle').textContent = 'Membuka ' + found.name;
+        overlay.classList.remove('hidden');
+        overlay.setAttribute('aria-hidden', 'false');
+      } else {
+        overlay.classList.add('hidden');
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+
+      closeMegaMenu();
+      const searchDropdown = document.getElementById('navSearchDropdown');
+      if (searchDropdown) searchDropdown.classList.add('hidden');
+      document.getElementById('mobileNavDrawer').classList.add('hidden');
+
+      // Let the browser paint the loading state before rebuilding the workspace.
+      window.requestAnimationFrame(() => {
+        if (requestId !== toolNavigationRequestId) return;
+
+        state.activeToolObj = found;
+        state.activeEngine = found.engine;
+        state.currentView = 'workspace';
+
+        document.title = HOME_DOCUMENT_TITLE + ' - ' + found.name;
+        document.getElementById('homeDirectoryView').classList.add('hidden');
+        document.getElementById('toolWorkspaceView').classList.remove('hidden');
+
+        const navCategory = NAV_CATEGORIES.find(category => category.toolIds.includes(found.id));
+        updateNavbarActiveCategory(navCategory ? navCategory.id : 'home');
+
+        document.getElementById('wsGroupLabel').textContent = navCategory ? navCategory.label : found.groupTitle;
+        document.getElementById('wsTitle').textContent = found.name;
+        document.getElementById('wsDesc').textContent = found.desc;
+        document.getElementById('wsIconBox').innerHTML = `<i data-lucide="${found.icon}" class="w-5 h-5"></i>`;
+
+        // Keep the Joiner <-> Splitter bridge available between related tools.
+        const bridge = document.getElementById('crossToolBridgeContainer');
+        if (found.engine === 'join-images') {
+          bridge.innerHTML = `
+            <button onclick="openToolWorkspace('image-splitter')" class="px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-semibold flex items-center gap-1.5">
+              <i data-lucide="grid" class="w-3.5 h-3.5 text-accent"></i>
+              <span>Buka Image Splitter (Pemisah Grid)</span>
+            </button>
+          `;
+        } else if (found.engine === 'image-splitter') {
+          bridge.innerHTML = `
+            <button onclick="openToolWorkspace('join-images')" class="px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-semibold flex items-center gap-1.5">
+              <i data-lucide="columns" class="w-3.5 h-3.5 text-accent"></i>
+              <span>Buka Image Joiner (Gabung Gambar)</span>
+            </button>
+          `;
+        } else {
+          bridge.innerHTML = '';
+        }
+
+        document.getElementById('resultOutputBox').classList.add('hidden');
+        renderEngineSettings(found);
+        renderWorkspaceItems();
+        updateFilenamePreviewHint();
+        window.scrollTo({ top: 0, behavior: 'auto' });
+        lucide.createIcons();
+
+        if (showLoading) {
+          window.setTimeout(() => {
+            if (requestId === toolNavigationRequestId) {
+              overlay.classList.add('hidden');
+              overlay.setAttribute('aria-hidden', 'true');
+            }
+          }, 180);
+        }
+      });
     }
 
     function getAllToolsFlat() {
@@ -953,6 +1111,14 @@
         renderHomeDirectory(currentHomeGroupFilter, e.target.value);
       });
 
+      const navCategoryContainer = document.getElementById('desktopNavCategories');
+      navCategoryContainer.innerHTML = NAV_CATEGORIES.map(category => `
+        <button data-menu="${category.id}" class="nav-trigger h-full px-2.5 flex items-center gap-1 text-[11px] font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-b-2 border-transparent whitespace-nowrap shrink-0">
+          <span>${category.label}</span>
+          <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
+        </button>
+      `).join('');
+
       const navSearch = document.getElementById('navToolSearch');
       const navDropdown = document.getElementById('navSearchDropdown');
 
@@ -1003,55 +1169,76 @@
         }
       });
 
-      // Build mobile menu
+      // Build the mobile drawer using the same named categories as desktop navigation.
       const mobileContainer = document.getElementById('mobileMenuContent');
-      mobileContainer.innerHTML = DIRECTORY_GROUPS.map(g => `
-        <div>
-          <div class="text-xs font-bold text-zinc-400 mb-1.5">${g.title}</div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
-            ${g.tools.map(t => `
-              <button onclick="openToolWorkspace('${t.id}'); toggleMobileMenu();" class="p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2 text-xs font-medium">
-                <span class="w-5 h-5 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
-                  <i data-lucide="${t.icon}" class="w-3 h-3"></i>
-                </span>
-                <span class="truncate">${t.name}</span>
-              </button>
-            `).join('')}
-          </div>
-        </div>
-      `).join('');
+      mobileContainer.innerHTML = NAV_CATEGORIES.map(category => {
+        const categoryTools = category.toolIds
+          .map(id => getAllToolsFlat().find(tool => tool.id === id))
+          .filter(Boolean);
+        return `
+          <section class="pb-3 border-b border-zinc-200 dark:border-darkLine last:border-0">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <h3 class="text-xs font-display font-bold text-ink dark:text-white">${category.label}</h3>
+              <span class="text-[10px] font-mono text-zinc-400">${categoryTools.length} alat</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
+              ${categoryTools.map(tool => `
+                <button onclick="openToolWorkspace('${tool.id}')" class="p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2 text-xs font-medium">
+                  <span class="w-6 h-6 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
+                    <i data-lucide="${tool.icon}" class="w-3.5 h-3.5"></i>
+                  </span>
+                  <span class="min-w-0">
+                    <span class="block truncate font-semibold">${tool.name}</span>
+                    <span class="block truncate text-[10px] text-zinc-500">${tool.desc}</span>
+                  </span>
+                </button>
+              `).join('')}
+            </div>
+          </section>
+        `;
+      }).join('');
+
     }
 
     function openMegaMenu(catKey, triggerBtn) {
+      const category = NAV_CATEGORIES.find(item => item.id === catKey);
+      if (!category) return;
+
       state.activeMenu = catKey;
-      document.querySelectorAll('.nav-trigger').forEach(b => {
-        b.classList.remove('bg-zinc-100', 'dark:bg-zinc-800');
+      document.querySelectorAll('.nav-trigger').forEach(button => {
+        button.classList.remove('bg-zinc-100', 'dark:bg-zinc-800');
       });
       triggerBtn.classList.add('bg-zinc-100', 'dark:bg-zinc-800');
 
-      const groups = DIRECTORY_GROUPS.filter(g => g.navCat === catKey);
-      const gridCols = groups.length === 2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-3';
+      const allTools = getAllToolsFlat();
+      const categoryTools = category.toolIds
+        .map(id => allTools.find(tool => tool.id === id))
+        .filter(Boolean);
+
       document.getElementById('megaMenuContent').innerHTML = `
-        <div class="grid ${gridCols} gap-6">
-          ${groups.map(g => `
-            <div>
-              <h3 class="font-display text-xs font-bold text-zinc-400 pb-2 mb-2.5 border-b border-zinc-200 dark:border-darkLine">
-                ${g.title}
-              </h3>
-              <div class="space-y-1">
-                ${g.tools.map(t => `
-                  <button onclick="openToolWorkspace('${t.id}')" class="w-full p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2.5">
-                    <span class="w-7 h-7 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
-                      <i data-lucide="${t.icon}" class="w-3.5 h-3.5"></i>
-                    </span>
-                    <div class="min-w-0">
-                      <div class="text-xs font-bold text-ink dark:text-zinc-100 truncate">${t.name}</div>
-                      <div class="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">${t.desc}</div>
-                    </div>
-                  </button>
-                `).join('')}
-              </div>
+        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 pb-3 border-b border-zinc-200 dark:border-darkLine">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-7 h-7 rounded-sm bg-accent text-white flex items-center justify-center">
+                <i data-lucide="${category.icon}" class="w-4 h-4"></i>
+              </span>
+              <h2 class="font-display text-base font-extrabold text-ink dark:text-white">${category.label}</h2>
             </div>
+            <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">${category.description}</p>
+          </div>
+          <span class="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">${categoryTools.length} alat tersedia</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 pt-3">
+          ${categoryTools.map(tool => `
+            <button onclick="openToolWorkspace('${tool.id}')" class="group w-full p-3 rounded-sm border border-zinc-200 dark:border-darkLine hover:border-accent bg-zinc-50/70 dark:bg-darkCanvas text-left flex items-start gap-3 transition-colors">
+              <span class="w-8 h-8 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
+                <i data-lucide="${tool.icon}" class="w-4 h-4"></i>
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-xs font-bold text-ink dark:text-zinc-100 group-hover:text-accent">${tool.name}</span>
+                <span class="block mt-0.5 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">${tool.desc}</span>
+              </span>
+            </button>
           `).join('')}
         </div>
       `;
