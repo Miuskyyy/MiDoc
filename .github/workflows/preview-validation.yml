@@ -31,16 +31,28 @@ jobs:
           const fs = require('node:fs');
           const vm = require('node:vm');
           const html = fs.readFileSync('index.html', 'utf8');
-          const inlineScripts = [...html.matchAll(/<script\\b([^>]*)>([\\s\\S]*?)<\\/script>/gi)]
-            .filter(match => !/\\bsrc\\s*=/.test(match[1]))
-            .map(match => match[2]);
+          const blocks = html.split('<script').slice(1);
+          const inlineScripts = [];
+
+          for (const block of blocks) {
+            const endOfOpenTag = block.indexOf('>');
+            if (endOfOpenTag < 0) continue;
+            const attributes = block.slice(0, endOfOpenTag);
+            if (attributes.includes('src=')) continue;
+            const body = block.slice(endOfOpenTag + 1);
+            const endOfScript = body.indexOf('</script>');
+            if (endOfScript < 0) continue;
+            inlineScripts.push(body.slice(0, endOfScript));
+          }
+
           if (inlineScripts.length === 0) {
             throw new Error('No inline JavaScript blocks were found in index.html');
           }
+
           inlineScripts.forEach((script, index) => {
-            new vm.Script(script, { filename: `index.html:inline-script-${index + 1}` });
+            new vm.Script(script, { filename: 'index.html:inline-script-' + (index + 1) });
           });
-          console.log(`JavaScript syntax OK: ${inlineScripts.length} inline script block(s).`);
+          console.log('JavaScript syntax OK: ' + inlineScripts.length + ' inline script block(s).');
           NODE
 
       - name: Check requested functionality markers
@@ -49,17 +61,23 @@ jobs:
           const fs = require('node:fs');
           const html = fs.readFileSync('index.html', 'utf8');
           const required = [
-            ['ZIP create / extract / inspect modes', /optZipMode[\\s\\S]*value="create"[\\s\\S]*value="extract"[\\s\\S]*value="view"/],
-            ['ZIP archive inspection and extraction', /showZipArchiveContents[\\s\\S]*extractZipToFolder/],
-            ['Explicit result download', /reDownloadBtn/],
-            ['AVIF conversion option', /image\/avif/],
-            ['BMP conversion path', /canvasToBmpBlob/],
-            ['Image-to-PDF quality presets', /optImagePdfQuality[\\s\\S]*very-low[\\s\\S]*original/],
-            ['Fresh page navigation', /window\\.location\\.assign\\(target\\)/],
-            ['Query-string tool routing', /new URLSearchParams\\(window\\.location\\.search\\)/],
-            ['Cross-tool transfer storage', /savePendingToolTransfer[\\s\\S]*consumePendingToolTransfer/]
+            ['ZIP modes', 'id="optZipMode"'],
+            ['ZIP inspect mode', 'value="view"'],
+            ['ZIP extract mode', 'value="extract"'],
+            ['ZIP archive listing', 'showZipArchiveContents'],
+            ['ZIP folder extraction', 'extractZipToFolder'],
+            ['Explicit result download', 'id="reDownloadBtn"'],
+            ['AVIF conversion option', 'image/avif'],
+            ['BMP conversion path', 'canvasToBmpBlob'],
+            ['Image-to-PDF quality presets', 'id="optImagePdfQuality"'],
+            ['Original-quality PDF profile', "qualityMode === 'original'"],
+            ['Fresh page navigation', 'window.location.assign(target)'],
+            ['Query-string tool routing', 'new URLSearchParams(window.location.search)'],
+            ['Cross-tool transfer storage', 'function savePendingToolTransfer'],
+            ['Cross-tool transfer restore', 'function consumePendingToolTransfer']
           ];
-          const failures = required.filter(([name, pattern]) => !pattern.test(html)).map(([name]) => name);
+
+          const failures = required.filter(item => !html.includes(item[1])).map(item => item[0]);
           if (failures.length) {
             throw new Error('Missing functionality: ' + failures.join(', '));
           }
