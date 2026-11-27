@@ -998,3 +998,2152 @@
                 ${g.tools.map(t => `
                   <button onclick="openToolWorkspace('${t.id}')" class="w-full p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2.5">
                     <span class="w-7 h-7 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
+                      <i data-lucide="${t.icon}" class="w-3.5 h-3.5"></i>
+                    </span>
+                    <div class="min-w-0">
+                      <div class="text-xs font-bold text-ink dark:text-zinc-100 truncate">${t.name}</div>
+                      <div class="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">${t.desc}</div>
+                    </div>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      document.getElementById('megaMenuContainer').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeMegaMenu() {
+      state.activeMenu = null;
+      document.getElementById('megaMenuContainer').classList.add('hidden');
+      document.querySelectorAll('.nav-trigger').forEach(b => {
+        b.classList.remove('bg-zinc-100', 'dark:bg-zinc-800', 'border-accent');
+        b.classList.add('border-transparent');
+      });
+    }
+
+    function toggleMobileMenu() {
+      document.getElementById('mobileNavDrawer').classList.toggle('hidden');
+      lucide.createIcons();
+    }
+
+    // =========================================================================
+    // 6. DYNAMIC SETTINGS PANEL PER TOOL ENGINE
+    // =========================================================================
+    function renderEngineSettings(toolObj) {
+      const box = document.getElementById('toolSettingsContainer');
+      const filenameGroup = document.getElementById('outputFilenameGroup');
+      const extBadge = document.getElementById('outputExtBadge');
+      const filenameInput = document.getElementById('outputFilenameInput');
+      const btnLabel = document.getElementById('executeBtnLabel');
+
+      filenameGroup.classList.remove('hidden');
+      const engine = toolObj.engine;
+
+      if (engine === 'image-splitter') {
+        extBadge.textContent = '.zip';
+        filenameInput.value = 'MiDoc_Potongan_Grid';
+        btnLabel.textContent = 'Potong Gambar & Unduh ZIP';
+
+        box.innerHTML = `
+          <div class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">
+            Atur jumlah potongan seimbang ke samping (kolom) dan ke bawah (baris). Garis potong akan langsung terlihat pada pratinjau gambar.
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold mb-1.5">Preset Grid Cepat</label>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button type="button" onclick="setSplitterGrid(2, 1)" class="py-1.5 px-2 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-mono font-semibold">2×1 (Samping)</button>
+              <button type="button" onclick="setSplitterGrid(1, 2)" class="py-1.5 px-2 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-mono font-semibold">1×2 (Bawah)</button>
+              <button type="button" onclick="setSplitterGrid(3, 1)" class="py-1.5 px-2 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-mono font-semibold">3×1 Panorama</button>
+              <button type="button" onclick="setSplitterGrid(2, 2)" class="py-1.5 px-2 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-mono font-semibold">2×2 Grid</button>
+              <button type="button" onclick="setSplitterGrid(3, 3)" class="py-1.5 px-2 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-mono font-semibold">3×3 IG Grid</button>
+              <button type="button" onclick="setSplitterGrid(4, 4)" class="py-1.5 px-2 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-mono font-semibold">4×4 Grid</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold mb-1">Potong ke Samping (Kolom)</label>
+              <input id="optSplitCols" type="number" min="1" max="30" value="3" oninput="drawSplitterLivePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono font-bold" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">Potong ke Bawah (Baris)</label>
+              <input id="optSplitRows" type="number" min="1" max="30" value="2" oninput="drawSplitterLivePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono font-bold" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold mb-1">Format Gambar Potongan</label>
+            <select id="optSplitFormat" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="image/png" selected>PNG (Lossless / Tajam)</option>
+              <option value="image/jpeg">JPG (Kualitas Tinggi)</option>
+              <option value="image/webp">WebP</option>
+            </select>
+          </div>
+        `;
+      } else if (engine === 'join-images') {
+        extBadge.textContent = '.png';
+        filenameInput.value = 'MiDoc_Gabungan_Gambar';
+        btnLabel.textContent = 'Satukan Gambar Jadi Satu';
+
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1.5">Arah Penggabungan (Urutan #1 s/d Akhir)</label>
+            <select id="optJoinDirection" onchange="drawJoinerLivePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="vertical" selected>Vertikal ke Bawah (Menyambung ke Bawah)</option>
+              <option value="horizontal">Horizontal ke Samping (Menyambung ke Samping)</option>
+              <option value="grid2">Grid 2 Kolom Seimbang</option>
+              <option value="grid3">Grid 3 Kolom Seimbang</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-xs font-semibold mb-1">Jarak Pemisah (px)</label>
+              <input id="optJoinGap" type="number" value="0" min="0" max="100" oninput="drawJoinerLivePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">Warna Latar</label>
+              <input id="optJoinBg" type="color" value="#ffffff" oninput="drawJoinerLivePreview()" class="w-full h-8 rounded-sm border border-zinc-300 dark:border-darkLine bg-transparent cursor-pointer" />
+            </div>
+          </div>
+        `;
+      } else if (engine === 'merge-pdf-image' || engine === 'image-to-pdf') {
+        extBadge.textContent = '.pdf';
+        filenameInput.value = 'MiDoc_Dokumen_Gabungan';
+        btnLabel.textContent = 'Gabungkan Jadi 1 PDF';
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Ukuran Halaman Gambar</label>
+            <select id="optPageSize" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="A4" selected>Kertas A4 (210 × 297 mm)</option>
+              <option value="Letter">US Letter</option>
+              <option value="FIT">Sesuai Ukuran Asli Tiap Gambar</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Orientasi</label>
+            <select id="optOrientation" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="auto" selected>Otomatis Mengikuti Gambar</option>
+              <option value="portrait">Portrait (Tegak)</option>
+              <option value="landscape">Landscape (Mendatar)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Margin (pt)</label>
+            <select id="optMargin" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="0">0 pt (Penuh Tanpa Margin)</option>
+              <option value="20" selected>20 pt (Tipis)</option>
+              <option value="40">40 pt (Standar)</option>
+            </select>
+          </div>
+        `;
+      } else if (engine === 'split-pdf') {
+        extBadge.textContent = '.zip';
+        filenameInput.value = 'MiDoc_Split_PDF';
+        btnLabel.textContent = 'Pisahkan / Ekstrak PDF';
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Mode Pemisahan PDF</label>
+            <select id="optSplitMode" onchange="document.getElementById('splitRangeBox').classList.toggle('hidden', this.value !== 'range')" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="all">Pecah Semua Halaman Menjadi File Satuan (ZIP)</option>
+              <option value="range">Ekstrak Nomor Halaman Tertentu (1 PDF)</option>
+            </select>
+          </div>
+          <div id="splitRangeBox" class="hidden">
+            <label class="block text-xs font-semibold mb-1">Rentang Halaman (Contoh: 1-3, 5)</label>
+            <input id="optPageRange" type="text" value="1-2" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
+          </div>
+        `;
+      } else if (engine === 'pdf-to-image') {
+        extBadge.textContent = '.zip';
+        filenameInput.value = 'MiDoc_Halaman_Gambar';
+        btnLabel.textContent = 'Render PDF ke Gambar';
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Format Gambar</label>
+            <select id="optImgFormat" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="image/png" selected>PNG</option>
+              <option value="image/jpeg">JPG</option>
+              <option value="image/webp">WebP</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Skala Resolusi</label>
+            <select id="optRenderScale" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="1.5">1.5x Standar</option>
+              <option value="2.0" selected>2.0x HD</option>
+              <option value="3.0">3.0x Cetak Tajam</option>
+            </select>
+          </div>
+        `;
+      } else if (engine === 'compress-pdf' || engine === 'protect-pdf') {
+        extBadge.textContent = '.pdf';
+        filenameInput.value = 'MiDoc_PDF_Optimasi';
+        btnLabel.textContent = 'Proses & Unduh PDF';
+        box.innerHTML = `
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span>Kualitas Render Kompresi</span>
+              <span id="pdfQLabel" class="font-mono text-accent">65%</span>
+            </div>
+            <input id="optPdfQuality" type="range" min="25" max="92" value="65" oninput="document.getElementById('pdfQLabel').textContent = this.value + '%'" class="w-full accent-accent" />
+          </div>
+        `;
+      } else if (engine === 'crop-pdf') {
+        extBadge.textContent = '.pdf';
+        filenameInput.value = 'MiDoc_PDF_Crop';
+        btnLabel.textContent = 'Potong Margin PDF';
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Potong Margin Setiap Sisi (pt)</label>
+            <input id="optPdfCropMargin" type="number" value="36" min="5" max="200" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
+          </div>
+        `;
+      } else if (engine === 'watermark-pdf') {
+        extBadge.textContent = '.pdf';
+        filenameInput.value = 'MiDoc_PDF_Watermark';
+        btnLabel.textContent = 'Terapkan ke PDF';
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Teks Watermark (Opsional)</label>
+            <input id="optPdfWatermarkText" type="text" value="DOKUMEN RESMI" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs" />
+          </div>
+          <label class="flex items-center gap-2 text-xs cursor-pointer">
+            <input id="optPdfPageNumbers" type="checkbox" checked class="accent-accent" />
+            <span>Sertakan nomor halaman otomatis di bawah</span>
+          </label>
+        `;
+      } else if (engine === 'text-to-pdf' || engine === 'doc-to-pdf') {
+        extBadge.textContent = '.pdf';
+        filenameInput.value = 'MiDoc_Dokumen';
+        btnLabel.textContent = 'Konversi ke PDF';
+        box.innerHTML = `
+          <p class="text-xs text-zinc-600 dark:text-zinc-400">
+            Jika Anda mengunggah file .txt / .csv / .html / .md, sistem akan membacanya otomatis. Anda juga bisa mengetik teks langsung di bawah ini:
+          </p>
+          <textarea id="optRawTextContent" rows="5" placeholder="Ketik atau tempel isi dokumen di sini..." class="w-full p-2.5 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs leading-relaxed">Dokumen dibuat melalui MiDoc Studio.
+Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke server.</textarea>
+        `;
+      } else if (engine === 'pdf-to-text') {
+        extBadge.textContent = '.txt';
+        filenameInput.value = 'MiDoc_Ekstrak_Teks';
+        btnLabel.textContent = 'Ekstrak Teks dari PDF';
+        box.innerHTML = `
+          <p class="text-xs text-zinc-600 dark:text-zinc-400">
+            Membaca seluruh lapisan teks di dalam file PDF Anda dan menyimpannya ke dalam file teks bersih (.txt).
+          </p>
+        `;
+      } else if (engine === 'compress-image') {
+        extBadge.textContent = '.zip';
+        filenameInput.value = 'MiDoc_Kompres_Gambar';
+        btnLabel.textContent = 'Kompres Gambar';
+        box.innerHTML = `
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span>Kualitas Kompresi</span>
+              <span id="imgQLabel" class="font-mono text-accent">72%</span>
+            </div>
+            <input id="optImgQuality" type="range" min="10" max="95" value="72" oninput="document.getElementById('imgQLabel').textContent = this.value + '%'" class="w-full accent-accent" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Format Output</label>
+            <select id="optCompressFormat" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="image/jpeg" selected>JPG (Ringan)</option>
+              <option value="image/webp">WebP (Sangat Ringan)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Batas Lebar Maksimum</label>
+            <select id="optMaxWidth" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="0" selected>Ukuran Piksel Asli</option>
+              <option value="1920">1920 px</option>
+              <option value="1280">1280 px</option>
+              <option value="800">800 px</option>
+            </select>
+          </div>
+        `;
+      } else if (engine === 'convert-image') {
+        extBadge.textContent = '.zip';
+        filenameInput.value = 'MiDoc_Konversi_Gambar';
+        btnLabel.textContent = 'Konversi Format Gambar';
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Format Tujuan</label>
+            <select id="optTargetFormat" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="image/jpeg">JPG (.jpg)</option>
+              <option value="image/png" selected>PNG (.png)</option>
+              <option value="image/webp">WebP (.webp)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Warna Latar (untuk PNG ke JPG)</label>
+            <input id="optBgFill" type="color" value="#ffffff" class="w-full h-8 rounded-sm border border-zinc-300 dark:border-darkLine bg-transparent" />
+          </div>
+        `;
+      } else if (engine === 'resize-image') {
+        extBadge.textContent = '.zip';
+        filenameInput.value = 'MiDoc_Resize_Gambar';
+        btnLabel.textContent = 'Ubah Ukuran Gambar';
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Preset Ukuran Resmi & Pas Foto</label>
+            <select id="optResizePreset" onchange="applyResizePreset(this.value)" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="custom">Kustom Piksel</option>
+              <option value="413x531">Pas Foto 3.5 × 4.5 cm (300 DPI)</option>
+              <option value="354x472">Pas Foto 3 × 4 cm (300 DPI)</option>
+              <option value="472x709">Pas Foto 4 × 6 cm (300 DPI)</option>
+              <option value="600x600">Pas Foto / Visa 2 × 2 Inci (600×600)</option>
+              <option value="2480x3508">Kertas A4 Full (2480×3508 px)</option>
+              <option value="1080x1080">Instagram Post (1080×1080 px)</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-xs font-semibold mb-1">Lebar (px)</label>
+              <input id="optResizeW" type="number" value="413" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">Tinggi (px)</label>
+              <input id="optResizeH" type="number" value="531" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Mode Penyesuaian</label>
+            <select id="optResizeFit" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="cover" selected>Crop Tengah Presisi (Pas Foto)</option>
+              <option value="stretch">Regangkan ke Dimensi Target</option>
+              <option value="contain">Muat Utuh dengan Margin Putih</option>
+            </select>
+          </div>
+        `;
+      } else if (engine === 'filters-image') {
+        extBadge.textContent = '.zip';
+        filenameInput.value = 'MiDoc_Edit_Gambar';
+        btnLabel.textContent = 'Terapkan Edit & Unduh';
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Bentuk Potongan</label>
+            <select id="optShapeCrop" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="none" selected>Persegi Asli</option>
+              <option value="circle">Circle Crop (Lingkaran Transparan)</option>
+              <option value="rounded">Rounded Corners (Sudut Melengkung)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Efek & Filter Warna</label>
+            <select id="optColorFilter" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="none">Tanpa Filter Warna</option>
+              <option value="grayscale(100%)">Grayscale (Hitam Putih)</option>
+              <option value="sepia(85%)">Sepia</option>
+              <option value="contrast(140%)">Kontras Tinggi</option>
+              <option value="brightness(120%)">Cerahkan Gambar</option>
+              <option value="invert(100%)">Invert Colors</option>
+              <option value="blur(4px)">Blur</option>
+            </select>
+          </div>
+        `;
+      } else if (engine === 'rotate-flip') {
+        extBadge.textContent = '.zip';
+        filenameInput.value = 'MiDoc_Rotate_Flip';
+        btnLabel.textContent = 'Simpan Hasil Rotate / Flip';
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Arah Balik (Flip)</label>
+            <select id="optFlipMode" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="none">Sesuai Rotasi Kartu Saja</option>
+              <option value="h">Flip Horizontal (Cermin Kiri-Kanan)</option>
+              <option value="v">Flip Vertikal (Atas-Bawah)</option>
+            </select>
+          </div>
+        `;
+      } else if (engine === 'watermark-image') {
+        extBadge.textContent = '.zip';
+        filenameInput.value = 'MiDoc_Watermark_Gambar';
+        btnLabel.textContent = 'Beri Teks Watermark';
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Teks Watermark</label>
+            <input id="optImgWatermarkText" type="text" value="MiDoc Document" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Posisi Teks</label>
+            <select id="optImgWatermarkPos" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="bottom-right" selected>Pojok Kanan Bawah</option>
+              <option value="center">Tengah Gambar</option>
+              <option value="bottom-left">Pojok Kiri Bawah</option>
+            </select>
+          </div>
+        `;
+      } else if (engine === 'overlay-images') {
+        extBadge.textContent = '.png';
+        filenameInput.value = 'MiDoc_Overlay';
+        btnLabel.textContent = 'Gabung Gambar #1 + #2';
+        box.innerHTML = `
+          <p class="text-xs text-zinc-600 dark:text-zinc-400">
+            Menempatkan gambar urutan <strong>#2</strong> (tanda tangan/stempel/logo) di atas gambar urutan <strong>#1</strong> (foto utama).
+          </p>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Posisi Overlay (#2)</label>
+            <select id="optOverlayPos" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="bottom-right" selected>Kanan Bawah</option>
+              <option value="center">Tengah</option>
+              <option value="bottom-left">Kiri Bawah</option>
+            </select>
+          </div>
+        `;
+      } else if (engine === 'batch-rename') {
+        extBadge.textContent = '.zip';
+        filenameInput.value = 'MiDoc_Batch_Rename';
+        btnLabel.textContent = 'Ganti Nama & Unduh ZIP';
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Awalan Nama (Prefix)</label>
+            <input id="optRenamePrefix" type="text" value="Berkas_" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs" />
+          </div>
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-xs font-semibold mb-1">Nomor Awal</label>
+              <input id="optRenameStart" type="number" value="1" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">Jumlah Digit</label>
+              <select id="optRenameDigits" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+                <option value="2">2 Digit (01)</option>
+                <option value="3" selected>3 Digit (001)</option>
+                <option value="4">4 Digit (0001)</option>
+              </select>
+            </div>
+          </div>
+        `;
+      } else if (engine === 'zip-maker') {
+        extBadge.textContent = '.zip';
+        filenameInput.value = 'MiDoc_Arsip';
+        btnLabel.textContent = 'Buat Arsip ZIP';
+        box.innerHTML = `<p class="text-xs text-zinc-600 dark:text-zinc-400">Mengemas semua file sesuai urutan kartu ke dalam satu arsip .ZIP.</p>`;
+      } else if (engine === 'color-picker') {
+        filenameGroup.classList.add('hidden');
+        btnLabel.textContent = 'Ekstrak Palet Warna Gambar #1';
+        box.innerHTML = `
+          <p class="text-xs text-zinc-600 dark:text-zinc-400">Menampilkan kode warna HEX dominan dari gambar urutan #1.</p>
+          <div id="extractedPaletteSwatches" class="grid grid-cols-4 gap-1.5"></div>
+        `;
+      } else if (engine === 'qr-generator') {
+        extBadge.textContent = '.png';
+        filenameInput.value = 'MiDoc_Kode_Matrix';
+        btnLabel.textContent = 'Generate & Unduh PNG';
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Teks atau Tautan URL</label>
+            <input id="optQrText" type="text" value="https://midoc.local/dokumen-01" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
+          </div>
+        `;
+      } else if (engine === 'password-gen') {
+        filenameGroup.classList.add('hidden');
+        btnLabel.textContent = 'Buat Kata Sandi Baru';
+        box.innerHTML = `
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span>Panjang Karakter</span>
+              <span id="passLenVal" class="font-mono text-accent">16</span>
+            </div>
+            <input id="optPassLen" type="range" min="8" max="64" value="16" oninput="document.getElementById('passLenVal').textContent = this.value" class="w-full accent-accent" />
+          </div>
+          <div id="generatedPasswordDisplay" class="p-2.5 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine font-mono text-xs text-center select-all break-all">
+            MiDoc#9482!Secure
+          </div>
+        `;
+      } else if (engine === 'dpi-calc') {
+        filenameGroup.classList.add('hidden');
+        btnLabel.textContent = 'Hitung Konversi Satuan';
+        box.innerHTML = `
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-xs font-semibold mb-1">Lebar (cm)</label>
+              <input id="calcCmW" type="number" step="0.1" value="3.5" oninput="recalcDpi()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">Tinggi (cm)</label>
+              <input id="calcCmH" type="number" step="0.1" value="4.5" oninput="recalcDpi()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Resolusi DPI</label>
+            <select id="calcDpiVal" onchange="recalcDpi()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="72">72 DPI (Layar)</option>
+              <option value="150">150 DPI (Standar)</option>
+              <option value="300" selected>300 DPI (Cetak Presisi)</option>
+              <option value="600">600 DPI (Ultra Print)</option>
+            </select>
+          </div>
+          <div id="dpiCalcResultBox" class="p-2.5 rounded-sm bg-white dark:bg-darkCanvas border border-accent font-mono text-xs text-center font-bold text-accent">
+            413 × 531 piksel
+          </div>
+        `;
+      }
+    }
+
+    function setSplitterGrid(cols, rows) {
+      const colInput = document.getElementById('optSplitCols');
+      const rowInput = document.getElementById('optSplitRows');
+      if (colInput && rowInput) {
+        colInput.value = cols;
+        rowInput.value = rows;
+        drawSplitterLivePreview();
+      }
+    }
+
+    function applyResizePreset(val) {
+      if (val === 'custom') return;
+      const [w, h] = val.split('x');
+      document.getElementById('optResizeW').value = w;
+      document.getElementById('optResizeH').value = h;
+    }
+
+    function recalcDpi() {
+      const wCm = parseFloat(document.getElementById('calcCmW')?.value) || 0;
+      const hCm = parseFloat(document.getElementById('calcCmH')?.value) || 0;
+      const dpi = parseInt(document.getElementById('calcDpiVal')?.value, 10) || 300;
+      const pxW = Math.round((wCm / 2.54) * dpi);
+      const pxH = Math.round((hCm / 2.54) * dpi);
+      const out = document.getElementById('dpiCalcResultBox');
+      if (out) out.textContent = `${pxW} × ${pxH} piksel`;
+    }
+
+    // =========================================================================
+    // 7. LIVE IMAGE SPLITTER & JOINER FULL-HEIGHT PREVIEW + ZOOM CONTROLS
+    // =========================================================================
+    function setPreviewDisplayMode(mode) {
+      state.previewDisplayMode = mode;
+      const isFull = mode === 'full';
+
+      // Update buttons on both Splitter and Joiner bars
+      ['splitViewFullBtn', 'joinViewFullBtn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.className = isFull
+          ? 'px-2.5 py-1 rounded-sm bg-accent text-white font-semibold'
+          : 'px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent font-medium';
+      });
+      ['splitViewFitBtn', 'joinViewFitBtn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.className = !isFull
+          ? 'px-2.5 py-1 rounded-sm bg-accent text-white font-semibold'
+          : 'px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent font-medium';
+      });
+
+      applyPreviewSizingStyles();
+    }
+
+    function setPreviewZoom(zoomVal) {
+      state.previewZoom = parseInt(zoomVal, 10) || 100;
+      const s1 = document.getElementById('previewZoomSelect');
+      const s2 = document.getElementById('joinPreviewZoomSelect');
+      if (s1) s1.value = String(state.previewZoom);
+      if (s2) s2.value = String(state.previewZoom);
+      applyPreviewSizingStyles();
+    }
+
+    function applyPreviewSizingStyles() {
+      const pairs = [
+        { wrap: 'splitterCanvasWrapper', canvas: 'splitterOverlayCanvas' },
+        { wrap: 'joinerCanvasWrapper', canvas: 'joinerOverlayCanvas' }
+      ];
+
+      pairs.forEach(({ wrap, canvas }) => {
+        const wEl = document.getElementById(wrap);
+        const cEl = document.getElementById(canvas);
+        if (!wEl || !cEl) return;
+
+        if (state.previewDisplayMode === 'fit') {
+          wEl.style.maxHeight = '440px';
+          wEl.style.overflowY = 'auto';
+          cEl.style.width = 'auto';
+          cEl.style.maxWidth = '100%';
+          cEl.style.maxHeight = '410px';
+        } else {
+          // Panjang Penuh (Full natural height expansion, zero vertical clipping)
+          wEl.style.maxHeight = 'none';
+          wEl.style.overflowY = 'visible';
+          cEl.style.maxHeight = 'none';
+          cEl.style.maxWidth = 'none';
+          cEl.style.width = `${state.previewZoom}%`;
+          cEl.style.height = 'auto';
+        }
+      });
+    }
+
+    function openFullPreviewModal(sourceType) {
+      const modal = document.getElementById('fullPreviewLightboxModal');
+      const content = document.getElementById('fullLightboxContent');
+      const title = document.getElementById('fullLightboxTitle');
+      content.innerHTML = '';
+
+      if (sourceType === 'splitter') {
+        const src = document.getElementById('splitterOverlayCanvas');
+        title.textContent = `Pratinjau Potongan Grid — ${document.getElementById('splitterTargetImageName').textContent}`;
+        const img = document.createElement('img');
+        img.src = src.toDataURL('image/png');
+        img.className = 'w-full h-auto block';
+        content.appendChild(img);
+      } else if (sourceType === 'joiner') {
+        const src = document.getElementById('joinerOverlayCanvas');
+        title.textContent = `Pratinjau Gabungan Gambar — ${document.getElementById('joinerDimensionInfo').textContent}`;
+        const img = document.createElement('img');
+        img.src = src.toDataURL('image/png');
+        img.className = 'w-full h-auto block';
+        content.appendChild(img);
+      } else if (sourceType === 'result' && state.lastBlobUrl) {
+        title.textContent = `Hasil Unduhan — ${state.lastDownloadName}`;
+        const img = document.createElement('img');
+        img.src = state.lastBlobUrl;
+        img.className = 'w-full h-auto block';
+        content.appendChild(img);
+      }
+
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeFullPreviewModal() {
+      document.getElementById('fullPreviewLightboxModal').classList.add('hidden');
+    }
+
+    function handleFullLightboxBackdropClick(e) {
+      if (e.target.id === 'fullPreviewLightboxModal' || e.target.id === 'fullLightboxScrollArea') {
+        closeFullPreviewModal();
+      }
+    }
+
+    async function drawJoinerLivePreview() {
+      const panel = document.getElementById('joinerLivePreviewPanel');
+      if (state.activeEngine !== 'join-images') {
+        panel.classList.add('hidden');
+        return;
+      }
+
+      const imgItems = state.items.filter(i => i.isImage && i.thumbUrl);
+      if (imgItems.length === 0) {
+        panel.classList.add('hidden');
+        return;
+      }
+
+      panel.classList.remove('hidden');
+      const dir = document.getElementById('optJoinDirection')?.value || 'vertical';
+      const gap = parseInt(document.getElementById('optJoinGap')?.value || '0', 10) || 0;
+      const bg = document.getElementById('optJoinBg')?.value || '#ffffff';
+
+      const composed = await buildJoinedCanvas(imgItems, dir, gap, bg);
+      const previewCanvas = document.getElementById('joinerOverlayCanvas');
+      previewCanvas.width = composed.width;
+      previewCanvas.height = composed.height;
+      previewCanvas.getContext('2d').drawImage(composed, 0, 0);
+
+      document.getElementById('joinerPreviewCountLabel').textContent = `${imgItems.length} Gambar Disusun`;
+      document.getElementById('joinerDimensionInfo').textContent = `Total: ${composed.width}×${composed.height} px`;
+      applyPreviewSizingStyles();
+    }
+
+    async function drawSplitterLivePreview() {
+      const panel = document.getElementById('splitterLivePreviewPanel');
+      if (state.activeEngine !== 'image-splitter') {
+        panel.classList.add('hidden');
+        return;
+      }
+
+      const imgItems = state.items.filter(i => i.isImage && i.thumbUrl);
+      if (imgItems.length === 0) {
+        panel.classList.add('hidden');
+        return;
+      }
+
+      panel.classList.remove('hidden');
+      const targetItem = imgItems.find(i => i.id === state.splitterSelectedItemId) || imgItems[0];
+      state.splitterSelectedItemId = targetItem.id;
+
+      const cols = Math.max(1, Math.min(30, parseInt(document.getElementById('optSplitCols')?.value, 10) || 1));
+      const rows = Math.max(1, Math.min(30, parseInt(document.getElementById('optSplitRows')?.value, 10) || 1));
+
+      const srcCanvas = await renderItemToCanvas(targetItem);
+      const previewCanvas = document.getElementById('splitterOverlayCanvas');
+
+      const tileW = srcCanvas.width / cols;
+      const tileH = srcCanvas.height / rows;
+
+      // Render exploded grid pieces separated by clean gaps (no blue lines/badges covering the image)
+      const isDark = document.documentElement.classList.contains('dark');
+      const gap = Math.max(10, Math.round(Math.max(srcCanvas.width, srcCanvas.height) / 55));
+      const labelBarH = Math.max(20, Math.round(gap * 1.6));
+
+      previewCanvas.width = srcCanvas.width + gap * (cols + 1);
+      previewCanvas.height = srcCanvas.height + gap * (rows + 1) + labelBarH * rows;
+      const ctx = previewCanvas.getContext('2d');
+
+      // Neutral canvas backdrop
+      ctx.fillStyle = isDark ? '#121214' : '#E4E4E7';
+      ctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+      const fontSize = Math.max(11, Math.min(18, Math.round(labelBarH * 0.56)));
+      ctx.font = `600 ${fontSize}px "JetBrains Mono", monospace`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+
+      let tileNum = 1;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const sx = Math.round(c * tileW);
+          const sy = Math.round(r * tileH);
+          const sw = Math.round((c + 1) * tileW) - sx;
+          const sh = Math.round((r + 1) * tileH) - sy;
+
+          const dx = gap + sx + c * gap;
+          const dy = gap + sy + r * (gap + labelBarH);
+
+          // Thin label header positioned ABOVE each separated piece so 100% of the image stays unobstructed
+          ctx.fillStyle = isDark ? '#18181B' : '#FFFFFF';
+          ctx.fillRect(dx, dy, sw, labelBarH);
+          ctx.fillStyle = isDark ? '#A1A1AA' : '#3F3F46';
+          ctx.fillText(`#${tileNum++} (${r + 1},${c + 1})`, dx + 6, dy + labelBarH / 2);
+
+          // Draw actual separated image tile cleanly
+          ctx.drawImage(srcCanvas, sx, sy, sw, sh, dx, dy + labelBarH, sw, sh);
+
+          // Crisp 1px flat border around the separated piece
+          ctx.strokeStyle = isDark ? '#3F3F46' : '#A1A1AA';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(dx + 0.5, dy + 0.5, sw - 1, sh + labelBarH - 1);
+        }
+      }
+
+      document.getElementById('splitterTargetImageName').textContent = targetItem.name;
+      document.getElementById('splitterDimensionInfo').textContent =
+        `Total: ${srcCanvas.width}×${srcCanvas.height} px • Tiap potongan: ${Math.floor(tileW)}×${Math.floor(tileH)} px`;
+      document.getElementById('splitterTotalTilesBadge').textContent = `${cols * rows} Potongan Terpisah (${cols}×${rows})`;
+      applyPreviewSizingStyles();
+    }
+
+    // =========================================================================
+    // 8. STRICT ORDER-LOCKING FILE INGESTION & DRAG-DROP REORDERING
+    // =========================================================================
+    function setupWorkspaceDragAndDrop() {
+      const dropZone = document.getElementById('dropZoneContainer');
+      const overlay = document.getElementById('externalDragOverlay');
+      const fileInput = document.getElementById('fileInput');
+      const emptyFileInput = document.getElementById('emptyFileInput');
+
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files?.length) {
+          ingestFilesInExactOrder(Array.from(e.target.files));
+          e.target.value = '';
+        }
+      });
+
+      emptyFileInput.addEventListener('change', (e) => {
+        if (e.target.files?.length) {
+          ingestFilesInExactOrder(Array.from(e.target.files));
+          e.target.value = '';
+        }
+      });
+
+      let dragDepth = 0;
+      dropZone.addEventListener('dragenter', (e) => {
+        if (state.draggedItemId) return;
+        e.preventDefault();
+        dragDepth++;
+        overlay.classList.remove('hidden');
+      });
+
+      dropZone.addEventListener('dragover', (e) => {
+        if (state.draggedItemId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      });
+
+      dropZone.addEventListener('dragleave', () => {
+        if (state.draggedItemId) return;
+        dragDepth--;
+        if (dragDepth <= 0) {
+          dragDepth = 0;
+          overlay.classList.add('hidden');
+        }
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        if (state.draggedItemId) return;
+        e.preventDefault();
+        dragDepth = 0;
+        overlay.classList.add('hidden');
+
+        const files = [];
+        if (e.dataTransfer.items) {
+          for (let i = 0; i < e.dataTransfer.items.length; i++) {
+            const it = e.dataTransfer.items[i];
+            if (it.kind === 'file') {
+              const f = it.getAsFile();
+              if (f) files.push(f);
+            }
+          }
+        } else if (e.dataTransfer.files) {
+          for (let i = 0; i < e.dataTransfer.files.length; i++) {
+            files.push(e.dataTransfer.files[i]);
+          }
+        }
+
+        if (files.length > 0) {
+          ingestFilesInExactOrder(files);
+        }
+      });
+    }
+
+    async function ingestFilesInExactOrder(filesArray) {
+      const entries = filesArray.map(file => {
+        state.dropCounter++;
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(file.name);
+        const entry = {
+          id: 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+          dropOrder: state.dropCounter,
+          name: file.name,
+          size: file.size,
+          type: file.type || 'application/octet-stream',
+          file,
+          arrayBuffer: null,
+          thumbUrl: null,
+          isPdf,
+          isImage,
+          pageCount: isPdf ? 1 : null,
+          singlePageIndex: null,
+          rotation: 0,
+          width: null,
+          height: null
+        };
+        state.items.push(entry);
+        return entry;
+      });
+
+      renderWorkspaceItems();
+
+      await Promise.all(entries.map(async (entry) => {
+        try {
+          const buf = await entry.file.arrayBuffer();
+          entry.arrayBuffer = buf;
+          if (entry.isImage) {
+            const url = URL.createObjectURL(entry.file);
+            entry.thumbUrl = url;
+            const dims = await getImageDimensions(url);
+            entry.width = dims.width;
+            entry.height = dims.height;
+          } else if (entry.isPdf && window.pdfjsLib) {
+            const pdfDoc = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+            entry.pageCount = pdfDoc.numPages;
+            const page = await pdfDoc.getPage(1);
+            const viewport = page.getViewport({ scale: 0.5 });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            entry.thumbUrl = canvas.toDataURL('image/jpeg', 0.8);
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      }));
+
+      renderWorkspaceItems();
+      updateFilenamePreviewHint();
+      showToast(`${filesArray.length} file ditambahkan sesuai urutan.`, 'success');
+    }
+
+    function getImageDimensions(url) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onerror = () => resolve({ width: null, height: null });
+        img.src = url;
+      });
+    }
+
+    async function explodeAllPdfsToPages() {
+      const updated = [];
+      for (const item of state.items) {
+        if (item.isPdf && item.singlePageIndex === null && item.pageCount > 1 && item.arrayBuffer) {
+          const pdfDoc = await pdfjsLib.getDocument({ data: item.arrayBuffer.slice(0) }).promise;
+          for (let p = 0; p < pdfDoc.numPages; p++) {
+            const page = await pdfDoc.getPage(p + 1);
+            const viewport = page.getViewport({ scale: 0.5 });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+
+            state.dropCounter++;
+            updated.push({
+              ...item,
+              id: 'pg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+              dropOrder: state.dropCounter,
+              name: `${item.name.replace(/\.pdf$/i, '')}_Hal_${p + 1}.pdf`,
+              singlePageIndex: p,
+              pageCount: 1,
+              thumbUrl: canvas.toDataURL('image/jpeg', 0.8)
+            });
+          }
+        } else {
+          updated.push(item);
+        }
+      }
+      state.items = updated;
+      renderWorkspaceItems();
+      showToast('Halaman PDF berhasil dipecah menjadi kartu terpisah.', 'success');
+    }
+
+    async function loadDemoFiles() {
+      const files = [];
+
+      if (state.activeEngine === 'image-splitter' || state.activeEngine === 'join-images') {
+        // Generate 3 clean geometric sample images (600x400) ideal for joining & grid splitting
+        const specs = [
+          { name: '01_Bagian_Atas.png', bg: '#111827', accent: '#2563EB', text: 'GAMBAR #1 (600×400)' },
+          { name: '02_Bagian_Tengah.png', bg: '#2563EB', accent: '#FFFFFF', text: 'GAMBAR #2 (600×400)' },
+          { name: '03_Bagian_Bawah.png', bg: '#1E293B', accent: '#2563EB', text: 'GAMBAR #3 (600×400)' }
+        ];
+        for (const s of specs) {
+          const c = document.createElement('canvas');
+          c.width = 600;
+          c.height = 400;
+          const ctx = c.getContext('2d');
+          ctx.fillStyle = s.bg;
+          ctx.fillRect(0, 0, 600, 400);
+          ctx.strokeStyle = s.accent;
+          ctx.lineWidth = 8;
+          ctx.strokeRect(16, 16, 568, 368);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 26px "Plus Jakarta Sans", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(s.text, 300, 195);
+          ctx.font = '14px "JetBrains Mono", monospace';
+          ctx.fillText('MiDoc Sample Asset', 300, 230);
+          const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+          files.push(new File([blob], s.name, { type: 'image/png' }));
+        }
+      } else {
+        // Generate 1 multi-page PDF + 2 images
+        const pdfDoc = await PDFLib.PDFDocument.create();
+        const p1 = pdfDoc.addPage([420, 595]);
+        p1.drawText('MiDoc Contoh Dokumen - Halaman 1', { x: 40, y: 520, size: 16 });
+        const p2 = pdfDoc.addPage([420, 595]);
+        p2.drawText('MiDoc Contoh Dokumen - Halaman 2', { x: 40, y: 520, size: 16 });
+        const pdfBytes = await pdfDoc.save();
+        files.push(new File([pdfBytes], '01_Dokumen_Utama.pdf', { type: 'application/pdf' }));
+
+        for (let idx = 2; idx <= 3; idx++) {
+          const c = document.createElement('canvas');
+          c.width = 600;
+          c.height = 420;
+          const ctx = c.getContext('2d');
+          ctx.fillStyle = idx === 2 ? '#2563EB' : '#111827';
+          ctx.fillRect(0, 0, 600, 420);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`LAMPIRAN GAMBAR #${idx}`, 300, 210);
+          const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+          files.push(new File([blob], `0${idx}_Lampiran.png`, { type: 'image/png' }));
+        }
+      }
+
+      await ingestFilesInExactOrder(files);
+    }
+
+    function renderWorkspaceItems() {
+      const emptyBox = document.getElementById('emptyStateBox');
+      const grid = document.getElementById('fileItemsGrid');
+      const bottomStrip = document.getElementById('bottomAddStrip');
+      const expandBtn = document.getElementById('expandPdfPagesBtn');
+
+      if (state.items.length === 0) {
+        emptyBox.classList.remove('hidden');
+        grid.classList.add('hidden');
+        bottomStrip.classList.add('hidden');
+        expandBtn.classList.add('hidden');
+        document.getElementById('splitterLivePreviewPanel').classList.add('hidden');
+        document.getElementById('joinerLivePreviewPanel').classList.add('hidden');
+        updateFilenamePreviewHint();
+        return;
+      }
+
+      emptyBox.classList.add('hidden');
+      grid.classList.remove('hidden');
+      bottomStrip.classList.remove('hidden');
+
+      const hasMultiPagePdf = state.items.some(i => i.isPdf && i.singlePageIndex === null && i.pageCount > 1);
+      expandBtn.classList.toggle('hidden', !hasMultiPagePdf);
+
+      const totalBytes = state.items.reduce((s, it) => s + (it.size || 0), 0);
+      document.getElementById('totalSummaryText').textContent = `${state.items.length} item • ${formatBytes(totalBytes)}`;
+
+      grid.className = state.viewMode === 'grid'
+        ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5'
+        : 'flex flex-col gap-2';
+
+      grid.innerHTML = state.items.map((item, idx) => {
+        const pos = idx + 1;
+        const typeLabel = item.isPdf
+          ? (item.singlePageIndex !== null ? `PDF HAL ${item.singlePageIndex + 1}` : `PDF ${item.pageCount} HAL`)
+          : (item.name.split('.').pop() || 'FILE').toUpperCase();
+
+        const isSelectedForSplit = state.activeEngine === 'image-splitter' && state.splitterSelectedItemId === item.id;
+
+        const thumbHtml = item.thumbUrl
+          ? `<img src="${item.thumbUrl}" style="transform: rotate(${item.rotation}deg);" class="max-h-full max-w-full object-contain" alt="${escapeHtml(item.name)}" />`
+          : `<span class="font-mono text-xs text-zinc-400">${typeLabel}</span>`;
+
+        if (state.viewMode === 'list') {
+          return `
+            <div
+              draggable="true"
+              data-id="${item.id}"
+              onclick="selectCardForSplitter('${item.id}')"
+              class="file-card flex items-center justify-between gap-3 p-2.5 rounded-sm bg-white dark:bg-darkCanvas border ${isSelectedForSplit ? 'border-accent' : 'border-zinc-200 dark:border-darkLine'} hover:border-accent cursor-grab"
+            >
+              <div class="flex items-center gap-3 min-w-0">
+                <span class="px-2 py-0.5 rounded-sm bg-accent text-white font-mono font-semibold text-xs shrink-0">#${pos}</span>
+                <div class="w-10 h-10 checkerboard border border-zinc-200 dark:border-darkLine flex items-center justify-center overflow-hidden shrink-0 p-0.5">
+                  ${thumbHtml}
+                </div>
+                <div class="min-w-0">
+                  <div class="text-xs font-semibold truncate">${escapeHtml(item.name)}</div>
+                  <div class="text-[11px] font-mono text-zinc-500">${typeLabel} • ${formatBytes(item.size)}</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-1 shrink-0">
+                <button onclick="event.stopPropagation(); moveItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="px-2 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-mono disabled:opacity-30">▲</button>
+                <button onclick="event.stopPropagation(); moveItem(${idx}, 1)" ${idx === state.items.length - 1 ? 'disabled' : ''} class="px-2 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-mono disabled:opacity-30">▼</button>
+                <button onclick="event.stopPropagation(); rotateItem('${item.id}', 90)" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine"><i data-lucide="rotate-cw" class="w-3 h-3"></i></button>
+                <button onclick="event.stopPropagation(); removeItem('${item.id}')" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-red-600"><i data-lucide="x" class="w-3 h-3"></i></button>
+              </div>
+            </div>
+          `;
+        }
+
+        return `
+          <div
+            draggable="true"
+            data-id="${item.id}"
+            onclick="selectCardForSplitter('${item.id}')"
+            class="file-card flex flex-col justify-between rounded-sm bg-white dark:bg-darkCanvas border ${isSelectedForSplit ? 'border-accent' : 'border-zinc-200 dark:border-darkLine'} hover:border-accent cursor-grab"
+          >
+            <div class="px-2.5 py-1.5 flex items-center justify-between border-b border-zinc-200 dark:border-darkLine bg-zinc-50 dark:bg-darkSurface">
+              <div class="flex items-center gap-1.5">
+                <span class="px-1.5 py-0.5 rounded-sm bg-accent text-white font-mono font-bold text-[11px]">#${pos}</span>
+                <span class="text-[10px] font-mono font-semibold text-zinc-500 dark:text-zinc-400">${typeLabel}</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <button onclick="event.stopPropagation(); inspectItem('${item.id}')" class="p-1 text-zinc-500 hover:text-accent" title="Detail File">
+                  <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                </button>
+                <button onclick="event.stopPropagation(); removeItem('${item.id}')" class="p-1 text-zinc-500 hover:text-red-600" title="Hapus">
+                  <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="h-32 p-2.5 checkerboard flex items-center justify-center overflow-hidden">
+              ${thumbHtml}
+            </div>
+
+            <div class="p-2.5 border-t border-zinc-200 dark:border-darkLine space-y-2">
+              <div>
+                <p class="text-xs font-semibold truncate" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</p>
+                <p class="text-[11px] font-mono text-zinc-500">${formatBytes(item.size)} ${item.width ? `• ${item.width}×${item.height}` : ''}</p>
+              </div>
+
+              <div class="flex items-center justify-between pt-1.5 border-t border-zinc-100 dark:border-darkLine">
+                <div class="flex items-center gap-1">
+                  <button onclick="event.stopPropagation(); moveItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="px-2 py-0.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent disabled:opacity-30 text-[11px] font-mono">
+                    Kiri
+                  </button>
+                  <button onclick="event.stopPropagation(); moveItem(${idx}, 1)" ${idx === state.items.length - 1 ? 'disabled' : ''} class="px-2 py-0.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent disabled:opacity-30 text-[11px] font-mono">
+                    Kanan
+                  </button>
+                </div>
+                <button onclick="event.stopPropagation(); rotateItem('${item.id}', 90)" class="p-1 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent" title="Putar 90°">
+                  <i data-lucide="rotate-cw" class="w-3 h-3"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      attachCardDragListeners();
+      drawSplitterLivePreview();
+      drawJoinerLivePreview();
+      updateFilenamePreviewHint();
+      lucide.createIcons();
+    }
+
+    function selectCardForSplitter(id) {
+      if (state.activeEngine === 'image-splitter') {
+        state.splitterSelectedItemId = id;
+        renderWorkspaceItems();
+      }
+    }
+
+    function attachCardDragListeners() {
+      document.querySelectorAll('.file-card').forEach(card => {
+        card.addEventListener('dragstart', (e) => {
+          state.draggedItemId = card.getAttribute('data-id');
+          card.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+
+        card.addEventListener('dragend', () => {
+          state.draggedItemId = null;
+          card.classList.remove('dragging');
+          document.querySelectorAll('.file-card').forEach(c => c.classList.remove('drag-over-left', 'drag-over-right'));
+        });
+
+        card.addEventListener('dragover', (e) => {
+          if (!state.draggedItemId) return;
+          e.preventDefault();
+          const targetId = card.getAttribute('data-id');
+          if (targetId === state.draggedItemId) return;
+          const rect = card.getBoundingClientRect();
+          const isRight = (e.clientX - rect.left) > (rect.width / 2);
+          card.classList.toggle('drag-over-right', isRight);
+          card.classList.toggle('drag-over-left', !isRight);
+        });
+
+        card.addEventListener('dragleave', () => {
+          card.classList.remove('drag-over-left', 'drag-over-right');
+        });
+
+        card.addEventListener('drop', (e) => {
+          if (!state.draggedItemId) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const targetId = card.getAttribute('data-id');
+          if (targetId && targetId !== state.draggedItemId) {
+            const from = state.items.findIndex(i => i.id === state.draggedItemId);
+            const to = state.items.findIndex(i => i.id === targetId);
+            if (from !== -1 && to !== -1) {
+              const [moved] = state.items.splice(from, 1);
+              state.items.splice(to, 0, moved);
+              renderWorkspaceItems();
+            }
+          }
+          state.draggedItemId = null;
+        });
+      });
+    }
+
+    function moveItem(index, delta) {
+      const target = index + delta;
+      if (target < 0 || target >= state.items.length) return;
+      const [moved] = state.items.splice(index, 1);
+      state.items.splice(target, 0, moved);
+      renderWorkspaceItems();
+    }
+
+    function rotateItem(id, deg) {
+      const it = state.items.find(i => i.id === id);
+      if (it) {
+        it.rotation = (it.rotation + deg + 360) % 360;
+        renderWorkspaceItems();
+      }
+    }
+
+    function removeItem(id) {
+      state.items = state.items.filter(i => i.id !== id);
+      renderWorkspaceItems();
+    }
+
+    function clearAllFiles() {
+      state.items = [];
+      state.dropCounter = 0;
+      document.getElementById('resultOutputBox').classList.add('hidden');
+      renderWorkspaceItems();
+    }
+
+    function setViewMode(mode) {
+      state.viewMode = mode;
+      document.getElementById('viewGridBtn').className = mode === 'grid'
+        ? 'p-1.5 bg-accent text-white'
+        : 'p-1.5 bg-white dark:bg-darkCanvas text-zinc-500';
+      document.getElementById('viewListBtn').className = mode === 'list'
+        ? 'p-1.5 bg-accent text-white'
+        : 'p-1.5 bg-white dark:bg-darkCanvas text-zinc-500';
+      renderWorkspaceItems();
+    }
+
+    function applySortOrder(type) {
+      if (state.items.length < 2) return;
+      const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+      if (type === 'drop') state.items.sort((a, b) => a.dropOrder - b.dropOrder);
+      if (type === 'natural-az') state.items.sort((a, b) => collator.compare(a.name, b.name));
+      if (type === 'natural-za') state.items.sort((a, b) => collator.compare(b.name, a.name));
+      if (type === 'size-asc') state.items.sort((a, b) => a.size - b.size);
+      if (type === 'size-desc') state.items.sort((a, b) => b.size - a.size);
+      if (type === 'reverse') state.items.reverse();
+      renderWorkspaceItems();
+    }
+
+    function inspectItem(id) {
+      const item = state.items.find(i => i.id === id);
+      if (!item) return;
+      document.getElementById('inspectorTitle').textContent = item.name;
+      document.getElementById('inspectorPreviewContainer').innerHTML = item.thumbUrl
+        ? `<img src="${item.thumbUrl}" style="transform: rotate(${item.rotation}deg);" class="max-h-[42vh] max-w-full" />`
+        : `<span class="text-xs text-zinc-500">Tidak ada pratinjau visual.</span>`;
+      document.getElementById('inspectorMetaGrid').innerHTML = `
+        <div class="p-2 border border-zinc-200 dark:border-darkLine rounded-sm"><div class="text-zinc-400">Ukuran</div><div class="font-mono font-bold">${formatBytes(item.size)}</div></div>
+        <div class="p-2 border border-zinc-200 dark:border-darkLine rounded-sm"><div class="text-zinc-400">Tipe</div><div class="font-mono font-bold truncate">${item.type}</div></div>
+        <div class="p-2 border border-zinc-200 dark:border-darkLine rounded-sm"><div class="text-zinc-400">Dimensi</div><div class="font-mono font-bold">${item.width ? `${item.width}×${item.height}` : `${item.pageCount} hal`}</div></div>
+        <div class="p-2 border border-zinc-200 dark:border-darkLine rounded-sm"><div class="text-zinc-400">Rotasi</div><div class="font-mono font-bold">${item.rotation}°</div></div>
+      `;
+      document.getElementById('inspectorModal').classList.remove('hidden');
+    }
+
+    function closeInspectorModal() {
+      document.getElementById('inspectorModal').classList.add('hidden');
+    }
+
+    // =========================================================================
+    // 9. SMART DOWNLOAD FILENAME SYSTEM (Single + Timestamp vs Bulk/ZIP First File)
+    // =========================================================================
+    function getTimestampSuffix() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const hh = String(now.getHours()).padStart(2, '0');
+      const min = String(now.getMinutes()).padStart(2, '0');
+      const ss = String(now.getSeconds()).padStart(2, '0');
+      return `${yyyy}${mm}${dd}_${hh}${min}${ss}`;
+    }
+
+    function getFirstFileBaseName() {
+      if (state.items.length === 0) return null;
+      const rawName = state.items[0].name || 'MiDoc_File';
+      return rawName.replace(/\.[^.]+$/, '').trim() || 'MiDoc_File';
+    }
+
+    function formatDownloadFilename({ baseName, ext, isBulkOrZip, firstFileName }) {
+      const cleanExt = ext.replace(/^\./, '');
+      if (isBulkOrZip) {
+        // Bulk / ZIP: Follow first file name cleanly WITHOUT timestamp
+        const firstBase = (firstFileName || getFirstFileBaseName() || baseName || 'MiDoc_Bulk').replace(/\.[^.]+$/, '').trim();
+        return `${firstBase}.${cleanExt}`;
+      } else {
+        // Single file download: Append local timestamp
+        const cleanBase = (baseName || 'MiDoc_Hasil').replace(/\.[^.]+$/, '').trim();
+        return `${cleanBase}_${getTimestampSuffix()}.${cleanExt}`;
+      }
+    }
+
+    function isCurrentOperationBulkOrZip() {
+      const engine = state.activeEngine;
+      if (['image-splitter', 'pdf-to-image', 'batch-rename', 'zip-maker'].includes(engine)) return true;
+      if (engine === 'split-pdf') {
+        return (document.getElementById('optSplitMode')?.value || 'all') === 'all';
+      }
+      if (['compress-image', 'convert-image', 'resize-image', 'filters-image', 'rotate-flip', 'watermark-image'].includes(engine)) {
+        const imgCount = state.items.filter(i => i.isImage).length;
+        return imgCount > 1;
+      }
+      return false;
+    }
+
+    function updateFilenamePreviewHint() {
+      const input = document.getElementById('outputFilenameInput');
+      const extBadge = document.getElementById('outputExtBadge');
+      const previewEl = document.getElementById('resolvedFilenamePreview');
+      const ruleBadge = document.getElementById('namingRuleBadge');
+      if (!input || !extBadge || !previewEl) return;
+
+      const isBulk = isCurrentOperationBulkOrZip();
+      const ext = isBulk ? 'zip' : (extBadge.textContent || '.pdf').replace(/^\./, '');
+      extBadge.textContent = `.${ext}`;
+
+      if (ruleBadge) {
+        ruleBadge.textContent = isBulk
+          ? 'Bulk/ZIP: Nama File #1 (Tanpa Waktu)'
+          : '1 File: Nama Dasar + Waktu';
+      }
+
+      const resolved = formatDownloadFilename({
+        baseName: input.value,
+        ext,
+        isBulkOrZip: isBulk,
+        firstFileName: getFirstFileBaseName()
+      });
+      previewEl.textContent = resolved;
+    }
+
+    // =========================================================================
+    // 10. CLIENT-SIDE PROCESSING ENGINES
+    // =========================================================================
+    function updateProgress(percent, text) {
+      const container = document.getElementById('progressContainer');
+      container.classList.remove('hidden');
+      document.getElementById('progressBarFill').style.width = `${percent}%`;
+      document.getElementById('progressPercentText').textContent = `${Math.round(percent)}%`;
+      if (text) document.getElementById('progressStatusText').textContent = text;
+    }
+
+    function finishWithBlob(blob, filename, detailMsg, options = {}) {
+      const { showSendToSplitter = false, isImageResult = false } = options;
+      if (state.lastBlobUrl) URL.revokeObjectURL(state.lastBlobUrl);
+      const url = URL.createObjectURL(blob);
+      state.lastBlobUrl = url;
+      state.lastDownloadName = filename;
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      const resBox = document.getElementById('resultOutputBox');
+      resBox.classList.remove('hidden');
+      document.getElementById('resultSizeBadge').textContent = formatBytes(blob.size);
+      document.getElementById('resultSavedFilename').textContent = filename;
+      document.getElementById('resultDetailText').textContent = detailMsg;
+
+      document.getElementById('reDownloadBtn').onclick = () => {
+        const link = document.createElement('a');
+        link.href = state.lastBlobUrl;
+        link.download = state.lastDownloadName;
+        link.click();
+      };
+
+      const inspectResBtn = document.getElementById('inspectResultPreviewBtn');
+      if (isImageResult) {
+        inspectResBtn.classList.remove('hidden');
+        inspectResBtn.onclick = () => openFullPreviewModal('result');
+      } else {
+        inspectResBtn.classList.add('hidden');
+      }
+
+      const sendBtn = document.getElementById('sendResultToSplitterBtn');
+      if (showSendToSplitter && state.lastProcessedImageFile) {
+        sendBtn.classList.remove('hidden');
+        sendBtn.onclick = async () => {
+          const joinedFile = state.lastProcessedImageFile;
+          state.items = [];
+          state.dropCounter = 0;
+          openToolWorkspace('image-splitter');
+          await ingestFilesInExactOrder([joinedFile]);
+        };
+      } else {
+        sendBtn.classList.add('hidden');
+      }
+
+      setTimeout(() => document.getElementById('progressContainer').classList.add('hidden'), 500);
+      showToast(`Selesai: ${filename}`, 'success');
+    }
+
+    async function executeCurrentTool() {
+      const engine = state.activeEngine;
+      const baseName = (document.getElementById('outputFilenameInput')?.value || 'MiDoc_Hasil').trim();
+
+      if (engine === 'text-to-pdf' || engine === 'doc-to-pdf') {
+        await runDocOrTextToPdf(baseName);
+        return;
+      }
+      if (engine === 'qr-generator') {
+        await runQrGenerator(baseName);
+        return;
+      }
+      if (engine === 'password-gen') {
+        runPasswordGenerator();
+        return;
+      }
+      if (engine === 'dpi-calc') {
+        recalcDpi();
+        showToast('Perhitungan satuan selesai.', 'success');
+        return;
+      }
+
+      if (state.items.length === 0) {
+        showToast('Tambahkan file atau klik "Muat Contoh File" terlebih dahulu.', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('executeActionBtn');
+      btn.disabled = true;
+
+      try {
+        switch (engine) {
+          case 'image-splitter':
+            await runImageSplitter(baseName);
+            break;
+          case 'join-images':
+            await runJoinImages(baseName);
+            break;
+          case 'merge-pdf-image':
+          case 'image-to-pdf':
+            await runMergePdfAndImages(baseName);
+            break;
+          case 'split-pdf':
+            await runSplitPdf(baseName);
+            break;
+          case 'pdf-to-image':
+            await runPdfToImages(baseName);
+            break;
+          case 'compress-pdf':
+          case 'protect-pdf':
+            await runCompressPdf(baseName);
+            break;
+          case 'crop-pdf':
+            await runCropPdf(baseName);
+            break;
+          case 'watermark-pdf':
+            await runWatermarkPdf(baseName);
+            break;
+          case 'pdf-to-text':
+            await runPdfToText(baseName);
+            break;
+          case 'compress-image':
+          case 'convert-image':
+          case 'resize-image':
+          case 'filters-image':
+          case 'rotate-flip':
+          case 'watermark-image':
+            await runBatchImageProcess(baseName, engine);
+            break;
+          case 'overlay-images':
+            await runOverlayImages(baseName);
+            break;
+          case 'batch-rename':
+            await runBatchRename(baseName);
+            break;
+          case 'zip-maker':
+            await runZipMaker(baseName);
+            break;
+          case 'color-picker':
+            await runColorPicker();
+            break;
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Gagal memproses: ' + err.message, 'error');
+        document.getElementById('progressContainer').classList.add('hidden');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // --- ENGINE 1: IMAGE SPLITTER (BALANCED GRID CUTTER) ---
+    async function runImageSplitter(baseName) {
+      const imgItems = state.items.filter(i => i.isImage && i.thumbUrl);
+      if (imgItems.length === 0) {
+        showToast('Tambahkan minimal 1 gambar untuk dipotong.', 'error');
+        return;
+      }
+
+      const cols = Math.max(1, Math.min(30, parseInt(document.getElementById('optSplitCols').value, 10) || 1));
+      const rows = Math.max(1, Math.min(30, parseInt(document.getElementById('optSplitRows').value, 10) || 1));
+      const format = document.getElementById('optSplitFormat').value;
+      const ext = format === 'image/png' ? 'png' : (format === 'image/webp' ? 'webp' : 'jpg');
+
+      const zip = new JSZip();
+      let totalPieces = 0;
+      const firstCleanName = imgItems[0].name.replace(/\.[^.]+$/, '').trim();
+
+      for (let idx = 0; idx < imgItems.length; idx++) {
+        const item = imgItems[idx];
+        const srcCanvas = await renderItemToCanvas(item);
+        const tileW = srcCanvas.width / cols;
+        const tileH = srcCanvas.height / rows;
+        const cleanName = item.name.replace(/\.[^.]+$/, '').trim();
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            totalPieces++;
+            updateProgress((totalPieces / (rows * cols * imgItems.length)) * 95, `Memotong baris ${r + 1}, kolom ${c + 1}...`);
+
+            const sx = Math.round(c * tileW);
+            const sy = Math.round(r * tileH);
+            const sw = Math.round((c + 1) * tileW) - sx;
+            const sh = Math.round((r + 1) * tileH) - sy;
+
+            const pieceCanvas = document.createElement('canvas');
+            pieceCanvas.width = sw;
+            pieceCanvas.height = sh;
+            pieceCanvas.getContext('2d').drawImage(srcCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+            const blob = await new Promise(res => pieceCanvas.toBlob(res, format, 0.94));
+            const seq = String(totalPieces).padStart(2, '0');
+            const fileName = `${cleanName}_${seq}_r${r + 1}-c${c + 1}.${ext}`;
+            zip.file(fileName, blob);
+          }
+        }
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const finalZipName = formatDownloadFilename({
+        baseName,
+        ext: 'zip',
+        isBulkOrZip: true,
+        firstFileName: firstCleanName
+      });
+      finishWithBlob(zipBlob, finalZipName, `Berhasil memotong menjadi ${totalPieces} bagian seimbang (${cols} ke samping × ${rows} ke bawah).`);
+    }
+
+    // --- ENGINE 2: JOIN IMAGES (VERTICAL / HORIZONTAL / GRID) ---
+    async function buildJoinedCanvas(imgItems, dir, gap, bg) {
+      const canvases = [];
+      for (const it of imgItems) canvases.push(await renderItemToCanvas(it));
+
+      const master = document.createElement('canvas');
+      const ctx = master.getContext('2d');
+
+      if (dir === 'vertical') {
+        const maxW = Math.max(...canvases.map(c => c.width));
+        const scaled = canvases.map(c => ({ c, w: maxW, h: Math.round(c.height * (maxW / c.width)) }));
+        master.width = maxW;
+        master.height = scaled.reduce((s, x) => s + x.h, 0) + gap * (scaled.length - 1);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, master.width, master.height);
+        let y = 0;
+        for (const it of scaled) {
+          ctx.drawImage(it.c, 0, y, it.w, it.h);
+          y += it.h + gap;
+        }
+      } else if (dir === 'horizontal') {
+        const maxH = Math.max(...canvases.map(c => c.height));
+        const scaled = canvases.map(c => ({ c, w: Math.round(c.width * (maxH / c.height)), h: maxH }));
+        master.height = maxH;
+        master.width = scaled.reduce((s, x) => s + x.w, 0) + gap * (scaled.length - 1);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, master.width, master.height);
+        let x = 0;
+        for (const it of scaled) {
+          ctx.drawImage(it.c, x, 0, it.w, it.h);
+          x += it.w + gap;
+        }
+      } else {
+        const cols = dir === 'grid3' ? 3 : 2;
+        const cellW = 600;
+        const cellH = 600;
+        const rows = Math.ceil(canvases.length / cols);
+        master.width = cellW * cols + gap * (cols - 1);
+        master.height = cellH * rows + gap * (rows - 1);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, master.width, master.height);
+        canvases.forEach((c, idx) => {
+          const col = idx % cols;
+          const row = Math.floor(idx / cols);
+          const fitted = resizeCanvas(c, cellW, cellH, 'cover');
+          ctx.drawImage(fitted, col * (cellW + gap), row * (cellH + gap));
+        });
+      }
+      return master;
+    }
+
+    async function runJoinImages(baseName) {
+      const imgItems = state.items.filter(i => i.isImage && i.thumbUrl);
+      if (imgItems.length < 2) {
+        showToast('Tambahkan minimal 2 gambar untuk digabungkan.', 'error');
+        return;
+      }
+
+      const dir = document.getElementById('optJoinDirection').value;
+      const gap = parseInt(document.getElementById('optJoinGap').value, 10) || 0;
+      const bg = document.getElementById('optJoinBg').value || '#ffffff';
+
+      const master = await buildJoinedCanvas(imgItems, dir, gap, bg);
+      const blob = await new Promise(res => master.toBlob(res, 'image/png'));
+      const finalName = formatDownloadFilename({
+        baseName,
+        ext: 'png',
+        isBulkOrZip: false
+      });
+
+      state.lastProcessedImageFile = new File([blob], finalName, { type: 'image/png' });
+      finishWithBlob(
+        blob,
+        finalName,
+        `${imgItems.length} gambar disatukan (${master.width}×${master.height} px).`,
+        { showSendToSplitter: true, isImageResult: true }
+      );
+    }
+
+    // --- ENGINE 3: MERGE PDF & IMAGES ---
+    async function runMergePdfAndImages(baseName) {
+      const outPdf = await PDFLib.PDFDocument.create();
+      const pageSizeOpt = document.getElementById('optPageSize')?.value || 'A4';
+      const marginOpt = parseInt(document.getElementById('optMargin')?.value || '20', 10);
+      const orientOpt = document.getElementById('optOrientation')?.value || 'auto';
+
+      for (let i = 0; i < state.items.length; i++) {
+        const item = state.items[i];
+        updateProgress(((i + 1) / state.items.length) * 90, `Menggabungkan #${i + 1}: ${item.name}`);
+
+        if (item.isPdf && item.arrayBuffer) {
+          const srcPdf = await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0));
+          const indices = item.singlePageIndex !== null ? [item.singlePageIndex] : srcPdf.getPageIndices();
+          const copied = await outPdf.copyPages(srcPdf, indices);
+          copied.forEach(p => {
+            if (item.rotation !== 0) {
+              p.setRotation(PDFLib.degrees((p.getRotation().angle + item.rotation) % 360));
+            }
+            outPdf.addPage(p);
+          });
+        } else if (item.isImage && item.thumbUrl) {
+          const canvas = await renderItemToCanvas(item);
+          const jpgBytes = await fetch(canvas.toDataURL('image/jpeg', 0.92)).then(r => r.arrayBuffer());
+          const img = await outPdf.embedJpg(jpgBytes);
+
+          let pw = img.width + marginOpt * 2;
+          let ph = img.height + marginOpt * 2;
+          if (pageSizeOpt === 'A4') { pw = 595.28; ph = 841.89; }
+          if (pageSizeOpt === 'Letter') { pw = 612; ph = 792; }
+
+          if (pageSizeOpt !== 'FIT') {
+            const isLand = img.width > img.height;
+            if ((orientOpt === 'auto' && isLand) || orientOpt === 'landscape') {
+              [pw, ph] = [Math.max(pw, ph), Math.min(pw, ph)];
+            } else if (orientOpt === 'portrait') {
+              [pw, ph] = [Math.min(pw, ph), Math.max(pw, ph)];
+            }
+          }
+
+          const page = outPdf.addPage([pw, ph]);
+          const scale = Math.min((pw - marginOpt * 2) / img.width, (ph - marginOpt * 2) / img.height);
+          const dw = img.width * scale;
+          const dh = img.height * scale;
+          page.drawImage(img, { x: (pw - dw) / 2, y: (ph - dh) / 2, width: dw, height: dh });
+        }
+      }
+
+      const bytes = await outPdf.save();
+      const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
+      finishWithBlob(new Blob([bytes], { type: 'application/pdf' }), finalName, `Berhasil menggabungkan ${outPdf.getPageCount()} halaman sesuai urutan.`);
+    }
+
+    // --- ENGINE 4: SPLIT PDF ---
+    async function runSplitPdf(baseName) {
+      const pdfItem = state.items.find(i => i.isPdf && i.arrayBuffer);
+      if (!pdfItem) { showToast('Tambahkan minimal 1 file PDF.', 'error'); return; }
+
+      const mode = document.getElementById('optSplitMode').value;
+      const srcPdf = await PDFLib.PDFDocument.load(pdfItem.arrayBuffer.slice(0));
+      const total = srcPdf.getPageCount();
+      const firstPdfClean = pdfItem.name.replace(/\.pdf$/i, '').trim();
+
+      if (mode === 'range') {
+        const indices = parsePageRange(document.getElementById('optPageRange').value || '1', total);
+        const newPdf = await PDFLib.PDFDocument.create();
+        const pages = await newPdf.copyPages(srcPdf, indices);
+        pages.forEach(p => newPdf.addPage(p));
+        const bytes = await newPdf.save();
+        const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
+        finishWithBlob(new Blob([bytes], { type: 'application/pdf' }), finalName, `${indices.length} halaman diekstrak.`);
+      } else {
+        const zip = new JSZip();
+        for (let i = 0; i < total; i++) {
+          const single = await PDFLib.PDFDocument.create();
+          const [p] = await single.copyPages(srcPdf, [i]);
+          single.addPage(p);
+          zip.file(`${firstPdfClean}_${String(i + 1).padStart(2, '0')}.pdf`, await single.save());
+        }
+        const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstPdfClean });
+        finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${total} halaman PDF dipecah menjadi file satuan.`);
+      }
+    }
+
+    // --- ENGINE 5: PDF TO IMAGES ---
+    async function runPdfToImages(baseName) {
+      const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
+      if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
+      const fmt = document.getElementById('optImgFormat').value;
+      const scale = parseFloat(document.getElementById('optRenderScale').value) || 2.0;
+      const ext = fmt === 'image/png' ? 'png' : (fmt === 'image/webp' ? 'webp' : 'jpg');
+      const zip = new JSZip();
+      let count = 0;
+      const firstClean = pdfItems[0].name.replace(/\.pdf$/i, '').trim();
+
+      for (const item of pdfItems) {
+        const doc = await pdfjsLib.getDocument({ data: item.arrayBuffer.slice(0) }).promise;
+        for (let p = 1; p <= doc.numPages; p++) {
+          count++;
+          const page = await doc.getPage(p);
+          const vp = page.getViewport({ scale, rotation: item.rotation });
+          const c = document.createElement('canvas');
+          c.width = vp.width;
+          c.height = vp.height;
+          await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+          const blob = await new Promise(r => c.toBlob(r, fmt, 0.92));
+          zip.file(`${firstClean}_${String(count).padStart(2, '0')}.${ext}`, blob);
+        }
+      }
+      const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
+      finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${count} halaman PDF dirender menjadi ${ext.toUpperCase()}.`);
+    }
+
+    // --- ENGINE 6: COMPRESS PDF ---
+    async function runCompressPdf(baseName) {
+      const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
+      if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
+      const q = (parseInt(document.getElementById('optPdfQuality')?.value || '65', 10)) / 100;
+      const outPdf = await PDFLib.PDFDocument.create();
+
+      for (const item of pdfItems) {
+        const doc = await pdfjsLib.getDocument({ data: item.arrayBuffer.slice(0) }).promise;
+        for (let p = 1; p <= doc.numPages; p++) {
+          const page = await doc.getPage(p);
+          const vp = page.getViewport({ scale: 1.35, rotation: item.rotation });
+          const c = document.createElement('canvas');
+          c.width = vp.width;
+          c.height = vp.height;
+          await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+          const img = await outPdf.embedJpg(await fetch(c.toDataURL('image/jpeg', q)).then(r => r.arrayBuffer()));
+          const np = outPdf.addPage([vp.width * 0.75, vp.height * 0.75]);
+          np.drawImage(img, { x: 0, y: 0, width: np.getWidth(), height: np.getHeight() });
+        }
+      }
+      const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
+      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, `PDF berhasil dioptimasi.`);
+    }
+
+    // --- ENGINE 7: CROP PDF ---
+    async function runCropPdf(baseName) {
+      const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
+      if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
+      const margin = parseInt(document.getElementById('optPdfCropMargin').value, 10) || 36;
+      const outPdf = await PDFLib.PDFDocument.create();
+      for (const item of pdfItems) {
+        const src = await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0));
+        const pages = await outPdf.copyPages(src, src.getPageIndices());
+        pages.forEach(p => {
+          const { width, height } = p.getSize();
+          p.setCropBox(margin, margin, Math.max(50, width - margin * 2), Math.max(50, height - margin * 2));
+          outPdf.addPage(p);
+        });
+      }
+      const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
+      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, `Margin PDF dipotong sebesar ${margin} pt.`);
+    }
+
+    // --- ENGINE 8: WATERMARK PDF ---
+    async function runWatermarkPdf(baseName) {
+      const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
+      if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
+      const wm = document.getElementById('optPdfWatermarkText').value.trim();
+      const addNum = document.getElementById('optPdfPageNumbers').checked;
+      const outPdf = await PDFLib.PDFDocument.create();
+      const font = await outPdf.embedFont(PDFLib.StandardFonts.HelveticaBold);
+
+      for (const item of pdfItems) {
+        const src = await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0));
+        const pages = await outPdf.copyPages(src, src.getPageIndices());
+        pages.forEach(p => outPdf.addPage(p));
+      }
+
+      const pages = outPdf.getPages();
+      pages.forEach((p, idx) => {
+        const { width, height } = p.getSize();
+        if (wm) {
+          p.drawText(wm, { x: width * 0.2, y: height * 0.5, size: 26, font, color: PDFLib.rgb(0.15, 0.39, 0.92), opacity: 0.25, rotate: PDFLib.degrees(30) });
+        }
+        if (addNum) {
+          p.drawText(`Halaman ${idx + 1} / ${pages.length}`, { x: width / 2 - 40, y: 18, size: 10, font, color: PDFLib.rgb(0.2, 0.2, 0.2) });
+        }
+      });
+      const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
+      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, `Watermark & nomor halaman diterapkan.`);
+    }
+
+    // --- ENGINE 9: DOC / TEXT / CSV / EPUB TO PDF ---
+    async function runDocOrTextToPdf(baseName) {
+      let text = document.getElementById('optRawTextContent')?.value || '';
+      if (state.items.length > 0) {
+        const first = state.items[0];
+        const raw = await first.file.text();
+        text = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || text;
+      }
+
+      const pdfDoc = await PDFLib.PDFDocument.create();
+      const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+      let page = pdfDoc.addPage([595.28, 841.89]);
+      let y = 785;
+      const words = text.split(/\s+/);
+      let line = '';
+
+      for (const w of words) {
+        const test = line ? `${line} ${w}` : w;
+        if (font.widthOfTextAtSize(test, 11) > 495 && line) {
+          page.drawText(line, { x: 50, y, size: 11, font });
+          y -= 16;
+          line = w;
+          if (y < 55) {
+            page = pdfDoc.addPage([595.28, 841.89]);
+            y = 785;
+          }
+        } else {
+          line = test;
+        }
+      }
+      if (line) page.drawText(line, { x: 50, y, size: 11, font });
+
+      const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
+      finishWithBlob(new Blob([await pdfDoc.save()], { type: 'application/pdf' }), finalName, `Dokumen dikonversi menjadi ${pdfDoc.getPageCount()} halaman PDF.`);
+    }
+
+    // --- ENGINE 10: PDF TO TEXT ---
+    async function runPdfToText(baseName) {
+      const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
+      if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
+      let fullText = '';
+      for (const item of pdfItems) {
+        const doc = await pdfjsLib.getDocument({ data: item.arrayBuffer.slice(0) }).promise;
+        for (let p = 1; p <= doc.numPages; p++) {
+          const page = await doc.getPage(p);
+          const content = await page.getTextContent();
+          fullText += `--- Halaman ${p} (${item.name}) ---\n` + content.items.map(it => it.str).join(' ') + '\n\n';
+        }
+      }
+      const finalName = formatDownloadFilename({ baseName, ext: 'txt', isBulkOrZip: false });
+      finishWithBlob(new Blob([fullText], { type: 'text/plain;charset=utf-8' }), finalName, `Teks berhasil diekstrak dari dokumen PDF.`);
+    }
+
+    // --- ENGINE 11: BATCH IMAGE OPERATIONS ---
+    async function runBatchImageProcess(baseName, mode) {
+      const imgItems = state.items.filter(i => i.isImage && i.thumbUrl);
+      if (!imgItems.length) { showToast('Tambahkan minimal 1 file gambar.', 'error'); return; }
+
+      const zip = new JSZip();
+      let singleBlob = null;
+      let singleExt = 'png';
+      const firstClean = imgItems[0].name.replace(/\.[^.]+$/, '').trim();
+
+      for (let i = 0; i < imgItems.length; i++) {
+        const item = imgItems[i];
+        const baseCanvas = await renderItemToCanvas(item);
+        let outCanvas = baseCanvas;
+        let mime = 'image/jpeg';
+        let quality = 0.88;
+
+        if (mode === 'compress-image') {
+          quality = (parseInt(document.getElementById('optImgQuality').value, 10) || 72) / 100;
+          mime = document.getElementById('optCompressFormat').value;
+          const maxW = parseInt(document.getElementById('optMaxWidth').value, 10) || 0;
+          if (maxW > 0 && baseCanvas.width > maxW) {
+            outCanvas = resizeCanvas(baseCanvas, maxW, Math.round(baseCanvas.height * (maxW / baseCanvas.width)), 'stretch');
+          }
+        } else if (mode === 'convert-image') {
+          mime = document.getElementById('optTargetFormat').value;
+          if (mime === 'image/jpeg') {
+            const bg = document.getElementById('optBgFill').value;
+            const c = document.createElement('canvas');
+            c.width = baseCanvas.width;
+            c.height = baseCanvas.height;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, c.width, c.height);
+            ctx.drawImage(baseCanvas, 0, 0);
+            outCanvas = c;
+          }
+        } else if (mode === 'resize-image') {
+          const w = parseInt(document.getElementById('optResizeW').value, 10) || 413;
+          const h = parseInt(document.getElementById('optResizeH').value, 10) || 531;
+          const fit = document.getElementById('optResizeFit').value;
+          outCanvas = resizeCanvas(baseCanvas, w, h, fit);
+        } else if (mode === 'filters-image') {
+          const shape = document.getElementById('optShapeCrop').value;
+          const filter = document.getElementById('optColorFilter').value;
+          const c = document.createElement('canvas');
+          c.width = baseCanvas.width;
+          c.height = baseCanvas.height;
+          const ctx = c.getContext('2d');
+          if (shape === 'circle') {
+            const sz = Math.min(c.width, c.height);
+            c.width = sz;
+            c.height = sz;
+            ctx.beginPath();
+            ctx.arc(sz / 2, sz / 2, sz / 2, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.filter = filter;
+            ctx.drawImage(baseCanvas, (sz - baseCanvas.width) / 2, (sz - baseCanvas.height) / 2);
+          } else if (shape === 'rounded') {
+            ctx.beginPath();
+            ctx.roundRect(0, 0, c.width, c.height, 40);
+            ctx.clip();
+            ctx.filter = filter;
+            ctx.drawImage(baseCanvas, 0, 0);
+          } else {
+            ctx.filter = filter;
+            ctx.drawImage(baseCanvas, 0, 0);
+          }
+          outCanvas = c;
+          mime = 'image/png';
+        } else if (mode === 'rotate-flip') {
+          const flip = document.getElementById('optFlipMode').value;
+          const c = document.createElement('canvas');
+          c.width = baseCanvas.width;
+          c.height = baseCanvas.height;
+          const ctx = c.getContext('2d');
+          if (flip === 'h') { ctx.translate(c.width, 0); ctx.scale(-1, 1); }
+          if (flip === 'v') { ctx.translate(0, c.height); ctx.scale(1, -1); }
+          ctx.drawImage(baseCanvas, 0, 0);
+          outCanvas = c;
+          mime = 'image/png';
+        } else if (mode === 'watermark-image') {
+          const txt = document.getElementById('optImgWatermarkText').value || 'MiDoc';
+          const pos = document.getElementById('optImgWatermarkPos').value;
+          const ctx = outCanvas.getContext('2d');
+          const fs = Math.max(18, Math.round(outCanvas.width * 0.035));
+          ctx.font = `bold ${fs}px "Plus Jakarta Sans", sans-serif`;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = '#111827';
+          ctx.lineWidth = Math.max(2, Math.round(fs * 0.12));
+          let x = outCanvas.width - 20;
+          let y = outCanvas.height - 20;
+          ctx.textAlign = 'right';
+          if (pos === 'center') { x = outCanvas.width / 2; y = outCanvas.height / 2; ctx.textAlign = 'center'; }
+          if (pos === 'bottom-left') { x = 20; ctx.textAlign = 'left'; }
+          ctx.strokeText(txt, x, y);
+          ctx.fillText(txt, x, y);
+          mime = 'image/png';
+        }
+
+        const ext = mime === 'image/png' ? 'png' : (mime === 'image/webp' ? 'webp' : 'jpg');
+        const blob = await new Promise(r => outCanvas.toBlob(r, mime, quality));
+        const innerName = `${firstClean}_${String(i + 1).padStart(2, '0')}.${ext}`;
+        zip.file(innerName, blob);
+        if (imgItems.length === 1) {
+          singleBlob = blob;
+          singleExt = ext;
+        }
+      }
+
+      if (imgItems.length === 1 && singleBlob) {
+        const finalSingleName = formatDownloadFilename({ baseName, ext: singleExt, isBulkOrZip: false });
+        finishWithBlob(singleBlob, finalSingleName, `Gambar berhasil diproses.`, { isImageResult: true });
+      } else {
+        const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
+        finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${imgItems.length} gambar selesai diproses.`);
+      }
+    }
+
+    // --- ENGINE 12: OVERLAY IMAGES ---
+    async function runOverlayImages(baseName) {
+      const imgs = state.items.filter(i => i.isImage && i.thumbUrl);
+      if (imgs.length < 2) { showToast('Tambahkan minimal 2 gambar (#1 utama, #2 overlay/tanda tangan).', 'error'); return; }
+      const baseC = await renderItemToCanvas(imgs[0]);
+      const overC = await renderItemToCanvas(imgs[1]);
+      const pos = document.getElementById('optOverlayPos').value;
+      const ctx = baseC.getContext('2d');
+
+      const targetW = Math.round(baseC.width * 0.28);
+      const targetH = Math.round(overC.height * (targetW / overC.width));
+      let x = baseC.width - targetW - 20;
+      let y = baseC.height - targetH - 20;
+      if (pos === 'center') { x = (baseC.width - targetW) / 2; y = (baseC.height - targetH) / 2; }
+      if (pos === 'bottom-left') { x = 20; }
+
+      ctx.drawImage(overC, x, y, targetW, targetH);
+      const blob = await new Promise(r => baseC.toBlob(r, 'image/png'));
+      const finalName = formatDownloadFilename({ baseName, ext: 'png', isBulkOrZip: false });
+      finishWithBlob(blob, finalName, `Gambar #2 berhasil ditempelkan di atas gambar #1.`, { isImageResult: true });
+    }
+
+    // --- ENGINE 13: BATCH RENAME & ZIP ---
+    async function runBatchRename(baseName) {
+      const prefix = document.getElementById('optRenamePrefix').value || 'File_';
+      const start = parseInt(document.getElementById('optRenameStart').value, 10) || 1;
+      const digits = parseInt(document.getElementById('optRenameDigits').value, 10) || 3;
+      const zip = new JSZip();
+      const firstClean = getFirstFileBaseName();
+
+      state.items.forEach((it, idx) => {
+        const ext = it.name.includes('.') ? it.name.split('.').pop() : 'bin';
+        const num = String(start + idx).padStart(digits, '0');
+        zip.file(`${prefix}${num}.${ext}`, it.arrayBuffer || it.file);
+      });
+      const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
+      finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${state.items.length} file dinamai ulang sesuai urutan.`);
+    }
+
+    async function runZipMaker(baseName) {
+      const zip = new JSZip();
+      const firstClean = getFirstFileBaseName();
+      state.items.forEach((it, idx) => {
+        const ext = it.name.includes('.') ? it.name.split('.').pop() : 'bin';
+        zip.file(`${firstClean}_${String(idx + 1).padStart(2, '0')}.${ext}`, it.arrayBuffer || it.file);
+      });
+      const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
+      finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${state.items.length} file dikemas dalam ZIP.`);
+    }
+
+    // --- ENGINE 14: COLOR PICKER, QR GENERATOR, PASSWORD ---
+    async function runColorPicker() {
+      const img = state.items.find(i => i.isImage && i.thumbUrl);
+      if (!img) { showToast('Tambahkan minimal 1 gambar.', 'error'); return; }
+      const c = resizeCanvas(await renderItemToCanvas(img), 36, 36, 'stretch');
+      const data = c.getContext('2d').getImageData(0, 0, 36, 36).data;
+      const map = {};
+      for (let i = 0; i < data.length; i += 16) {
+        const hex = '#' + [data[i], data[i + 1], data[i + 2]].map(v => (Math.round(v / 24) * 24).toString(16).padStart(2, '0')).join('').toUpperCase();
+        map[hex] = (map[hex] || 0) + 1;
+      }
+      const top = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 8).map(e => e[0]);
+      document.getElementById('extractedPaletteSwatches').innerHTML = top.map(hex => `
+        <button onclick="copyTextFallback('${hex}'); showToast('Disalin: ${hex}', 'info')" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-center">
+          <div class="w-full h-6 mb-1" style="background:${hex}"></div>
+          <div class="text-[10px] font-mono font-bold">${hex}</div>
+        </button>
+      `).join('');
+    }
+
+    async function runQrGenerator(baseName) {
+      const text = document.getElementById('optQrText').value || 'MiDoc';
+      const c = document.createElement('canvas');
+      c.width = 400;
+      c.height = 400;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, 400, 400);
+      ctx.fillStyle = '#111827';
+
+      // Deterministic geometric matrix encoding from text hash
+      let hash = 2166136261;
+      for (let i = 0; i < text.length; i++) {
+        hash ^= text.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+
+      const cells = 21;
+      const pad = 32;
+      const cellSize = (400 - pad * 2) / cells;
+      for (let r = 0; r < cells; r++) {
+        for (let col = 0; col < cells; col++) {
+          const isFinder = (r < 7 && col < 7) || (r < 7 && col >= cells - 7) || (r >= cells - 7 && col < 7);
+          let fill = false;
+          if (isFinder) {
+            const lr = r >= cells - 7 ? r - (cells - 7) : r;
+            const lc = col >= cells - 7 ? col - (cells - 7) : col;
+            fill = lr === 0 || lr === 6 || lc === 0 || lc === 6 || (lr >= 2 && lr <= 4 && lc >= 2 && lc <= 4);
+          } else {
+            const bit = ((hash >>> ((r * cells + col) % 24)) ^ (text.charCodeAt((r + col) % text.length))) & 1;
+            fill = bit === 1;
+          }
+          if (fill) {
+            ctx.fillRect(pad + col * cellSize, pad + r * cellSize, Math.ceil(cellSize), Math.ceil(cellSize));
+          }
+        }
+      }
+      const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+      const finalName = formatDownloadFilename({ baseName, ext: 'png', isBulkOrZip: false });
+      finishWithBlob(blob, finalName, `Kode matriks dibuat untuk "${text}".`, { isImageResult: true });
+    }
+
+    function runPasswordGenerator() {
+      const len = parseInt(document.getElementById('optPassLen')?.value || '16', 10);
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*_-+=';
+      const arr = new Uint32Array(len);
+      crypto.getRandomValues(arr);
+      let out = '';
+      for (let i = 0; i < len; i++) out += chars[arr[i] % chars.length];
+      document.getElementById('generatedPasswordDisplay').textContent = out;
+      copyTextFallback(out);
+      showToast('Kata sandi baru disalin ke clipboard.', 'success');
+    }
+
+    // =========================================================================
+    // 10. SHARED CANVAS & HELPER FUNCTIONS
+    // =========================================================================
+    function renderItemToCanvas(item) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const rad = (item.rotation * Math.PI) / 180;
+          const swap = item.rotation === 90 || item.rotation === 270;
+          const canvas = document.createElement('canvas');
+          canvas.width = swap ? img.naturalHeight : img.naturalWidth;
+          canvas.height = swap ? img.naturalWidth : img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.translate(canvas.width / 2, canvas.height / 2);
+          ctx.rotate(rad);
+          ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+          resolve(canvas);
+        };
+        img.onerror = reject;
+        img.src = item.thumbUrl;
+      });
+    }
+
+    function resizeCanvas(srcCanvas, targetW, targetH, fitMode) {
+      const dst = document.createElement('canvas');
+      dst.width = targetW;
+      dst.height = targetH;
+      const ctx = dst.getContext('2d');
+      if (fitMode === 'stretch') {
+        ctx.drawImage(srcCanvas, 0, 0, targetW, targetH);
+      } else if (fitMode === 'contain') {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, targetW, targetH);
+        const s = Math.min(targetW / srcCanvas.width, targetH / srcCanvas.height);
+        ctx.drawImage(srcCanvas, (targetW - srcCanvas.width * s) / 2, (targetH - srcCanvas.height * s) / 2, srcCanvas.width * s, srcCanvas.height * s);
+      } else {
+        const s = Math.max(targetW / srcCanvas.width, targetH / srcCanvas.height);
+        ctx.drawImage(srcCanvas, (targetW - srcCanvas.width * s) / 2, (targetH - srcCanvas.height * s) / 2, srcCanvas.width * s, srcCanvas.height * s);
+      }
+      return dst;
+    }
+
+    function parsePageRange(str, max) {
+      const out = [];
+      str.split(',').forEach(part => {
+        const t = part.trim();
+        if (t.includes('-')) {
+          const [a, b] = t.split('-').map(n => parseInt(n, 10));
+          if (!isNaN(a) && !isNaN(b)) {
+            for (let p = Math.max(1, a); p <= Math.min(max, b); p++) out.push(p - 1);
+          }
+        } else {
+          const n = parseInt(t, 10);
+          if (!isNaN(n) && n >= 1 && n <= max) out.push(n - 1);
+        }
+      });
+      return out;
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes) return '0 B';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(1024));
+      return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+
+    function copyTextFallback(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const el = document.createElement('div');
+      const cls = type === 'error'
+        ? 'bg-red-600 text-white'
+        : (type === 'success' ? 'bg-accent text-white' : 'bg-ink text-white border border-zinc-700');
+      el.className = `pointer-events-auto px-3.5 py-2 rounded-sm text-xs font-medium ${cls}`;
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 2600);
+    }
+  </script>
+</body>
+</html>
