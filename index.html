@@ -4460,12 +4460,17 @@
       for (let index = 0; index < entries.length; index++) {
         const entry = entries[index];
         const normalized = entry.name.replace(/\\/g, '/');
-        if (normalized.startsWith('/') || normalized.split('/').includes('..')) {
-          skipped.push(entry.name);
+        const originalParts = normalized.split('/');
+        if (normalized.startsWith('/') || /^[A-Za-z]:/.test(normalized) || originalParts.includes('..') || originalParts.some(part => /[\x00-\x1F]/.test(part))) {
+          skipped.push(entry.name + ' — jalur tidak aman');
           continue;
         }
-        const parts = normalized.split('/').filter(part => part && part !== '.');
-        if (!parts.length) continue;
+        const invalidChars = new RegExp('[<>:' + String.fromCharCode(34) + '|?*]', 'g');
+        const parts = originalParts.filter(part => part && part !== '.').map(part => part.replace(invalidChars, '_').replace(/[. ]+$/g, '').slice(0, 120));
+        if (!parts.length || parts.length > 20 || parts.some(part => !part || /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(part))) {
+          skipped.push(entry.name + ' — nama atau kedalaman jalur tidak valid');
+          continue;
+        }
 
         try {
           let directory = rootHandle;
