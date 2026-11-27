@@ -1829,13 +1829,15 @@
         extBadge.textContent = '.pdf';
         filenameInput.value = 'MiDoc_Dokumen';
         btnLabel.textContent = 'Konversi ke PDF';
-        box.innerHTML = `
-          <p class="text-xs text-zinc-600 dark:text-zinc-400">
-            Jika Anda mengunggah file .txt / .csv / .html / .md, sistem akan membacanya otomatis. Anda juga bisa mengetik teks langsung di bawah ini:
-          </p>
-          <textarea id="optRawTextContent" rows="5" placeholder="Ketik atau tempel isi dokumen di sini..." class="w-full p-2.5 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs leading-relaxed">Dokumen dibuat melalui MiDoc Studio.
-Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke server.</textarea>
-        `;
+        const conversionHints = {
+          'word-to-pdf': 'Input file: DOCX atau RTF. Teks akan diekstrak lalu disusun ulang ke PDF sederhana; layout, tabel kompleks, gambar, dan gaya dokumen asli tidak dipertahankan.',
+          'excel-to-pdf': 'Input file: XLSX, CSV, atau TSV. Nilai sel/field diekstrak dan disusun sebagai teks baris; format sel, formula tampilan, grafik, dan styling spreadsheet tidak direplikasi.',
+          'ppt-to-pdf': 'Input file: PPTX. Teks dari setiap slide diekstrak ke halaman PDF; layout, ilustrasi, gambar, transisi, dan animasi slide tidak dipertahankan.',
+          'ebook-to-pdf': 'Input file: EPUB saja. Teks bab dibaca dari urutan spine EPUB dan disusun ke PDF sederhana; MOBI/AZW serta layout asli belum didukung.',
+          'txt-to-pdf': 'Input file: TXT atau Markdown. Isi teks disusun ke halaman PDF baru.'
+        };
+        const hint = conversionHints[toolObj.id] || 'Teks dari file yang didukung akan disusun ke PDF baru. Layout asli dokumen tidak dipertahankan.';
+        box.innerHTML = '<p class="text-xs text-zinc-600 dark:text-zinc-400">' + hint + ' Anda juga bisa mengetik atau menempel teks secara langsung:</p><textarea id="optRawTextContent" rows="5" placeholder="Ketik atau tempel isi teks di sini..." class="w-full p-2.5 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs leading-relaxed"></textarea>';
       } else if (engine === 'pdf-to-text') {
         extBadge.textContent = '.txt';
         filenameInput.value = 'MiDoc_Ekstrak_Teks';
@@ -3849,6 +3851,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
           fullText += `--- Halaman ${p} (${item.name}) ---\n` + content.items.map(it => it.str).join(' ') + '\n\n';
         }
       }
+      if (!fullText.trim()) throw new Error('Tidak ditemukan lapisan teks pada PDF. Jika dokumen berupa hasil scan/foto, alat ini belum melakukan OCR.');
       const finalName = formatDownloadFilename({ baseName, ext: 'txt', isBulkOrZip: false });
       finishWithBlob(new Blob([fullText], { type: 'text/plain;charset=utf-8' }), finalName, `Teks berhasil diekstrak dari dokumen PDF.`);
     }
