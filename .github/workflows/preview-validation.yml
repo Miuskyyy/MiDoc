@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "feature/**"
+      - "fix/**"
   pull_request:
     branches:
       - main
@@ -54,6 +55,74 @@ jobs:
           });
           console.log('JavaScript syntax OK: ' + inlineScripts.length + ' inline script block(s).');
           NODE
+
+
+      - name: Audit every tool ID, input rule, and key operation
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const tools = [...html.matchAll(/\{\s*id:\s*'([^']+)',\s*name:\s*'([^']+)'[^}]*engine:\s*'([^']+)'/g)]
+            .map(match => ({ id: match[1], name: match[2], engine: match[3] }));
+          const policyBlock = html.match(/const TOOL_INPUT_RULES = \{([\s\S]*?)\n    \};/)?.[1] || '';
+          const policies = [...policyBlock.matchAll(/'([^']+)'\s*:/g)].map(match => match[1]);
+          const missing = tools.filter(tool => !policies.includes(tool.id));
+          if (!tools.length) throw new Error('Tool catalog could not be read.');
+          if (missing.length) throw new Error('Missing input policy: ' + missing.map(tool => tool.id).join(', '));
+          if (html.includes("id: 'protect-pdf'") || html.includes("id: 'pdf-to-ebook'")) {
+            throw new Error('Unsupported PDF tools are still advertised.');
+          }
+          if (!html.includes("id: 'gif-tools'") || !html.includes("engine: 'gif-tools'")) {
+            throw new Error('GIF Maker must use its dedicated engine.');
+          }
+          const required = [
+            ['GIF creation', 'async function createAnimatedGif'],
+            ['GIF extraction', 'async function extractGifFrames'],
+            ['GIF mode validation', "return { formats: ['gif'], accept: '.gif,image/gif'"],
+            ['Strict file signature checks', 'async function sniffFileFormat'],
+            ['Pre-ingestion validation', 'validateIncomingFiles(filesArray)'],
+            ['Pre-execution validation', 'validateCurrentToolFiles()'],
+            ['PDF merge engine', 'async function runMergePdf'],
+            ['PDF organize engine', 'async function runOrganizePdf'],
+            ['PDF rotate engine', 'async function runRotatePdf'],
+            ['EXIF removal engine', 'async function runRemoveExif'],
+            ['QR Code library', 'qrcodejs'],
+            ['Real QR generation', 'new QRCode(host'],
+            ['Independent unit converter', 'function recalcUnitConverter'],
+            ['Percentage resize mode', "document.getElementById('optResizePercent')"],
+            ['ZIP path traversal protection', "originalParts.includes('..')"],
+            ['Image-to-PDF original-size default', '<option value="FIT" selected>Sesuai Dimensi Asli Gambar</option>'],
+            ['Image-to-PDF zero margin default', '<option value="0">0 pt (Penuh Tanpa Margin)</option>'],
+            ['Image-to-PDF original quality default', '<option value="original" selected>Same as Image — 100% / kualitas asli</option>']
+          ];
+          const missingMarkers = required.filter(([, marker]) => !html.includes(marker)).map(([label]) => label);
+          if (missingMarkers.length) throw new Error('Missing expected behavior: ' + missingMarkers.join(', '));
+          const finish = html.match(/function finishWithBlob\([\s\S]*?\n    \}/)?.[0] || '';
+          const userAction = finish.indexOf("reDownloadBtn').onclick");
+          const downloadCall = finish.indexOf('link.click()');
+          if (userAction < 0 || (downloadCall >= 0 && downloadCall < userAction)) {
+            throw new Error('Results must be shown first and downloaded only after the user clicks the download button.');
+          }
+          console.log('MiDoc audit checks passed for ' + tools.length + ' tools; all have explicit input rules.');
+          NODE
+
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Run browser smoke tests
+        run: |
+          python3 -m http.server 4173 --directory . > /tmp/midoc-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          node tests/browser-smoke.cjs
 
       - name: Check requested functionality markers
         run: |
