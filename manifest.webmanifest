@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "MiDoc — Studio Dokumen & Gambar",
+  "short_name": "MiDoc",
+  "description": "Studio alat dokumen, PDF, dan gambar yang berjalan langsung di browser.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#121214",
+  "theme_color": "#1748f5",
+  "icons": [
+    {
+      "src": "./midoc-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
