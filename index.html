@@ -4524,30 +4524,31 @@
     async function createAnimatedGif(baseName) {
       const images = state.items.filter(item => item.isImage && item.thumbUrl);
       if (images.length < 2) throw new Error('GIF Maker memerlukan minimal dua gambar statis.');
-      if (images.length > 150) throw new Error('GIF Maker menerima maksimal 150 frame dalam satu animasi. Kurangi jumlah gambar agar browser tetap stabil.');
+      if (images.length > 150) throw new Error('GIF Maker menerima maksimal 150 frame dalam satu animasi.');
       if (typeof window.GIF !== 'function') throw new Error('GIF encoder belum berhasil dimuat. Periksa koneksi internet lalu muat ulang halaman.');
-      const sourceFrames = [];
-      for (let i = 0; i < images.length; i++) {
-        updateProgress((i / images.length) * 20, 'Membaca gambar ' + (i + 1) + ' dari ' + images.length + '...');
-        sourceFrames.push(await renderItemToCanvas(images[i]));
-      }
-      const first = sourceFrames[0];
+
+      const first = await renderItemToCanvas(images[0]);
       const maxWidth = parseInt(document.getElementById('optGifMaxWidth')?.value || '0', 10);
       const requestedWidth = maxWidth > 0 ? Math.min(first.width, maxWidth) : Math.min(first.width, 1080);
       const outputWidth = Math.max(1, requestedWidth);
       const outputHeight = Math.max(1, Math.round(first.height * outputWidth / first.width));
-      if (outputWidth > 2400 || outputHeight > 4000 || outputWidth * outputHeight > 6000000) {
-        throw new Error('Ukuran frame GIF terlalu besar. Pilih batas lebar 480, 720, atau 1080 px agar dapat dibuat dengan aman.');
+      const totalPixels = outputWidth * outputHeight * images.length;
+      if (outputWidth > 2400 || outputHeight > 4000 || outputWidth * outputHeight > 6000000 || totalPixels > 40000000) {
+        throw new Error('Total frame GIF terlalu besar untuk diproses dengan aman. Pilih lebar 480 atau 720 px, atau kurangi jumlah gambar.');
       }
-      const delay = Math.max(20, Math.min(10000, parseInt(document.getElementById('optGifDelay')?.value || '250', 10)));
+      const delayInput = Number(document.getElementById('optGifDelay')?.value || '250');
+      if (!Number.isFinite(delayInput) || delayInput < 20 || delayInput > 10000) throw new Error('Durasi frame harus antara 20 dan 10.000 ms.');
+      const delay = Math.round(delayInput);
       const repeat = parseInt(document.getElementById('optGifRepeat')?.value || '0', 10);
       const prepared = [];
-      for (let i = 0; i < sourceFrames.length; i++) {
-        const src = sourceFrames[i];
+
+      for (let i = 0; i < images.length; i++) {
+        const src = i === 0 ? first : await renderItemToCanvas(images[i]);
         const frame = document.createElement('canvas');
         frame.width = outputWidth;
         frame.height = outputHeight;
         const ctx = frame.getContext('2d');
+        if (!ctx) throw new Error('Browser tidak dapat membuat kanvas untuk frame GIF.');
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, frame.width, frame.height);
         const scale = Math.min(frame.width / src.width, frame.height / src.height);
@@ -4555,8 +4556,9 @@
         const drawH = Math.max(1, Math.round(src.height * scale));
         ctx.drawImage(src, (frame.width - drawW) / 2, (frame.height - drawH) / 2, drawW, drawH);
         prepared.push(frame);
+        updateProgress(10 + ((i + 1) / images.length) * 15, 'Menyiapkan frame ' + (i + 1) + ' dari ' + images.length + '...');
       }
-      updateProgress(25, 'Membuat animasi GIF...');
+
       const blob = await new Promise((resolve, reject) => {
         let settled = false;
         const encoder = new GIF({
@@ -4575,6 +4577,9 @@
         encoder.on('abort', () => {
           if (!settled) reject(new Error('Pembuatan GIF dibatalkan oleh encoder.'));
         });
+        encoder.on('error', error => {
+          if (!settled) reject(error instanceof Error ? error : new Error('GIF encoder gagal memproses frame.'));
+        });
         prepared.forEach(canvas => encoder.addFrame(canvas, { delay, copy: true }));
         try {
           encoder.render();
@@ -4586,6 +4591,7 @@
       const finalName = formatDownloadFilename({ baseName, ext: 'gif', isBulkOrZip: false });
       finishWithBlob(blob, finalName, 'Animasi GIF berhasil dibuat dari ' + images.length + ' gambar, ukuran ' + outputWidth + '×' + outputHeight + ' px, durasi tiap frame ' + delay + ' ms.', { isImageResult: true });
     }
+
 
     async function extractGifFrames(baseName) {
       const item = state.items[0];
