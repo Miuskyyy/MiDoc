@@ -648,7 +648,7 @@
         subtitle: 'Susun ulang, gabungkan PDF maupun gambar, pecah per halaman, dan ekstrak isi dokumen.',
         tools: [
           { id: 'merge-pdf', name: 'Merge PDF', desc: 'Gabungkan dua atau lebih dokumen PDF sesuai urutan.', icon: 'file-plus-2', engine: 'merge-pdf' },
-          { id: 'merge-pdf-image', name: 'Merge PDF & Gambar', desc: 'Gabung PDF dan foto JPG/PNG dalam satu dokumen', icon: 'layers', engine: 'merge-pdf-image' },
+          { id: 'merge-pdf-image', name: 'Merge PDF & Gambar', desc: 'Gabungkan PDF dan gambar raster JPG, PNG, WebP, AVIF, atau BMP dalam satu dokumen.', icon: 'layers', engine: 'merge-pdf-image' },
           { id: 'split-pdf', name: 'Split PDF', desc: 'Pisahkan halaman PDF menjadi file satuan atau rentang', icon: 'scissors', engine: 'split-pdf' },
           { id: 'organize-pdf', name: 'Organize & Hapus Halaman PDF', desc: 'Susun ulang atau hapus halaman PDF dengan mengatur kartu halaman.', icon: 'layout-grid', engine: 'organize-pdf' },
           { id: 'extract-pdf-pages', name: 'Ekstrak Halaman PDF', desc: 'Ambil nomor halaman tertentu menjadi PDF baru', icon: 'file-output', engine: 'split-pdf' },
@@ -659,7 +659,7 @@
         id: 'group-pdf-edit',
         navCat: 'pdf',
         title: 'Kelompok 2: PDF — Edit & Optimasi',
-        subtitle: 'Perkecil ukuran file, putar orientasi, potong margin, nomor halaman, dan proteksi.',
+        subtitle: 'Perkecil ukuran file dengan rasterisasi, putar orientasi, potong margin, nomor halaman, dan watermark.',
         tools: [
           { id: 'compress-pdf', name: 'Compress PDF (Rasterisasi)', desc: 'Kompres dengan merender ulang halaman menjadi gambar; teks dan vektor tidak lagi dapat dipilih.', icon: 'minimize-2', engine: 'compress-pdf' },
           { id: 'rotate-pdf', name: 'Rotate PDF', desc: 'Putar halaman PDF 90°, 180°, atau 270°.', icon: 'rotate-cw', engine: 'rotate-pdf' },
@@ -676,14 +676,13 @@
         subtitle: 'Konversi lintas format antara gambar, PDF, teks dokumen, lembar kerja, dan eBook.',
         tools: [
           { id: 'image-to-pdf', name: 'Gambar ke PDF', desc: 'Ubah gambar JPG, PNG, WebP, AVIF, atau BMP menjadi PDF.', icon: 'file-image', engine: 'image-to-pdf' },
-          { id: 'pdf-to-image', name: 'PDF ke Gambar / JPG', desc: 'Render setiap halaman PDF menjadi PNG atau JPG', icon: 'image', engine: 'pdf-to-image' },
-          { id: 'word-to-pdf', name: 'Word / DOCX ke PDF', desc: 'Konversi isi teks dokumen Word/RTF menjadi PDF bersih', icon: 'file-text', engine: 'doc-to-pdf' },
+          { id: 'pdf-to-image', name: 'PDF ke Gambar', desc: 'Render tiap halaman PDF menjadi file PNG, JPG, atau WebP dalam ZIP.', icon: 'image', engine: 'pdf-to-image' },
+          { id: 'word-to-pdf', name: 'DOCX / RTF ke PDF (Ekstrak Teks)', desc: 'Ambil teks dari DOCX atau RTF lalu susun ke PDF baru. Tata letak, tabel kompleks, dan gambar dokumen tidak dipertahankan.', icon: 'file-text', engine: 'doc-to-pdf' },
           { id: 'pdf-to-word', name: 'PDF ke TXT (Ekstrak Teks)', desc: 'Ekstrak lapisan teks PDF ke TXT. PDF scan tanpa OCR tidak menghasilkan teks.', icon: 'file-type', engine: 'pdf-to-text' },
-          { id: 'excel-to-pdf', name: 'Excel / CSV ke PDF', desc: 'Ubah data tabel CSV/TSV menjadi halaman laporan PDF', icon: 'table', engine: 'doc-to-pdf' },
-          { id: 'ppt-to-pdf', name: 'PPT / Slide Teks ke PDF', desc: 'Konversi kerangka presentasi menjadi halaman PDF', icon: 'presentation', engine: 'doc-to-pdf' },
+          { id: 'excel-to-pdf', name: 'XLSX / CSV / TSV ke PDF (Data Sel)', desc: 'Ekstrak nilai sel menjadi teks berbaris pada PDF. Format tabel, rumus tampilan, dan styling spreadsheet tidak dipertahankan.', icon: 'table', engine: 'doc-to-pdf' },
+          { id: 'ppt-to-pdf', name: 'PPTX ke PDF (Teks Slide)', desc: 'Ekstrak teks dari tiap slide ke halaman PDF baru. Gambar, posisi objek, animasi, dan desain slide tidak direplikasi.', icon: 'presentation', engine: 'doc-to-pdf' },
           { id: 'txt-to-pdf', name: 'TXT ke PDF', desc: 'Tulis atau unggah file .txt lalu simpan sebagai PDF', icon: 'align-left', engine: 'text-to-pdf' },
-          { id: 'ebook-to-pdf', name: 'eBook EPUB / MOBI / AZW ke PDF', desc: 'Ekstrak konten buku digital EPUB/HTML ke format PDF', icon: 'book-open', engine: 'doc-to-pdf' },
-          { id: 'pdf-to-ebook', name: 'PDF ke eBook (EPUB / TXT)', desc: 'Ubah dokumen PDF menjadi teks bacaan eBook ringan', icon: 'book', engine: 'pdf-to-text' }
+          { id: 'ebook-to-pdf', name: 'EPUB ke PDF (Ekstrak Teks)', desc: 'Ekstrak teks bab dari EPUB dan susun menjadi PDF sederhana. MOBI dan AZW belum didukung; layout asli buku tidak dipertahankan.', icon: 'book-open', engine: 'doc-to-pdf' },
         ]
       },
       {
@@ -694,7 +693,7 @@
         tools: [
           { id: 'image-splitter', name: 'Image Splitter (Pemisah Gambar Seimbang)', desc: 'Potong gambar menjadi N bagian ke samping & M bagian ke bawah dengan pratinjau garis presisi', icon: 'grid', engine: 'image-splitter', badge: 'PRESISI GRID' },
           { id: 'join-images', name: 'JPG / PNG Joiner (Gabung Gambar)', desc: 'Satukan banyak gambar secara vertikal atau horizontal sesuai urutan', icon: 'columns', engine: 'join-images' },
-          { id: 'stitch-screenshot', name: 'Stitch Screenshot', desc: 'Sambung potongan screenshot menjadi satu gambar panjang utuh', icon: 'smartphone', engine: 'join-images' },
+          { id: 'stitch-screenshot', name: 'Gabung Screenshot Berurutan', desc: 'Susun beberapa screenshot secara vertikal atau horizontal sesuai urutan pilihan. Tidak mendeteksi area tumpang tindih secara otomatis.', icon: 'smartphone', engine: 'join-images' },
           { id: 'photo-collage', name: 'Instagram Grid Splitter 3×3', desc: 'Pecah satu foto menjadi sembilan potongan berurutan untuk feed Instagram.', icon: 'layout-grid', engine: 'image-splitter' },
           { id: 'overlay-images', name: 'Overlay Gambar', desc: 'Tumpuk gambar kedua (logo/stempel) di atas gambar utama', icon: 'copy', engine: 'overlay-images' }
         ]
@@ -736,7 +735,7 @@
           { id: 'batch-rename', name: 'Batch Rename File', desc: 'Ganti nama puluhan file sekaligus dengan nomor urut rapi', icon: 'edit-3', engine: 'batch-rename' },
           { id: 'gif-tools', name: 'GIF Maker & Ekstrak Frame GIF', desc: 'Buat animasi GIF dari rangkaian gambar, atau ekstrak frame dari satu file GIF.', icon: 'film', engine: 'gif-tools' },
           { id: 'zip-tools', name: 'ZIP Maker & Extractor', desc: 'Bungkus kumpulan file ke dalam ZIP atau lihat isi arsip ZIP', icon: 'archive', engine: 'zip-maker' },
-          { id: 'color-picker', name: 'Image Color Picker & Hex Inverter', desc: 'Ekstrak palet warna HEX/RGB dari gambar atau balik kode warna', icon: 'pipette', engine: 'color-picker' },
+          { id: 'color-picker', name: 'Image Color Palette Extractor', desc: 'Ambil sampel warna dominan dari gambar dan tampilkan kode HEX untuk disalin.', icon: 'pipette', engine: 'color-picker' },
           { id: 'qr-generator', name: 'QR Code Generator', desc: 'Buat QR Code standar yang bisa dipindai dari teks atau tautan.', icon: 'qr-code', engine: 'qr-generator' },
           { id: 'password-gen', name: 'Password Generator', desc: 'Buat kata sandi acak kuat untuk pengamanan dokumen', icon: 'key-round', engine: 'password-gen' },
           { id: 'unit-converter', name: 'Konverter PX / CM / MM / Inch', desc: 'Konversi panjang antar PX, CM, MM, dan Inch berdasarkan DPI.', icon: 'calculator', engine: 'unit-converter' }
@@ -768,7 +767,7 @@
         label: 'View & Edit',
         icon: 'file-pen-line',
         description: 'Atur tata letak halaman, putar orientasi, potong margin, ekstrak halaman, dan tambahkan elemen PDF.',
-        toolIds: ['crop-pdf', 'organize-pdf', 'rotate-pdf', 'extract-pdf-pages', 'extract-pdf-images', 'page-number-pdf', 'watermark-pdf', 'pdf-copy']
+        toolIds: ['crop-pdf', 'organize-pdf', 'rotate-pdf', 'extract-pdf-pages', 'extract-pdf-images', 'page-number-pdf', 'watermark-pdf']
       },
       {
         id: 'pdf-to',
@@ -782,10 +781,10 @@
         label: 'Convert from PDF',
         icon: 'file-output',
         description: 'Ekspor isi PDF menjadi gambar atau format teks.',
-        toolIds: ['pdf-to-image', 'pdf-to-word', 'pdf-to-ebook']
+        toolIds: ['pdf-to-image', 'pdf-to-word']
       },
       {
-        id: 'pdf-security',
+        id: 'pdf-utilities',
         label: 'PDF Utilities',
         icon: 'file-check',
         description: 'Salin ulang struktur PDF tanpa klaim password atau enkripsi.',
