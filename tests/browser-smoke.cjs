@@ -120,7 +120,10 @@ const assert = require('node:assert/strict');
     // Organize PDF must require splitting the source into page cards before processing.
     await openTool('organize-pdf');
     await page.locator('#fileInput').setInputFiles(pdfPath);
-    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.waitForFunction(() => {
+      const card = document.querySelector('#fileItemsGrid .file-card');
+      return card && card.innerText.includes('PDF 2 HAL');
+    }, { timeout: 15000 });
     await page.locator('button[onclick="executeCurrentTool()"]').click();
     await page.waitForTimeout(500);
     assert.equal(await page.locator('#resultOutputBox').evaluate(el => el.classList.contains('hidden')), true, 'Organize PDF must not silently return an unchanged file before page cards are split');
