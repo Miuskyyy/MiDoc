@@ -908,7 +908,11 @@
     function navigateToHome(options = {}) {
       closeMegaMenu();
       if (!options.fromRoute) {
-        const target = window.location.pathname + window.location.search;
+        const targetUrl = new URL(window.location.href);
+        targetUrl.searchParams.delete('tool');
+        targetUrl.searchParams.delete('transfer');
+        targetUrl.hash = '';
+        const target = targetUrl.pathname + targetUrl.search;
         const current = window.location.pathname + window.location.search + window.location.hash;
         if (current === target) window.location.reload();
         else window.location.assign(target);
@@ -927,7 +931,7 @@
     }
 
     function restoreRouteFromLocation() {
-      const routeParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const routeParams = new URLSearchParams(window.location.search);
       const toolId = routeParams.get('tool');
       const transferId = routeParams.get('transfer');
 
@@ -938,7 +942,9 @@
             .then(async files => {
               if (files.length) {
                 await ingestFilesInExactOrder(files);
-                window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + '#tool=' + encodeURIComponent(toolId));
+                const cleanUrl = new URL(window.location.href);
+                cleanUrl.searchParams.delete('transfer');
+                window.history.replaceState(window.history.state, '', cleanUrl.pathname + cleanUrl.search);
               }
             })
             .catch(error => {
@@ -978,7 +984,11 @@
       if (!found) return;
 
       if (!options.fromRoute) {
-        const target = window.location.pathname + window.location.search + '#tool=' + encodeURIComponent(toolId);
+        const targetUrl = new URL(window.location.href);
+        targetUrl.searchParams.set('tool', toolId);
+        targetUrl.searchParams.delete('transfer');
+        targetUrl.hash = '';
+        const target = targetUrl.pathname + targetUrl.search;
         const current = window.location.pathname + window.location.search + window.location.hash;
         if (current === target) window.location.reload();
         else window.location.assign(target);
@@ -1103,9 +1113,11 @@
       }
       try {
         const transferId = await savePendingToolTransfer(files);
-        const target = window.location.pathname + window.location.search +
-          '#tool=' + encodeURIComponent(toolId) + '&transfer=' + encodeURIComponent(transferId);
-        window.location.assign(target);
+        const targetUrl = new URL(window.location.href);
+        targetUrl.searchParams.set('tool', toolId);
+        targetUrl.searchParams.set('transfer', transferId);
+        targetUrl.hash = '';
+        window.location.assign(targetUrl.pathname + targetUrl.search);
       } catch (error) {
         console.error(error);
         showToast('Tidak dapat membawa file ke alat berikutnya: ' + error.message, 'error');
