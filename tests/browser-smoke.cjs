@@ -99,6 +99,69 @@ const assert = require('node:assert/strict');
       return box && !box.classList.contains('hidden');
     }, { timeout: 45000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
+    const pdfDownloadPromise = page.waitForEvent('download', { timeout: 10000 });
+    await page.locator('#reDownloadBtn').click();
+    const pdfDownload = await pdfDownloadPromise;
+    const pdfPath = '/tmp/midoc-image-to-pdf-test.pdf';
+    await pdfDownload.saveAs(pdfPath);
+
+    // A real PDF must be accepted by PDF-to-image and produce a ZIP of rendered pages.
+    await openTool('pdf-to-image');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => {
+      const box = document.getElementById('resultOutputBox');
+      return box && !box.classList.contains('hidden');
+    }, { timeout: 45000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
+
+    // ZIP Maker creates a real archive while preserving source names.
+    await openTool('zip-tools');
+    await page.locator('#fileInput').setInputFiles([
+      { name: 'alpha.txt', mimeType: 'text/plain', buffer: Buffer.from('alpha-content') },
+      { name: 'beta.txt', mimeType: 'text/plain', buffer: Buffer.from('beta-content') }
+    ]);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => {
+      const box = document.getElementById('resultOutputBox');
+      return box && !box.classList.contains('hidden');
+    }, { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
+    const zipDownloadPromise = page.waitForEvent('download', { timeout: 10000 });
+    await page.locator('#reDownloadBtn').click();
+    const zipDownload = await zipDownloadPromise;
+    const zipPath = '/tmp/midoc-zip-maker-test.zip';
+    await zipDownload.saveAs(zipPath);
+
+    // ZIP Viewer and Extractor must load archive contents and expose per-file download.
+    await openTool('zip-tools');
+    await page.locator('#optZipMode').selectOption('view');
+    await page.locator('#fileInput').setInputFiles(zipPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => {
+      const panel = document.getElementById('zipContentsPanel');
+      return panel && !panel.classList.contains('hidden');
+    }, { timeout: 20000 });
+    const zipContents = await page.locator('#zipContentsPanel').innerText();
+    assert.match(zipContents, /alpha\\.txt/);
+    assert.match(zipContents, /beta\\.txt/);
+
+    await openTool('zip-tools');
+    await page.locator('#optZipMode').selectOption('extract');
+    await page.locator('#fileInput').setInputFiles(zipPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => {
+      const panel = document.getElementById('zipContentsPanel');
+      return panel && !panel.classList.contains('hidden');
+    }, { timeout: 20000 });
+    const fileDownloadPromise = page.waitForEvent('download', { timeout: 10000 });
+    await page.locator('#zipContentsPanel button[data-zip-entry-download="0"]').click();
+    const extractedFile = await fileDownloadPromise;
+    assert.equal(extractedFile.suggestedFilename(), 'alpha.txt');
 
     // ZIP modes must change the file picker rules.
     await openTool('zip-tools');
@@ -121,7 +184,7 @@ const assert = require('node:assert/strict');
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
     assert.deepEqual(errors, [], 'No uncaught browser exceptions should occur');
-    console.log('Browser smoke tests passed: GIF create/extract, PDF input guard, Image-to-PDF defaults/export, ZIP modes, QR output.');
+    console.log('Browser smoke tests passed: GIF create/extract, strict PDF input guard, Image-to-PDF defaults/export, valid PDF-to-image export, ZIP create/view/extract/download, QR output.');
   } finally {
     await browser.close();
   }
