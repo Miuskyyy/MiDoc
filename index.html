@@ -910,12 +910,18 @@
       if (ascii(4, 8) === 'ftyp' && /avif|avis/.test(ascii(8, 20))) return 'avif';
       const zipSignature = bytes[0] === 0x50 && bytes[1] === 0x4B && [0x03, 0x05, 0x07].includes(bytes[2]);
       if (zipSignature) {
-        if (ext === 'docx') return 'docx';
-        if (ext === 'xlsx') return 'xlsx';
-        if (ext === 'pptx') return 'pptx';
-        if (ext === 'epub') return 'epub';
-        if (ext === 'zip') return 'zip';
-        return 'zip-container';
+        try {
+          const archive = await JSZip.loadAsync(file);
+          const paths = Object.keys(archive.files);
+          if (archive.file('word/document.xml')) return 'docx';
+          if (archive.file('xl/workbook.xml')) return 'xlsx';
+          if (archive.file('ppt/presentation.xml')) return 'pptx';
+          if (archive.file('META-INF/container.xml') && archive.file('mimetype')) return 'epub';
+          if (ext === 'zip' && paths.length) return 'zip';
+          return 'zip-container';
+        } catch (error) {
+          return 'invalid-zip';
+        }
       }
       if (ext === 'rtf' && ascii(0, 5) === '{\\rtf') return 'rtf';
       const textExts = ['txt', 'md', 'html', 'htm', 'csv', 'tsv'];
