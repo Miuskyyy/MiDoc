@@ -4263,20 +4263,36 @@
 
     // --- ENGINE 13: BATCH RENAME & ZIP ---
     async function runBatchRename(baseName) {
-      const prefix = document.getElementById('optRenamePrefix').value || 'File_';
-      const start = parseInt(document.getElementById('optRenameStart').value, 10) || 1;
-      const digits = parseInt(document.getElementById('optRenameDigits').value, 10) || 3;
+      const rawPrefix = document.getElementById('optRenamePrefix').value || 'File_';
+      const invalidChars = new RegExp('[\\\\/<>:' + String.fromCharCode(34) + '|?*\\x00-\\x1F]', 'g');
+      const prefix = rawPrefix.replace(invalidChars, '_').replace(/\\.\\.+/g, '_').slice(0, 80) || 'File_';
+      const startInput = Number(document.getElementById('optRenameStart').value);
+      const start = Number.isInteger(startInput) && startInput >= 0 ? startInput : 1;
+      const digitInput = Number(document.getElementById('optRenameDigits').value);
+      const digits = Number.isInteger(digitInput) ? Math.max(1, Math.min(8, digitInput)) : 3;
       const zip = new JSZip();
       const firstClean = getFirstFileBaseName();
+      const usedNames = new Set();
 
-      state.items.forEach((it, idx) => {
-        const ext = it.name.includes('.') ? it.name.split('.').pop() : 'bin';
-        const num = String(start + idx).padStart(digits, '0');
-        zip.file(`${prefix}${num}.${ext}`, it.arrayBuffer || it.file);
-      });
+      for (let index = 0; index < state.items.length; index++) {
+        const item = state.items[index];
+        const ext = item.name.includes('.') ? item.name.split('.').pop().replace(/[^a-z0-9_-]/gi, '').slice(0, 16) : 'bin';
+        const number = String(start + index).padStart(digits, '0');
+        const baseEntryName = prefix + number + '.' + (ext || 'bin');
+        let entryName = baseEntryName;
+        let suffix = 2;
+        while (usedNames.has(entryName.toLowerCase())) {
+          const dot = baseEntryName.lastIndexOf('.');
+          entryName = baseEntryName.slice(0, dot) + '_' + suffix++ + baseEntryName.slice(dot);
+        }
+        usedNames.add(entryName.toLowerCase());
+        zip.file(entryName, item.arrayBuffer || item.file);
+        updateProgress(((index + 1) / state.items.length) * 70, 'Menamai ulang ' + (index + 1) + '/' + state.items.length + ': ' + entryName);
+      }
       const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
-      finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${state.items.length} file dinamai ulang sesuai urutan.`);
+      finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, state.items.length + ' file dinamai ulang. Prefix dan ekstensi dibersihkan; nama hasil dibuat unik.');
     }
+
 
     function updateGifToolMode() {
       const mode = document.getElementById('optGifMode')?.value || 'create';
