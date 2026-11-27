@@ -2134,7 +2134,7 @@
               <span>Panjang Karakter</span>
               <span id="passLenVal" class="font-mono text-accent">16</span>
             </div>
-            <input id="optPassLen" type="range" min="8" max="64" value="16" oninput="document.getElementById('passLenVal').textContent = this.value" class="w-full accent-accent" />
+            <input id="optPassLen" type="range" min="8" max="128" value="16" oninput="document.getElementById('passLenVal').textContent = this.value" class="w-full accent-accent" />
           </div>
           <div id="generatedPasswordDisplay" class="p-2.5 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine font-mono text-xs text-center select-all break-all text-zinc-500">
             Kata sandi akan muncul setelah tombol dijalankan.
@@ -4742,7 +4742,8 @@
         if (!sourceCanvas) {
           const image = host.querySelector('img');
           if (!image) throw new Error('QR Code gagal dirender.');
-          await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
+          if (!image.complete) await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
+          if (!image.naturalWidth || !image.naturalHeight) throw new Error('Gambar QR gagal dimuat untuk diekspor.');
           sourceCanvas = document.createElement('canvas');
           sourceCanvas.width = 1024;
           sourceCanvas.height = 1024;
@@ -4756,13 +4757,21 @@
       }
     }
 
-        function runPasswordGenerator() {
-      const len = parseInt(document.getElementById('optPassLen')?.value || '16', 10);
+    function runPasswordGenerator() {
+      const len = Number(document.getElementById('optPassLen')?.value || '16');
+      if (!Number.isInteger(len) || len < 8 || len > 128) throw new Error('Panjang kata sandi harus antara 8 dan 128 karakter.');
+      if (!window.crypto || !crypto.getRandomValues) throw new Error('Browser tidak menyediakan generator acak kriptografis yang aman.');
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*_-+=';
-      const arr = new Uint32Array(len);
-      crypto.getRandomValues(arr);
+      const limit = 0x100000000 - (0x100000000 % chars.length);
       let out = '';
-      for (let i = 0; i < len; i++) out += chars[arr[i] % chars.length];
+      while (out.length < len) {
+        const values = new Uint32Array(Math.min(128, (len - out.length) * 2));
+        crypto.getRandomValues(values);
+        for (const value of values) {
+          if (value < limit) out += chars[value % chars.length];
+          if (out.length >= len) break;
+        }
+      }
       document.getElementById('generatedPasswordDisplay').textContent = out;
       copyTextFallback(out);
       showToast('Kata sandi baru disalin ke clipboard.', 'success');
