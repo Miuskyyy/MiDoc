@@ -2644,6 +2644,15 @@
     }
 
     async function explodeAllPdfsToPages() {
+      const totalPagesToExpand = state.items.reduce((sum, item) => sum + (item.isPdf && item.singlePageIndex === null ? (item.pageCount || 0) : 0), 0);
+      if (!totalPagesToExpand) {
+        showToast('Tidak ada PDF multip halaman yang perlu dipecah.', 'error');
+        return;
+      }
+      if (totalPagesToExpand > 300) {
+        showToast('Batas pemecahan adalah 300 halaman per proses agar pratinjau tetap stabil. Pilih dokumen yang lebih kecil.', 'error');
+        return;
+      }
       const updated = [];
       for (const item of state.items) {
         if (item.isPdf && item.singlePageIndex === null && item.pageCount > 1 && item.arrayBuffer) {
@@ -3466,6 +3475,8 @@
     async function runOrganizePdf(baseName) {
       const pdfItems = state.items.filter(item => item.isPdf && item.arrayBuffer);
       if (!pdfItems.length) throw new Error('Unggah satu file PDF terlebih dahulu.');
+      const unexpanded = pdfItems.some(item => item.singlePageIndex === null && item.pageCount > 1);
+      if (unexpanded) throw new Error('Tekan “Pecah Per Halaman PDF” terlebih dahulu. Setelah halaman menjadi kartu terpisah, geser atau hapus kartu sesuai urutan yang diinginkan.');
       const outPdf = await PDFLib.PDFDocument.create();
       let totalPages = 0;
       for (let i = 0; i < pdfItems.length; i++) {
