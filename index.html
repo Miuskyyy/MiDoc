@@ -4109,6 +4109,121 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       showToast(`${written} file berhasil diekstrak.`, written ? 'success' : 'error');
     }
 
+
+    async function runGifTools(baseName) {
+      const mode = document.getElementById('optGifMode')?.value || 'create';
+      if (mode === 'extract') {
+        await extractGifFrames(baseName);
+        return;
+      }
+      await createAnimatedGif(baseName);
+    }
+
+    async function createAnimatedGif(baseName) {
+      const images = state.items.filter(item => item.isImage && item.thumbUrl);
+      if (images.length < 2) throw new Error('GIF Maker memerlukan minimal dua gambar statis.');
+      if (typeof window.GIF !== 'function') throw new Error('GIF encoder belum berhasil dimuat. Periksa koneksi internet lalu muat ulang halaman.');
+      const sourceFrames = [];
+      for (let i = 0; i < images.length; i++) {
+        updateProgress((i / images.length) * 20, 'Membaca gambar ' + (i + 1) + ' dari ' + images.length + '...');
+        sourceFrames.push(await renderItemToCanvas(images[i]));
+      }
+      const first = sourceFrames[0];
+      const maxWidth = parseInt(document.getElementById('optGifMaxWidth')?.value || '0', 10);
+      const outputWidth = maxWidth > 0 ? Math.min(first.width, maxWidth) : first.width;
+      const outputHeight = Math.max(1, Math.round(first.height * outputWidth / first.width));
+      const delay = Math.max(20, Math.min(10000, parseInt(document.getElementById('optGifDelay')?.value || '250', 10)));
+      const repeat = parseInt(document.getElementById('optGifRepeat')?.value || '0', 10);
+      const prepared = [];
+      for (let i = 0; i < sourceFrames.length; i++) {
+        const src = sourceFrames[i];
+        const frame = document.createElement('canvas');
+        frame.width = outputWidth;
+        frame.height = outputHeight;
+        const ctx = frame.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, frame.width, frame.height);
+        const scale = Math.min(frame.width / src.width, frame.height / src.height);
+        const drawW = Math.max(1, Math.round(src.width * scale));
+        const drawH = Math.max(1, Math.round(src.height * scale));
+        ctx.drawImage(src, (frame.width - drawW) / 2, (frame.height - drawH) / 2, drawW, drawH);
+        prepared.push(frame);
+      }
+      updateProgress(25, 'Membuat animasi GIF...');
+      const blob = await new Promise((resolve, reject) => {
+        let settled = false;
+        const encoder = new GIF({
+          workers: 2,
+          quality: 10,
+          repeat,
+          width: outputWidth,
+          height: outputHeight,
+          workerScript: 'https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.worker.js'
+        });
+        encoder.on('progress', progress => updateProgress(25 + Math.round(progress * 70), 'Menyusun frame GIF...'));
+        encoder.on('finished', result => {
+          settled = true;
+          resolve(result);
+        });
+        encoder.on('abort', () => {
+          if (!settled) reject(new Error('Pembuatan GIF dibatalkan oleh encoder.'));
+        });
+        prepared.forEach(canvas => encoder.addFrame(canvas, { delay, copy: true }));
+        try {
+          encoder.render();
+        } catch (error) {
+          reject(error);
+        }
+      });
+      if (!blob || blob.type !== 'image/gif') throw new Error('Encoder tidak menghasilkan file GIF yang valid.');
+      const finalName = formatDownloadFilename({ baseName, ext: 'gif', isBulkOrZip: false });
+      finishWithBlob(blob, finalName, 'Animasi GIF berhasil dibuat dari ' + images.length + ' gambar, ukuran ' + outputWidth + '×' + outputHeight + ' px, durasi tiap frame ' + delay + ' ms.', { isImageResult: true });
+    }
+
+    async function extractGifFrames(baseName) {
+      const item = state.items[0];
+      if (!item) throw new Error('Pilih satu file GIF animasi.');
+      const module = await import('https://esm.sh/gifuct-js@2.1.2');
+      const parsed = module.parseGIF(await item.file.arrayBuffer());
+      const frames = module.decompressFrames(parsed, true);
+      if (!frames || !frames.length) throw new Error('Tidak ada frame animasi yang dapat diekstrak dari GIF ini.');
+      const width = parsed.lsd.width;
+      const height = parsed.lsd.height;
+      if (!width || !height) throw new Error('Dimensi GIF tidak valid.');
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.clearRect(0, 0, width, height);
+      const zip = new JSZip();
+      let previousFrame = null;
+      let previousRestore = null;
+      const sourceBase = item.name.replace(/\.gif$/i, '') || 'GIF';
+      for (let i = 0; i < frames.length; i++) {
+        const frame = frames[i];
+        if (previousFrame) {
+          if (previousFrame.disposalType === 2) {
+            ctx.clearRect(previousFrame.dims.left, previousFrame.dims.top, previousFrame.dims.width, previousFrame.dims.height);
+          } else if (previousFrame.disposalType === 3 && previousRestore) {
+            ctx.putImageData(previousRestore, 0, 0);
+          }
+        }
+        const restoreBeforeFrame = frame.disposalType === 3 ? ctx.getImageData(0, 0, width, height) : null;
+        const patch = ctx.createImageData(frame.dims.width, frame.dims.height);
+        patch.data.set(frame.patch);
+        ctx.putImageData(patch, frame.dims.left, frame.dims.top);
+        const png = await new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Gagal membuat PNG frame ' + (i + 1) + '.')), 'image/png'));
+        zip.file(sourceBase + '_frame_' + String(i + 1).padStart(4, '0') + '.png', png);
+        previousFrame = frame;
+        previousRestore = restoreBeforeFrame;
+        updateProgress(((i + 1) / frames.length) * 90, 'Mengekstrak frame ' + (i + 1) + ' dari ' + frames.length + '...');
+      }
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const firstClean = sourceBase;
+      const finalName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
+      finishWithBlob(zipBlob, finalName, frames.length + ' frame GIF berhasil diekstrak menjadi PNG dalam satu arsip ZIP.');
+    }
+
     async function runZipMaker(baseName) {
       const mode = document.getElementById('optZipMode')?.value || 'create';
       if (mode === 'view' || mode === 'extract') {
