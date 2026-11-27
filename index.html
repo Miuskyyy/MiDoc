@@ -787,7 +787,7 @@
       {
         id: 'image-optimize',
         label: 'Optimize Image',
-        icon: 'image-down',
+        icon: 'file-image',
         description: 'Kompres, ubah dimensi, dan siapkan gambar untuk kebutuhan cetak.',
         toolIds: ['compress-image', 'resize-pixel', 'resize-official', 'bulk-resize', 'dpi-checker']
       },
@@ -801,7 +801,7 @@
       {
         id: 'image-edit',
         label: 'Edit Image',
-        icon: 'image-edit',
+        icon: 'sliders',
         description: 'Potong, putar, gabungkan, susun, dan beri efek pada gambar.',
         toolIds: ['image-splitter', 'join-images', 'stitch-screenshot', 'photo-collage', 'overlay-images', 'crop-circle', 'rotate-flip', 'rounded-corners', 'watermark-image', 'photo-signature', 'color-filters']
       },
@@ -875,6 +875,8 @@
 
     function navigateToHome(options = {}) {
       closeMegaMenu();
+      // Cancel any pending workspace transition before returning home.
+      toolNavigationRequestId += 1;
       if (options.updateHistory !== false && window.location.hash) {
         window.history.pushState({ view: 'home' }, '', window.location.pathname + window.location.search);
       }
@@ -884,6 +886,7 @@
       document.getElementById('toolWorkspaceView').classList.add('hidden');
       document.getElementById('toolLoadingOverlay').classList.add('hidden');
       document.getElementById('toolLoadingOverlay').setAttribute('aria-hidden', 'true');
+      document.getElementById('mobileNavDrawer').classList.add('hidden');
       updateNavbarActiveCategory('home');
       window.scrollTo({ top: 0, behavior: 'auto' });
     }
