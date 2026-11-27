@@ -692,7 +692,7 @@
         subtitle: 'Gabungkan gambar secara berurutan atau potong gambar secara seimbang ke samping & ke bawah.',
         tools: [
           { id: 'image-splitter', name: 'Image Splitter (Pemisah Gambar Seimbang)', desc: 'Potong gambar menjadi N bagian ke samping & M bagian ke bawah dengan pratinjau garis presisi', icon: 'grid', engine: 'image-splitter', badge: 'PRESISI GRID' },
-          { id: 'join-images', name: 'JPG / PNG Joiner (Gabung Gambar)', desc: 'Satukan banyak gambar secara vertikal atau horizontal sesuai urutan', icon: 'columns', engine: 'join-images' },
+          { id: 'join-images', name: 'Gabung Gambar', desc: 'Satukan dua atau lebih gambar raster secara vertikal, horizontal, atau grid sesuai urutan.', icon: 'columns', engine: 'join-images' },
           { id: 'stitch-screenshot', name: 'Gabung Screenshot Berurutan', desc: 'Susun beberapa screenshot secara vertikal atau horizontal sesuai urutan pilihan. Tidak mendeteksi area tumpang tindih secara otomatis.', icon: 'smartphone', engine: 'join-images' },
           { id: 'photo-collage', name: 'Instagram Grid Splitter 3×3', desc: 'Pecah satu foto menjadi sembilan potongan berurutan untuk feed Instagram.', icon: 'layout-grid', engine: 'image-splitter' },
           { id: 'overlay-images', name: 'Overlay Gambar', desc: 'Tumpuk gambar kedua (logo/stempel) di atas gambar utama', icon: 'copy', engine: 'overlay-images' }
@@ -704,7 +704,7 @@
         title: 'Kelompok 5: Gambar — Optimasi & Ubah Ukuran',
         subtitle: 'Kompres ukuran KB, atur piksel/persentase, ukuran pas foto resmi, dan pengecekan DPI.',
         tools: [
-          { id: 'compress-image', name: 'Compress Gambar & Target KB', desc: 'Kompres JPG, PNG, WebP dengan kontrol kualitas & batas lebar', icon: 'shrink', engine: 'compress-image' },
+          { id: 'compress-image', name: 'Compress Gambar & Target KB', desc: 'Kompres gambar raster JPG, PNG, WebP, AVIF, atau BMP menjadi JPG/WebP dengan kontrol kualitas dan batas lebar.', icon: 'shrink', engine: 'compress-image' },
           { id: 'resize-pixel', name: 'Resize Pixel & Persentase', desc: 'Ubah dimensi piksel atau skala persentase gambar secara akurat', icon: 'maximize-2', engine: 'resize-image' },
           { id: 'resize-official', name: 'Resize Resmi & Pas Foto (3.5x4.5cm / 3x4 / 4x6 / A4)', desc: 'Preset pas foto KTP, CPNS, Visa, dan kertas cetak A4 300 DPI', icon: 'user-square', engine: 'resize-image' },
           { id: 'bulk-resize', name: 'Bulk Resize Gambar', desc: 'Ubah ukuran puluhan gambar sekaligus dalam satu proses', icon: 'layers', engine: 'resize-image' },
@@ -717,12 +717,12 @@
         title: 'Kelompok 6: Gambar — Edit, Warna & Efek',
         subtitle: 'Potong lingkaran, sudut melengkung, tanda tangan digital, filter warna, dan hapus EXIF.',
         tools: [
-          { id: 'crop-circle', name: 'Crop & Circle Crop', desc: 'Potong foto menjadi lingkaran transparan atau rasio persegi', icon: 'circle', engine: 'filters-image' },
+          { id: 'crop-circle', name: 'Circle Crop (Potongan Lingkaran)', desc: 'Potong gambar menjadi lingkaran transparan dengan ukuran sisi mengikuti dimensi terpendek gambar.', icon: 'circle', engine: 'filters-image' },
           { id: 'rotate-flip', name: 'Rotate & Flip Gambar', desc: 'Putar 90°/180° atau balik gambar secara horizontal/vertikal', icon: 'flip-horizontal', engine: 'rotate-flip' },
           { id: 'rounded-corners', name: 'Rounded Corners', desc: 'Beri lengkungan sudut halus transparan pada gambar', icon: 'square', engine: 'filters-image' },
           { id: 'watermark-image', name: 'Watermark & Teks Gambar', desc: 'Tambahkan teks hak cipta atau label pada foto', icon: 'type', engine: 'watermark-image' },
           { id: 'photo-signature', name: 'Foto + Tanda Tangan & Stempel Digital', desc: 'Gabungkan pas foto dengan gambar tanda tangan/stempel', icon: 'pen-tool', engine: 'overlay-images' },
-          { id: 'color-filters', name: 'Filter Warna (Grayscale, Sepia, Invert, Kontras, Blur)', desc: 'Sesuaikan pencahayaan, hitam-putih, sepia, kontras, atau pixelate', icon: 'sliders', engine: 'filters-image' },
+          { id: 'color-filters', name: 'Filter Warna (Grayscale, Sepia, Invert, Kontras, Blur)', desc: 'Terapkan filter grayscale, sepia, invert, kontras, brightness, atau blur pada gambar.', icon: 'sliders', engine: 'filters-image' },
           { id: 'remove-exif', name: 'Hapus Metadata EXIF & GPS', desc: 'Ekspor ulang gambar dalam format sumber untuk menghapus metadata EXIF/GPS dan informasi kamera. Kualitas re-encode mengikuti kemampuan browser.', icon: 'shield-check', engine: 'remove-exif' }
         ]
       },
@@ -730,11 +730,11 @@
         id: 'group-utilities',
         navCat: 'converter',
         title: 'Kelompok 7: Utilitas & Batch Tools',
-        subtitle: 'Penamaan massal berurutan, pengarsipan ZIP, warna HEX, QR/Barcode, dan konverter satuan.',
+        subtitle: 'Penamaan massal berurutan, pengarsipan ZIP, palet warna HEX, QR Code, generator kata sandi, dan konverter satuan.',
         tools: [
           { id: 'batch-rename', name: 'Batch Rename File', desc: 'Ganti nama puluhan file sekaligus dengan nomor urut rapi', icon: 'edit-3', engine: 'batch-rename' },
           { id: 'gif-tools', name: 'GIF Maker & Ekstrak Frame GIF', desc: 'Buat animasi GIF dari rangkaian gambar, atau ekstrak frame dari satu file GIF.', icon: 'film', engine: 'gif-tools' },
-          { id: 'zip-tools', name: 'ZIP Maker & Extractor', desc: 'Bungkus kumpulan file ke dalam ZIP atau lihat isi arsip ZIP', icon: 'archive', engine: 'zip-maker' },
+          { id: 'zip-tools', name: 'ZIP Maker & Extractor', desc: 'Bungkus satu atau beberapa file ke dalam ZIP dengan nama asli, ekstrak arsip, atau lihat daftar isinya.', icon: 'archive', engine: 'zip-maker' },
           { id: 'color-picker', name: 'Image Color Palette Extractor', desc: 'Ambil sampel warna dominan dari gambar dan tampilkan kode HEX untuk disalin.', icon: 'pipette', engine: 'color-picker' },
           { id: 'qr-generator', name: 'QR Code Generator', desc: 'Buat QR Code standar yang bisa dipindai dari teks atau tautan.', icon: 'qr-code', engine: 'qr-generator' },
           { id: 'password-gen', name: 'Password Generator', desc: 'Buat kata sandi acak kuat untuk pengamanan dokumen', icon: 'key-round', engine: 'password-gen' },
@@ -1609,11 +1609,11 @@
         btnLabel.textContent = 'Proses Pemotongan Gambar';
 
         box.innerHTML = `
-          <div class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">
+          <div id="splitterIntro" class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">
             Atur jumlah potongan seimbang ke samping (kolom) dan ke bawah (baris). Garis potong akan langsung terlihat pada pratinjau gambar.
           </div>
 
-          <div>
+          <div id="splitterPresetGrid">
             <label class="block text-xs font-semibold mb-1.5">Preset Grid Cepat</label>
             <div class="grid grid-cols-3 gap-1.5">
               <button type="button" onclick="setSplitterGrid(2, 1)" class="py-1.5 px-2 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-mono font-semibold">2×1 (Samping)</button>
@@ -1625,7 +1625,7 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
+          <div id="splitterDimensionsGroup" class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-semibold mb-1">Potong ke Samping (Kolom)</label>
               <input id="optSplitCols" type="number" min="1" max="30" value="3" oninput="drawSplitterLivePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono font-bold" />
@@ -2179,6 +2179,9 @@
         if (cols) cols.value = '3';
         if (rows) rows.value = '3';
         if (cols && rows) drawSplitterLivePreview();
+        document.getElementById('splitterIntro').textContent = 'Grid Instagram 3×3 tetap: gambar dibagi menjadi sembilan kotak berurutan. Ukuran setiap potongan dihitung seimbang dari gambar sumber.';
+        document.getElementById('splitterPresetGrid')?.classList.add('hidden');
+        document.getElementById('splitterDimensionsGroup')?.classList.add('hidden');
       }
       if (toolObj.id === 'crop-circle') {
         const shape = document.getElementById('optShapeCrop');
@@ -2187,6 +2190,15 @@
       if (toolObj.id === 'rounded-corners') {
         const shape = document.getElementById('optShapeCrop');
         if (shape) shape.value = 'rounded';
+      }
+      if (toolObj.id === 'stitch-screenshot') {
+        const direction = document.getElementById('optJoinDirection');
+        if (direction) {
+          Array.from(direction.options).filter(option => option.value.startsWith('grid')).forEach(option => option.remove());
+          direction.value = 'vertical';
+        }
+        const intro = box.querySelector('div > label')?.parentElement;
+        if (intro) intro.insertAdjacentHTML('afterend', '<p class="text-[11px] text-zinc-500">Pilih susunan vertikal atau horizontal. Urutan mengikuti kartu; penyelarasan overlap tidak otomatis.</p>');
       }
       if (toolObj.id === 'page-number-pdf') {
         box.innerHTML = '<p class="text-xs text-zinc-600 dark:text-zinc-400">Nomor halaman akan ditambahkan otomatis di bagian bawah setiap halaman PDF. Tidak ada watermark teks pada mode ini.</p>';
