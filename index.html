@@ -2269,13 +2269,25 @@
     }
 
     function recalcDpi() {
-      const wCm = parseFloat(document.getElementById('calcCmW')?.value) || 0;
-      const hCm = parseFloat(document.getElementById('calcCmH')?.value) || 0;
-      const dpi = parseInt(document.getElementById('calcDpiVal')?.value, 10) || 300;
+      const wRaw = document.getElementById('calcCmW')?.value ?? '';
+      const hRaw = document.getElementById('calcCmH')?.value ?? '';
+      const dpiRaw = document.getElementById('calcDpiVal')?.value ?? '300';
+      const wCm = Number(wRaw);
+      const hCm = Number(hRaw);
+      const dpi = Number(dpiRaw);
+      const out = document.getElementById('dpiCalcResultBox');
+      if (!out) return;
+      if (!Number.isFinite(wCm) || !Number.isFinite(hCm) || !Number.isFinite(dpi) || wCm <= 0 || hCm <= 0 || !Number.isInteger(dpi) || dpi < 1 || dpi > 2400) {
+        out.textContent = 'Masukkan lebar dan tinggi lebih dari 0 cm serta DPI bulat antara 1–2.400.';
+        return;
+      }
       const pxW = Math.round((wCm / 2.54) * dpi);
       const pxH = Math.round((hCm / 2.54) * dpi);
-      const out = document.getElementById('dpiCalcResultBox');
-      if (out) out.textContent = `${pxW} × ${pxH} piksel`;
+      if (pxW > 100000 || pxH > 100000) {
+        out.textContent = 'Ukuran piksel terlalu besar untuk ditampilkan. Periksa kembali ukuran dan DPI.';
+        return;
+      }
+      out.textContent = `${pxW.toLocaleString('id-ID')} × ${pxH.toLocaleString('id-ID')} piksel`;
     }
 
     // =========================================================================
@@ -4427,6 +4439,23 @@
 
       const archive = await JSZip.loadAsync(zipItem.file);
       const entries = Object.values(archive.files).filter(entry => !entry.dir);
+      const MAX_ZIP_FILES = 1000;
+      const MAX_ZIP_ENTRY_BYTES = 100 * 1024 * 1024;
+      const MAX_ZIP_TOTAL_BYTES = 500 * 1024 * 1024;
+      if (entries.length > MAX_ZIP_FILES) {
+        showToast('Arsip berisi ' + entries.length + ' file. Batas aman MiDoc adalah ' + MAX_ZIP_FILES + ' file per arsip.', 'error');
+        return;
+      }
+      const oversizedEntry = entries.find(entry => getZipEntryUncompressedSize(entry) > MAX_ZIP_ENTRY_BYTES);
+      if (oversizedEntry) {
+        showToast('File ' + oversizedEntry.name + ' melebihi batas 100 MB setelah diekstrak.', 'error');
+        return;
+      }
+      const totalExpandedBytes = entries.reduce((sum, entry) => sum + getZipEntryUncompressedSize(entry), 0);
+      if (totalExpandedBytes > MAX_ZIP_TOTAL_BYTES) {
+        showToast('Ukuran total arsip setelah diekstrak melebihi batas aman 500 MB.', 'error');
+        return;
+      }
       if (!entries.length) {
         showToast('Arsip ZIP ini kosong atau tidak berisi file yang bisa diekstrak.', 'error');
         return;
@@ -4441,7 +4470,7 @@
       if (!entry) return;
       try {
         const blob = await entry.async('blob');
-        const fileName = entry.name.split('/').filter(Boolean).pop() || 'MiDoc_File';
+        const fileName = entry.name.split('/').filter(Boolean).map(part => part.replace(/[<>:\\"|?*]/g, '_')).join('__') || ('MiDoc_File_' + (index + 1));
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
