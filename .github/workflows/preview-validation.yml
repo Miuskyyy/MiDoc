@@ -1,0 +1,70 @@
+name: MiDoc Preview Validation
+
+on:
+  push:
+    branches:
+      - "feature/**"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate MiDoc preview
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout preview branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check inline JavaScript syntax
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const vm = require('node:vm');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const inlineScripts = [...html.matchAll(/<script\\b([^>]*)>([\\s\\S]*?)<\\/script>/gi)]
+            .filter(match => !/\\bsrc\\s*=/.test(match[1]))
+            .map(match => match[2]);
+          if (inlineScripts.length === 0) {
+            throw new Error('No inline JavaScript blocks were found in index.html');
+          }
+          inlineScripts.forEach((script, index) => {
+            new vm.Script(script, { filename: `index.html:inline-script-${index + 1}` });
+          });
+          console.log(`JavaScript syntax OK: ${inlineScripts.length} inline script block(s).`);
+          NODE
+
+      - name: Check requested functionality markers
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const required = [
+            ['ZIP create / extract / inspect modes', /optZipMode[\\s\\S]*value="create"[\\s\\S]*value="extract"[\\s\\S]*value="view"/],
+            ['ZIP archive inspection and extraction', /showZipArchiveContents[\\s\\S]*extractZipToFolder/],
+            ['Explicit result download', /reDownloadBtn/],
+            ['AVIF conversion option', /image\/avif/],
+            ['BMP conversion path', /canvasToBmpBlob/],
+            ['Image-to-PDF quality presets', /optImagePdfQuality[\\s\\S]*very-low[\\s\\S]*original/],
+            ['Fresh page navigation', /window\\.location\\.assign\\(target\\)/],
+            ['Query-string tool routing', /new URLSearchParams\\(window\\.location\\.search\\)/],
+            ['Cross-tool transfer storage', /savePendingToolTransfer[\\s\\S]*consumePendingToolTransfer/]
+          ];
+          const failures = required.filter(([name, pattern]) => !pattern.test(html)).map(([name]) => name);
+          if (failures.length) {
+            throw new Error('Missing functionality: ' + failures.join(', '));
+          }
+          if (html.includes('Lokal • Tanpa Upload Server')) {
+            throw new Error('Obsolete local-only navbar badge is still present.');
+          }
+          console.log('MiDoc requested-functionality checks passed.');
+          NODE
