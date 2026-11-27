@@ -86,6 +86,18 @@
       border-right: 3px solid #2563EB !important;
     }
 
+    /* Custom clean dropdown arrow with proper right breathing room */
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      padding-right: 2rem !important;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2371717A' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.65rem center;
+      background-size: 13px 13px;
+    }
+
     /* Subtle flat checkerboard for transparent PNGs */
     .checkerboard {
       background-image:
@@ -116,10 +128,10 @@
           </span>
         </button>
 
-        <!-- Desktop Mega Menu Triggers (Beranda Direktori tepat di samping MiDoc) -->
+        <!-- Desktop Mega Menu Triggers (Beranda tepat di samping MiDoc) -->
         <nav class="hidden lg:flex items-center h-full" id="desktopNav">
           <button onclick="navigateToHome()" id="navHomeBtn" class="h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-accent border-b-2 border-accent">
-            <span>Beranda Direktori</span>
+            <span>Beranda</span>
           </button>
 
           <button data-menu="pdf" class="nav-trigger h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-b-2 border-transparent">
@@ -288,9 +300,9 @@
 
           <!-- Precision Order & View Controls -->
           <div class="flex flex-wrap items-center gap-2">
-            <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine">
+            <div class="flex items-center gap-1.5 pl-2.5 py-0.5 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine">
               <span class="text-xs text-zinc-500">Urutan:</span>
-              <select id="sortOrderSelect" onchange="applySortOrder(this.value)" class="bg-transparent text-xs font-semibold text-ink dark:text-zinc-100 focus:outline-none cursor-pointer">
+              <select id="sortOrderSelect" onchange="applySortOrder(this.value)" class="bg-transparent py-1 pl-1 text-xs font-semibold text-ink dark:text-zinc-100 focus:outline-none cursor-pointer">
                 <option value="drop" class="dark:bg-darkSurface">Urutan Drop Asli (Terkunci)</option>
                 <option value="natural-az" class="dark:bg-darkSurface">Nama A - Z (1, 2, 10)</option>
                 <option value="natural-za" class="dark:bg-darkSurface">Nama Z - A</option>
@@ -542,6 +554,13 @@
               </button>
             </div>
           </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
   <!-- ==================== SCROLLABLE FULL-LENGTH IMAGE LIGHTBOX MODAL ==================== -->
   <div id="fullPreviewLightboxModal" onclick="handleFullLightboxBackdropClick(event)" class="hidden fixed inset-0 z-50 bg-black/85 flex flex-col">
     <div onclick="event.stopPropagation()" class="px-4 sm:px-6 h-14 bg-white dark:bg-darkSurface border-b border-zinc-300 dark:border-darkLine flex items-center justify-between gap-3 shrink-0">
@@ -753,9 +772,30 @@
       state.currentView = 'home';
       document.getElementById('homeDirectoryView').classList.remove('hidden');
       document.getElementById('toolWorkspaceView').classList.add('hidden');
-      document.getElementById('navHomeBtn').classList.add('text-accent', 'border-accent');
-      document.getElementById('navHomeBtn').classList.remove('border-transparent');
+      updateNavbarActiveCategory('home');
       window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+
+    function updateNavbarActiveCategory(activeKey) {
+      const homeBtn = document.getElementById('navHomeBtn');
+      if (activeKey === 'home') {
+        homeBtn.classList.add('text-accent', 'border-accent');
+        homeBtn.classList.remove('text-zinc-700', 'dark:text-zinc-200', 'border-transparent');
+      } else {
+        homeBtn.classList.remove('text-accent', 'border-accent');
+        homeBtn.classList.add('text-zinc-700', 'dark:text-zinc-200', 'border-transparent');
+      }
+
+      document.querySelectorAll('.nav-trigger').forEach(btn => {
+        const cat = btn.getAttribute('data-menu');
+        if (cat === activeKey) {
+          btn.classList.add('text-accent', 'border-accent');
+          btn.classList.remove('text-zinc-700', 'dark:text-zinc-200', 'border-transparent');
+        } else {
+          btn.classList.remove('text-accent', 'border-accent');
+          btn.classList.add('text-zinc-700', 'dark:text-zinc-200', 'border-transparent');
+        }
+      });
     }
 
     function openToolWorkspace(toolId) {
@@ -768,8 +808,7 @@
 
       document.getElementById('homeDirectoryView').classList.add('hidden');
       document.getElementById('toolWorkspaceView').classList.remove('hidden');
-      document.getElementById('navHomeBtn').classList.remove('text-accent', 'border-accent');
-      document.getElementById('navHomeBtn').classList.add('border-transparent');
+      updateNavbarActiveCategory(found.navCat);
 
       // Update Workspace Header
       document.getElementById('wsGroupLabel').textContent = found.groupTitle;
@@ -979,11 +1018,9 @@
     function openMegaMenu(catKey, triggerBtn) {
       state.activeMenu = catKey;
       document.querySelectorAll('.nav-trigger').forEach(b => {
-        b.classList.remove('bg-zinc-100', 'dark:bg-zinc-800', 'border-accent');
-        b.classList.add('border-transparent');
+        b.classList.remove('bg-zinc-100', 'dark:bg-zinc-800');
       });
-      triggerBtn.classList.add('bg-zinc-100', 'dark:bg-zinc-800', 'border-accent');
-      triggerBtn.classList.remove('border-transparent');
+      triggerBtn.classList.add('bg-zinc-100', 'dark:bg-zinc-800');
 
       const groups = DIRECTORY_GROUPS.filter(g => g.navCat === catKey);
       const gridCols = groups.length === 2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-3';
@@ -1019,8 +1056,7 @@
       state.activeMenu = null;
       document.getElementById('megaMenuContainer').classList.add('hidden');
       document.querySelectorAll('.nav-trigger').forEach(b => {
-        b.classList.remove('bg-zinc-100', 'dark:bg-zinc-800', 'border-accent');
-        b.classList.add('border-transparent');
+        b.classList.remove('bg-zinc-100', 'dark:bg-zinc-800');
       });
     }
 
@@ -1117,7 +1153,7 @@
         box.innerHTML = `
           <div>
             <label class="block text-xs font-semibold mb-1">Ukuran Halaman Gambar</label>
-            <select id="optPageSize" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+            <select id="optPageSize" onchange="renderWorkspaceItems()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
               <option value="A4" selected>Kertas A4 (210 × 297 mm)</option>
               <option value="Letter">US Letter</option>
               <option value="FIT">Sesuai Ukuran Asli Tiap Gambar</option>
@@ -1125,7 +1161,7 @@
           </div>
           <div>
             <label class="block text-xs font-semibold mb-1">Orientasi</label>
-            <select id="optOrientation" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+            <select id="optOrientation" onchange="renderWorkspaceItems()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
               <option value="auto" selected>Otomatis Mengikuti Gambar</option>
               <option value="portrait">Portrait (Tegak)</option>
               <option value="landscape">Landscape (Mendatar)</option>
@@ -1133,11 +1169,14 @@
           </div>
           <div>
             <label class="block text-xs font-semibold mb-1">Margin (pt)</label>
-            <select id="optMargin" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+            <select id="optMargin" onchange="renderWorkspaceItems()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
               <option value="0">0 pt (Penuh Tanpa Margin)</option>
               <option value="20" selected>20 pt (Tipis)</option>
               <option value="40">40 pt (Standar)</option>
             </select>
+          </div>
+          <div class="p-2.5 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-200 dark:border-darkLine text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+            Setiap kartu di sebelah kiri langsung menampilkan simulasi kertas PDF & area margin secara real-time.
           </div>
         `;
       } else if (engine === 'split-pdf') {
@@ -1955,6 +1994,48 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       await ingestFilesInExactOrder(files);
     }
 
+    function getSimulatedPdfPageMetrics(item) {
+      const pageSizeOpt = document.getElementById('optPageSize')?.value || 'A4';
+      const orientOpt = document.getElementById('optOrientation')?.value || 'auto';
+      const marginOpt = parseInt(document.getElementById('optMargin')?.value || '20', 10);
+
+      const swap = item.rotation === 90 || item.rotation === 270;
+      const effW = (swap ? item.height : item.width) || 600;
+      const effH = (swap ? item.width : item.height) || 800;
+
+      let pw = effW + marginOpt * 2;
+      let ph = effH + marginOpt * 2;
+      if (pageSizeOpt === 'A4') { pw = 595.28; ph = 841.89; }
+      if (pageSizeOpt === 'Letter') { pw = 612; ph = 792; }
+
+      let orientLabel = 'Fit';
+      if (pageSizeOpt !== 'FIT') {
+        const isLand = effW > effH;
+        if ((orientOpt === 'auto' && isLand) || orientOpt === 'landscape') {
+          [pw, ph] = [Math.max(pw, ph), Math.min(pw, ph)];
+          orientLabel = 'Landscape';
+        } else {
+          [pw, ph] = [Math.min(pw, ph), Math.max(pw, ph)];
+          orientLabel = 'Portrait';
+        }
+      }
+
+      // Compute preview paper dimensions inside a 126px tall slot
+      const maxSlotH = 122;
+      const maxSlotW = 195;
+      const scale = Math.min(maxSlotW / pw, maxSlotH / ph);
+      const boxW = Math.max(44, Math.round(pw * scale));
+      const boxH = Math.max(44, Math.round(ph * scale));
+      const padPx = Math.max(0, Math.round(marginOpt * scale));
+
+      return {
+        boxW,
+        boxH,
+        padPx,
+        badgeText: `${pageSizeOpt} • ${orientLabel} • Margin ${marginOpt}pt`
+      };
+    }
+
     function renderWorkspaceItems() {
       const emptyBox = document.getElementById('emptyStateBox');
       const grid = document.getElementById('fileItemsGrid');
@@ -1986,6 +2067,8 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
         ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5'
         : 'flex flex-col gap-2';
 
+      const isPdfPageSimMode = (state.activeEngine === 'image-to-pdf' || state.activeEngine === 'merge-pdf-image');
+
       grid.innerHTML = state.items.map((item, idx) => {
         const pos = idx + 1;
         const typeLabel = item.isPdf
@@ -1994,9 +2077,30 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
 
         const isSelectedForSplit = state.activeEngine === 'image-splitter' && state.splitterSelectedItemId === item.id;
 
+        let pdfSim = null;
+        if (isPdfPageSimMode && item.isImage && item.thumbUrl) {
+          pdfSim = getSimulatedPdfPageMetrics(item);
+        }
+
         const thumbHtml = item.thumbUrl
-          ? `<img src="${item.thumbUrl}" style="transform: rotate(${item.rotation}deg);" class="max-h-full max-w-full object-contain" alt="${escapeHtml(item.name)}" />`
+          ? (pdfSim
+              ? `<div style="width:${pdfSim.boxW}px; height:${pdfSim.boxH}px; padding:${pdfSim.padPx}px;" class="bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-500 flex items-center justify-center transition-all" title="Simulasi Kertas & Margin PDF">
+                   <div class="w-full h-full bg-white flex items-center justify-center overflow-hidden">
+                     <img src="${item.thumbUrl}" style="transform: rotate(${item.rotation}deg);" class="max-h-full max-w-full object-contain" alt="${escapeHtml(item.name)}" />
+                   </div>
+                 </div>`
+              : `<img src="${item.thumbUrl}" style="transform: rotate(${item.rotation}deg);" class="max-h-full max-w-full object-contain" alt="${escapeHtml(item.name)}" />`)
           : `<span class="font-mono text-xs text-zinc-400">${typeLabel}</span>`;
+
+        const listThumbHtml = item.thumbUrl
+          ? (pdfSim
+              ? `<div style="width:${Math.max(24, Math.round(pdfSim.boxW * 0.34))}px; height:${Math.max(24, Math.round(pdfSim.boxH * 0.34))}px; padding:${Math.max(0, Math.round(pdfSim.padPx * 0.34))}px;" class="bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-500 flex items-center justify-center">
+                   <div class="w-full h-full bg-white flex items-center justify-center overflow-hidden">
+                     <img src="${item.thumbUrl}" style="transform: rotate(${item.rotation}deg);" class="max-h-full max-w-full object-contain" alt="${escapeHtml(item.name)}" />
+                   </div>
+                 </div>`
+              : `<img src="${item.thumbUrl}" style="transform: rotate(${item.rotation}deg);" class="max-h-full max-w-full object-contain" alt="${escapeHtml(item.name)}" />`)
+          : `<span class="font-mono text-[10px] text-zinc-400">${typeLabel}</span>`;
 
         if (state.viewMode === 'list') {
           return `
@@ -2008,12 +2112,12 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
             >
               <div class="flex items-center gap-3 min-w-0">
                 <span class="px-2 py-0.5 rounded-sm bg-accent text-white font-mono font-semibold text-xs shrink-0">#${pos}</span>
-                <div class="w-10 h-10 checkerboard border border-zinc-200 dark:border-darkLine flex items-center justify-center overflow-hidden shrink-0 p-0.5">
-                  ${thumbHtml}
+                <div class="w-12 h-12 checkerboard border border-zinc-200 dark:border-darkLine flex items-center justify-center overflow-hidden shrink-0 p-0.5">
+                  ${listThumbHtml}
                 </div>
                 <div class="min-w-0">
                   <div class="text-xs font-semibold truncate">${escapeHtml(item.name)}</div>
-                  <div class="text-[11px] font-mono text-zinc-500">${typeLabel} • ${formatBytes(item.size)}</div>
+                  <div class="text-[11px] font-mono text-zinc-500 truncate">${typeLabel} • ${formatBytes(item.size)}${pdfSim ? ` • <span class="text-accent font-semibold">${pdfSim.badgeText}</span>` : ''}</div>
                 </div>
               </div>
               <div class="flex items-center gap-1 shrink-0">
@@ -2048,7 +2152,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
               </div>
             </div>
 
-            <div class="h-32 p-2.5 checkerboard flex items-center justify-center overflow-hidden">
+            <div class="h-36 p-2.5 checkerboard flex items-center justify-center overflow-hidden">
               ${thumbHtml}
             </div>
 
@@ -2056,6 +2160,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
               <div>
                 <p class="text-xs font-semibold truncate" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</p>
                 <p class="text-[11px] font-mono text-zinc-500">${formatBytes(item.size)} ${item.width ? `• ${item.width}×${item.height}` : ''}</p>
+                ${pdfSim ? `<p class="text-[10px] font-mono font-semibold text-accent mt-0.5 truncate">${pdfSim.badgeText}</p>` : ''}
               </div>
 
               <div class="flex items-center justify-between pt-1.5 border-t border-zinc-100 dark:border-darkLine">
