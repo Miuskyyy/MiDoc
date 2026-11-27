@@ -146,8 +146,8 @@ const assert = require('node:assert/strict');
       return panel && !panel.classList.contains('hidden');
     }, { timeout: 20000 });
     const zipContents = await page.locator('#zipContentsPanel').innerText();
-    assert.match(zipContents, /alpha\\.txt/);
-    assert.match(zipContents, /beta\\.txt/);
+    assert.match(zipContents, /alpha\.txt/);
+    assert.match(zipContents, /beta\.txt/);
 
     await openTool('zip-tools');
     await page.locator('#optZipMode').selectOption('extract');
