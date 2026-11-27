@@ -4567,7 +4567,7 @@
           repeat,
           width: outputWidth,
           height: outputHeight,
-          workerScript: 'https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.worker.js'
+          workerScript: new URL('./gif.worker.js', window.location.href).href
         });
         encoder.on('progress', progress => updateProgress(25 + Math.round(progress * 70), 'Menyusun frame GIF...'));
         encoder.on('finished', result => {
