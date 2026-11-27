@@ -1537,6 +1537,7 @@
           </div>
         `;
         if (toolObj.id === 'image-to-pdf') {
+          btnLabel.textContent = 'Buat PDF dari Gambar';
           box.insertAdjacentHTML('beforeend', `
             <div>
               <label class="block text-xs font-semibold mb-1.5">Kualitas & Ukuran File PDF</label>
@@ -3655,11 +3656,8 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
                 Pilih Folder & Ekstrak
               </button>
             ` : `
-              <p class="text-[11px] text-amber-600 dark:text-amber-400">Browser ini belum mendukung ekstraksi langsung ke folder. Gunakan tombol unduh per file di bawah.</p>
+              <p class="text-[11px] text-amber-600 dark:text-amber-400">Browser ini belum mendukung pemilihan folder langsung. Ekstrak file satu per satu melalui tombol Unduh di daftar ini.</p>
             `}
-            <button type="button" id="zipDownloadAllBtn" class="px-3 py-2 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-semibold hover:border-accent">
-              Unduh Semua File Satu per Satu
-            </button>
           </div>
         `
         : '';
@@ -3692,7 +3690,6 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
         button.addEventListener('click', () => downloadZipEntry(Number(button.dataset.zipEntryDownload)));
       });
       document.getElementById('zipExtractToFolderBtn')?.addEventListener('click', extractZipToFolder);
-      document.getElementById('zipDownloadAllBtn')?.addEventListener('click', downloadAllZipEntries);
       updateProgress(100, 'Daftar isi ZIP berhasil dibaca.');
       setTimeout(() => document.getElementById('progressContainer').classList.add('hidden'), 450);
       showToast(`ZIP dibaca: ${entries.length} file ditemukan.`, 'success');
@@ -3738,18 +3735,6 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       } catch (error) {
         showToast('File ZIP gagal diekstrak: ' + error.message, 'error');
       }
-    }
-
-    async function downloadAllZipEntries() {
-      const entries = state.zipArchiveFiles;
-      if (!entries.length) return;
-      showToast('Unduhan banyak file mungkin meminta izin dari browser.', 'info');
-      for (let index = 0; index < entries.length; index++) {
-        await downloadZipEntry(index);
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
-      const status = document.getElementById('zipExtractStatus');
-      if (status) status.textContent = `${entries.length} file sudah dikirim ke daftar unduhan browser.`;
     }
 
     async function extractZipToFolder() {
