@@ -852,20 +852,36 @@
       'merge-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 2, label: 'minimal dua file PDF' },
       'merge-pdf-image': { formats: ['pdf', 'static-image'], accept: '.pdf,.jpg,.jpeg,.png,.webp,.avif,.bmp,application/pdf,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'PDF dan/atau gambar raster' },
       'organize-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, uniqueFileCount: true, label: 'satu file PDF' },
-      'rotate-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
+      'rotate-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'split-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
-      'crop-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
-      'compress-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
-      'watermark-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
+      'crop-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
+      'compress-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
+      'watermark-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
+      'page-number-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'copy-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'extract-pdf-pages': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'extract-pdf-images': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
       'image-to-pdf': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar JPG, PNG, WebP, AVIF, atau BMP' },
       'pdf-to-image': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
       'pdf-to-text': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
+      'word-to-pdf': { formats: ['docx', 'rtf'], accept: '.docx,.rtf', min: 0, max: 1, label: 'satu file DOCX atau RTF' },
+      'excel-to-pdf': { formats: ['xlsx', 'csv', 'tsv'], accept: '.xlsx,.csv,.tsv', min: 0, max: 1, label: 'satu file XLSX, CSV, atau TSV' },
+      'ppt-to-pdf': { formats: ['pptx'], accept: '.pptx', min: 0, max: 1, label: 'satu file PPTX' },
+      'ebook-to-pdf': { formats: ['epub'], accept: '.epub', min: 0, max: 1, label: 'satu file EPUB' },
+      'txt-to-pdf': { formats: ['txt', 'md'], accept: '.txt,.md', min: 0, max: 1, label: 'satu file TXT atau Markdown' },
       'doc-to-pdf': { formats: ['docx', 'rtf', 'txt', 'md', 'html', 'csv', 'tsv', 'xlsx', 'pptx', 'epub'], accept: '.docx,.rtf,.txt,.md,.html,.htm,.csv,.tsv,.xlsx,.pptx,.epub', min: 0, max: 1, label: 'DOCX, RTF, TXT, Markdown, HTML, CSV, TSV, XLSX, PPTX, atau EPUB' },
-      'text-to-pdf': { formats: ['txt', 'md'], accept: '.txt,.md,text/plain,text/markdown', min: 0, max: 1, label: 'file TXT atau Markdown' },
+      
+      'photo-collage': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
+      'stitch-screenshot': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar screenshot' },
       'image-splitter': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'photo-signature': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, max: 2, label: 'tepat dua gambar: foto dan tanda tangan/stempel' },
+      'resize-pixel': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'resize-official': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'bulk-resize': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'crop-circle': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'rounded-corners': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'color-filters': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'remove-exif': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'join-images': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar raster statis' },
       'compress-image': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'convert-image': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
@@ -991,7 +1007,7 @@
         settingsColumn.classList.toggle('xl:col-span-4', !noFiles);
         settingsColumn.classList.toggle('xl:col-span-12', noFiles);
       }
-      const showDemo = ['image-splitter', 'join-images'].includes(toolObj?.engine);
+      const showDemo = ['image-splitter', 'join-images'].includes(toolObj?.engine) && toolObj?.id !== 'photo-collage';
       [demoButton, demoEmptyButton].forEach(button => button?.classList.toggle('hidden', !showDemo || noFiles));
     }
 
