@@ -1,5 +1,6 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 
 (async () => {
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
@@ -55,6 +56,8 @@ const assert = require('node:assert/strict');
     const gifDownload = await gifDownloadPromise;
     const gifPath = '/tmp/midoc-created-test.gif';
     await gifDownload.saveAs(gifPath);
+    const gifHeader = fs.readFileSync(gifPath).subarray(0, 6).toString('ascii');
+    assert.ok(gifHeader === 'GIF89a' || gifHeader === 'GIF87a', 'The generated file must have a real GIF signature.');
 
     // GIF extraction: exactly one real GIF input; output is ZIP containing frames.
     await openTool('gif-tools');
@@ -62,7 +65,7 @@ const assert = require('node:assert/strict');
     assert.match(await page.locator('#fileInput').getAttribute('accept'), /\.gif/);
     assert.equal(await page.locator('#fileInput').evaluate(el => el.multiple), false);
     await page.locator('#fileInput').setInputFiles([
-      { name: 'wrong.png', mimeType: 'image/png', buffer: redPng }
+      { name: 'not-a-gif.gif', mimeType: 'image/gif', buffer: redPng }
     ]);
     await page.waitForTimeout(300);
     assert.equal(await page.locator('#fileItemsGrid').evaluate(el => el.classList.contains('hidden')), true, 'PNG must be rejected in GIF extraction mode');
@@ -74,12 +77,30 @@ const assert = require('node:assert/strict');
       return box && !box.classList.contains('hidden');
     }, { timeout: 45000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
+    const frameZipDownloadPromise = page.waitForEvent('download', { timeout: 10000 });
+    await page.locator('#reDownloadBtn').click();
+    const frameZipDownload = await frameZipDownloadPromise;
+    const frameZipPath = '/tmp/midoc-gif-frames-test.zip';
+    await frameZipDownload.saveAs(frameZipPath);
+    const frameZipBytes = fs.readFileSync(frameZipPath);
+    assert.equal(frameZipBytes.subarray(0, 2).toString('ascii'), 'PK', 'GIF extraction must create a valid ZIP archive.');
+    const frameNames = await page.evaluate(async base64 => {
+      const binary = atob(base64);
+      const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+      const archive = await JSZip.loadAsync(bytes);
+      const files = Object.keys(archive.files).filter(name => !archive.files[name].dir);
+      const firstFrame = new Uint8Array(await archive.file(files[0]).async('arraybuffer'));
+      return { files, pngHeader: Array.from(firstFrame.slice(0, 8)) };
+    }, frameZipBytes.toString('base64'));
+    assert.equal(frameNames.files.length, 2, 'The two-frame GIF must extract exactly two image frames.');
+    assert.ok(frameNames.files.every(name => /_frame_\d{4}\.png$/i.test(name)));
+    assert.deepEqual(frameNames.pngHeader, [137, 80, 78, 71, 13, 10, 26, 10], 'Extracted frame output must be PNG.');
 
     // PDF-to-image: only PDF files are accepted, and wrong image signatures are rejected.
     await openTool('pdf-to-image');
     assert.match(await page.locator('#fileInput').getAttribute('accept'), /\.pdf/);
     await page.locator('#fileInput').setInputFiles([
-      { name: 'not-a-pdf.png', mimeType: 'image/png', buffer: redPng }
+      { name: 'not-a-pdf.pdf', mimeType: 'application/pdf', buffer: redPng }
     ]);
     await page.waitForTimeout(300);
     assert.equal(await page.locator('#fileItemsGrid').evaluate(el => el.classList.contains('hidden')), true, 'PNG must be rejected by PDF-to-image');
@@ -105,6 +126,7 @@ const assert = require('node:assert/strict');
     const pdfDownload = await pdfDownloadPromise;
     const pdfPath = '/tmp/midoc-image-to-pdf-test.pdf';
     await pdfDownload.saveAs(pdfPath);
+    assert.equal(fs.readFileSync(pdfPath).subarray(0, 5).toString('ascii'), '%PDF-', 'Image-to-PDF must create a real PDF file.');
 
     // A real PDF must be accepted by PDF-to-image and produce a ZIP of rendered pages.
     await openTool('pdf-to-image');
@@ -154,6 +176,7 @@ const assert = require('node:assert/strict');
     const zipDownload = await zipDownloadPromise;
     const zipPath = '/tmp/midoc-zip-maker-test.zip';
     await zipDownload.saveAs(zipPath);
+    assert.equal(fs.readFileSync(zipPath).subarray(0, 2).toString('ascii'), 'PK', 'ZIP Maker must create a real ZIP file.');
 
     // ZIP Viewer and Extractor must load archive contents and expose per-file download.
     await openTool('zip-tools');
