@@ -17,7 +17,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <!-- JSZip, GIF encoder, and QR Code encoder -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <script>
@@ -857,7 +857,9 @@
       'compress-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'watermark-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'page-number-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
-      'copy-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
+      'pdf-copy': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
+      'pdf-to-word': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
+      'dpi-checker': { formats: ['none'], accept: '', min: 0, label: 'tidak membutuhkan file' },
       'extract-pdf-pages': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'extract-pdf-images': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
       'image-to-pdf': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar JPG, PNG, WebP, AVIF, atau BMP' },
@@ -1818,7 +1820,7 @@
             <input id="optPdfWatermarkText" type="text" value="DOKUMEN RESMI" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs" />
           </div>
           <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input id="optPdfPageNumbers" type="checkbox" checked class="accent-accent" />
+            <input id="optPdfPageNumbers" type="checkbox" class="accent-accent" />
             <span>Sertakan nomor halaman otomatis di bawah</span>
           </label>
         `;
@@ -2092,7 +2094,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
         box.innerHTML = `
           <div>
             <label class="block text-xs font-semibold mb-1">Teks atau Tautan URL</label>
-            <input id="optQrText" type="text" value="https://midoc.local/dokumen-01" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
+            <input id="optQrText" type="text" value="" placeholder="Masukkan tautan atau teks yang ingin dijadikan QR Code" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
           </div>
         `;
       } else if (engine === 'password-gen') {
@@ -2106,8 +2108,8 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
             </div>
             <input id="optPassLen" type="range" min="8" max="64" value="16" oninput="document.getElementById('passLenVal').textContent = this.value" class="w-full accent-accent" />
           </div>
-          <div id="generatedPasswordDisplay" class="p-2.5 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine font-mono text-xs text-center select-all break-all">
-            MiDoc#9482!Secure
+          <div id="generatedPasswordDisplay" class="p-2.5 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine font-mono text-xs text-center select-all break-all text-zinc-500">
+            Kata sandi akan muncul setelah tombol dijalankan.
           </div>
         `;
       } else if (engine === 'unit-converter') {
@@ -2142,6 +2144,24 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
             413 × 531 piksel
           </div>
         `;
+      }
+      if (toolObj.id === 'photo-collage') {
+        const cols = document.getElementById('optSplitCols');
+        const rows = document.getElementById('optSplitRows');
+        if (cols) cols.value = '3';
+        if (rows) rows.value = '3';
+        if (cols && rows) drawSplitterLivePreview();
+      }
+      if (toolObj.id === 'crop-circle') {
+        const shape = document.getElementById('optShapeCrop');
+        if (shape) shape.value = 'circle';
+      }
+      if (toolObj.id === 'rounded-corners') {
+        const shape = document.getElementById('optShapeCrop');
+        if (shape) shape.value = 'rounded';
+      }
+      if (toolObj.id === 'page-number-pdf') {
+        box.innerHTML = '<p class="text-xs text-zinc-600 dark:text-zinc-400">Nomor halaman akan ditambahkan otomatis di bagian bawah setiap halaman PDF. Tidak ada watermark teks pada mode ini.</p>';
       }
       applyToolInputConfig(toolObj);
     }
@@ -3589,8 +3609,10 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
     async function runWatermarkPdf(baseName) {
       const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
       if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
-      const wm = document.getElementById('optPdfWatermarkText').value.trim();
-      const addNum = document.getElementById('optPdfPageNumbers').checked;
+      const pageNumberOnly = state.activeToolObj?.id === 'page-number-pdf';
+      const wm = pageNumberOnly ? '' : (document.getElementById('optPdfWatermarkText')?.value || '').trim();
+      const addNum = pageNumberOnly || Boolean(document.getElementById('optPdfPageNumbers')?.checked);
+      if (!wm && !addNum) throw new Error('Masukkan teks watermark atau aktifkan nomor halaman sebelum memproses.');
       const outPdf = await PDFLib.PDFDocument.create();
       const font = await outPdf.embedFont(PDFLib.StandardFonts.HelveticaBold);
 
@@ -3931,7 +3953,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       };
 
       if (qualityMode === 'original') {
-        const sourceType = (item.type || '').toLowerCase();
+        const sourceType = ((item.type || '') + ' ' + (item.name || '')).toLowerCase();
         if (sourceType.includes('png') && item.rotation === 0 && item.arrayBuffer) {
           return pdfDoc.embedPng(item.arrayBuffer);
         }
