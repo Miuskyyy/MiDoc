@@ -2120,6 +2120,34 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       document.getElementById('optResizeH').value = h;
     }
 
+
+    function recalcUnitConverter() {
+      const value = Number(document.getElementById('unitValue')?.value);
+      const from = document.getElementById('unitFrom')?.value || 'px';
+      const to = document.getElementById('unitTo')?.value || 'cm';
+      const dpi = Number(document.getElementById('unitDpi')?.value) || 300;
+      const out = document.getElementById('unitConvertResult');
+      if (!out) return;
+      if (!Number.isFinite(value) || dpi <= 0) {
+        out.textContent = 'Masukkan nilai dan DPI yang valid.';
+        return;
+      }
+      const toInches = unit => {
+        if (unit === 'px') return value / dpi;
+        if (unit === 'cm') return value / 2.54;
+        if (unit === 'mm') return value / 25.4;
+        return value;
+      };
+      const inches = toInches(from);
+      let result = inches;
+      if (to === 'px') result = inches * dpi;
+      else if (to === 'cm') result = inches * 2.54;
+      else if (to === 'mm') result = inches * 25.4;
+      const rounded = Number(result.toFixed(6)).toLocaleString('id-ID', { maximumFractionDigits: 6 });
+      const inputText = value.toLocaleString('id-ID', { maximumFractionDigits: 6 });
+      out.textContent = inputText + ' ' + from.toUpperCase() + ' = ' + rounded + ' ' + to.toUpperCase();
+    }
+
     function recalcDpi() {
       const wCm = parseFloat(document.getElementById('calcCmW')?.value) || 0;
       const hCm = parseFloat(document.getElementById('calcCmH')?.value) || 0;
@@ -3273,6 +3301,69 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
     }
 
     // --- ENGINE 3: MERGE PDF & IMAGES ---
+
+    async function appendPdfItemPages(targetPdf, item, extraRotation = 0) {
+      const srcPdf = await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0));
+      const indices = item.singlePageIndex !== null ? [item.singlePageIndex] : srcPdf.getPageIndices();
+      const copied = await targetPdf.copyPages(srcPdf, indices);
+      copied.forEach(page => {
+        const baseRotation = page.getRotation().angle || 0;
+        const rotation = ((baseRotation + (item.rotation || 0) + extraRotation) % 360 + 360) % 360;
+        if (rotation !== baseRotation) page.setRotation(PDFLib.degrees(rotation));
+        targetPdf.addPage(page);
+      });
+      return copied.length;
+    }
+
+    async function runMergePdf(baseName) {
+      const pdfItems = state.items.filter(item => item.isPdf && item.arrayBuffer);
+      if (pdfItems.length < 2) throw new Error('Merge PDF memerlukan minimal dua file PDF.');
+      const outPdf = await PDFLib.PDFDocument.create();
+      let totalPages = 0;
+      for (let i = 0; i < pdfItems.length; i++) {
+        updateProgress(((i + 1) / pdfItems.length) * 90, 'Menggabungkan PDF: ' + pdfItems[i].name);
+        totalPages += await appendPdfItemPages(outPdf, pdfItems[i]);
+      }
+      const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
+      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, pdfItems.length + ' file PDF digabung menjadi ' + totalPages + ' halaman.');
+    }
+
+    async function runOrganizePdf(baseName) {
+      const pdfItems = state.items.filter(item => item.isPdf && item.arrayBuffer);
+      if (!pdfItems.length) throw new Error('Unggah satu file PDF terlebih dahulu.');
+      const outPdf = await PDFLib.PDFDocument.create();
+      let totalPages = 0;
+      for (let i = 0; i < pdfItems.length; i++) {
+        updateProgress(((i + 1) / pdfItems.length) * 90, 'Menyusun halaman: ' + pdfItems[i].name);
+        totalPages += await appendPdfItemPages(outPdf, pdfItems[i]);
+      }
+      if (!totalPages) throw new Error('Tidak ada halaman PDF yang dapat disusun.');
+      const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
+      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, 'Susunan berhasil disimpan: ' + totalPages + ' halaman mengikuti urutan kartu di workspace.');
+    }
+
+    async function runRotatePdf(baseName) {
+      const pdfItems = state.items.filter(item => item.isPdf && item.arrayBuffer);
+      if (!pdfItems.length) throw new Error('Unggah file PDF terlebih dahulu.');
+      const extraRotation = parseInt(document.getElementById('optPdfRotation')?.value || '0', 10);
+      if (![0, 90, 180, 270].includes(extraRotation)) throw new Error('Nilai rotasi tidak valid.');
+      const outPdf = await PDFLib.PDFDocument.create();
+      let totalPages = 0;
+      for (const item of pdfItems) totalPages += await appendPdfItemPages(outPdf, item, extraRotation);
+      const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
+      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, 'Rotasi diterapkan pada ' + totalPages + ' halaman PDF.');
+    }
+
+    async function runCopyPdf(baseName) {
+      const pdfItems = state.items.filter(item => item.isPdf && item.arrayBuffer);
+      if (!pdfItems.length) throw new Error('Unggah file PDF terlebih dahulu.');
+      const outPdf = await PDFLib.PDFDocument.create();
+      let totalPages = 0;
+      for (const item of pdfItems) totalPages += await appendPdfItemPages(outPdf, item);
+      const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
+      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, 'Salinan PDF berhasil dibuat. Tidak ada perubahan password atau enkripsi.');
+    }
+
     async function runMergePdfAndImages(baseName) {
       const outPdf = await PDFLib.PDFDocument.create();
       const pageSizeOpt = document.getElementById('optPageSize')?.value || 'FIT';
@@ -4069,48 +4160,34 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
     }
 
     async function runQrGenerator(baseName) {
-      const text = document.getElementById('optQrText').value || 'MiDoc';
-      const c = document.createElement('canvas');
-      c.width = 400;
-      c.height = 400;
-      const ctx = c.getContext('2d');
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, 400, 400);
-      ctx.fillStyle = '#111827';
-
-      // Deterministic geometric matrix encoding from text hash
-      let hash = 2166136261;
-      for (let i = 0; i < text.length; i++) {
-        hash ^= text.charCodeAt(i);
-        hash = Math.imul(hash, 16777619);
-      }
-
-      const cells = 21;
-      const pad = 32;
-      const cellSize = (400 - pad * 2) / cells;
-      for (let r = 0; r < cells; r++) {
-        for (let col = 0; col < cells; col++) {
-          const isFinder = (r < 7 && col < 7) || (r < 7 && col >= cells - 7) || (r >= cells - 7 && col < 7);
-          let fill = false;
-          if (isFinder) {
-            const lr = r >= cells - 7 ? r - (cells - 7) : r;
-            const lc = col >= cells - 7 ? col - (cells - 7) : col;
-            fill = lr === 0 || lr === 6 || lc === 0 || lc === 6 || (lr >= 2 && lr <= 4 && lc >= 2 && lc <= 4);
-          } else {
-            const bit = ((hash >>> ((r * cells + col) % 24)) ^ (text.charCodeAt((r + col) % text.length))) & 1;
-            fill = bit === 1;
-          }
-          if (fill) {
-            ctx.fillRect(pad + col * cellSize, pad + r * cellSize, Math.ceil(cellSize), Math.ceil(cellSize));
-          }
+      const text = (document.getElementById('optQrText')?.value || '').trim();
+      if (!text) throw new Error('Masukkan teks atau tautan terlebih dahulu.');
+      if (typeof window.QRCode !== 'function') throw new Error('Library QR Code belum berhasil dimuat. Periksa koneksi internet lalu muat ulang halaman.');
+      const host = document.createElement('div');
+      host.style.cssText = 'position:fixed;left:-10000px;top:0;width:1024px;height:1024px;background:#fff;';
+      document.body.appendChild(host);
+      try {
+        new QRCode(host, { text, width: 1024, height: 1024, correctLevel: QRCode.CorrectLevel.M });
+        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 80)));
+        let sourceCanvas = host.querySelector('canvas');
+        if (!sourceCanvas) {
+          const image = host.querySelector('img');
+          if (!image) throw new Error('QR Code gagal dirender.');
+          await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
+          sourceCanvas = document.createElement('canvas');
+          sourceCanvas.width = 1024;
+          sourceCanvas.height = 1024;
+          sourceCanvas.getContext('2d').drawImage(image, 0, 0, 1024, 1024);
         }
+        const blob = await new Promise((resolve, reject) => sourceCanvas.toBlob(result => result ? resolve(result) : reject(new Error('Gagal membuat PNG QR Code.')), 'image/png'));
+        const finalName = formatDownloadFilename({ baseName, ext: 'png', isBulkOrZip: false });
+        finishWithBlob(blob, finalName, 'QR Code standar berhasil dibuat untuk teks atau tautan yang dimasukkan.', { isImageResult: true });
+      } finally {
+        host.remove();
       }
-      const blob = await new Promise(r => c.toBlob(r, 'image/png'));
-      const finalName = formatDownloadFilename({ baseName, ext: 'png', isBulkOrZip: false });
-      finishWithBlob(blob, finalName, `Kode matriks dibuat untuk "${text}".`, { isImageResult: true });
     }
 
-    function runPasswordGenerator() {
+        function runPasswordGenerator() {
       const len = parseInt(document.getElementById('optPassLen')?.value || '16', 10);
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*_-+=';
       const arr = new Uint32Array(len);
