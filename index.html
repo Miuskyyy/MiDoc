@@ -318,7 +318,7 @@
               <input id="fileInput" type="file" multiple class="hidden" />
             </label>
 
-            <button onclick="loadDemoFiles()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas hover:border-accent text-zinc-700 dark:text-zinc-200 text-xs font-medium">
+            <button id="loadDemoFilesBtn" onclick="loadDemoFiles()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas hover:border-accent text-zinc-700 dark:text-zinc-200 text-xs font-medium">
               <i data-lucide="file-check" class="w-3.5 h-3.5 text-accent"></i>
               <span>Muat Contoh File</span>
             </button>
@@ -851,19 +851,19 @@
     const TOOL_INPUT_RULES = {
       'merge-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 2, label: 'minimal dua file PDF' },
       'merge-pdf-image': { formats: ['pdf', 'static-image'], accept: '.pdf,.jpg,.jpeg,.png,.webp,.avif,.bmp,application/pdf,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'PDF dan/atau gambar raster' },
-      'organize-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
+      'organize-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, uniqueFileCount: true, label: 'satu file PDF' },
       'rotate-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
       'split-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'crop-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
       'compress-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
       'watermark-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
-      'copy-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
+      'copy-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'extract-pdf-pages': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'extract-pdf-images': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
       'image-to-pdf': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar JPG, PNG, WebP, AVIF, atau BMP' },
       'pdf-to-image': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
       'pdf-to-text': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
-      'doc-to-pdf': { formats: ['docx', 'rtf', 'txt', 'md', 'html', 'csv', 'tsv', 'xlsx', 'pptx', 'epub'], accept: '.docx,.rtf,.txt,.md,.html,.htm,.csv,.tsv,.xlsx,.pptx,.epub', min: 0, label: 'DOCX, RTF, TXT, Markdown, HTML, CSV, TSV, XLSX, PPTX, atau EPUB' },
+      'doc-to-pdf': { formats: ['docx', 'rtf', 'txt', 'md', 'html', 'csv', 'tsv', 'xlsx', 'pptx', 'epub'], accept: '.docx,.rtf,.txt,.md,.html,.htm,.csv,.tsv,.xlsx,.pptx,.epub', min: 0, max: 1, label: 'DOCX, RTF, TXT, Markdown, HTML, CSV, TSV, XLSX, PPTX, atau EPUB' },
       'text-to-pdf': { formats: ['txt', 'md'], accept: '.txt,.md,text/plain,text/markdown', min: 0, max: 1, label: 'file TXT atau Markdown' },
       'image-splitter': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'join-images': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar raster statis' },
@@ -932,8 +932,9 @@
         }
         return true;
       }
-      if (rule.max && files.length > rule.max) {
-        showToast('Mode ini hanya menerima maksimal ' + rule.max + ' file.', 'error');
+      const inputCount = rule.uniqueFileCount ? new Set(files).size : files.length;
+      if (rule.max && inputCount > rule.max) {
+        showToast('Mode ini hanya menerima maksimal ' + rule.max + ' file sumber.', 'error');
         return false;
       }
       if (checkMinimum && files.length < (rule.min || 0)) {
