@@ -15,8 +15,10 @@
   <!-- PDF-Lib & PDF.js -->
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <!-- JSZip -->
+  <!-- JSZip, GIF encoder, and QR Code encoder -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <script>
     tailwind.config = {
@@ -305,7 +307,7 @@
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
 
       <!-- LEFT COLUMN (8 Cols): Precision Dropzone, Reorderable Grid & Live Splitter Canvas -->
-      <div class="xl:col-span-8 space-y-4">
+      <div id="toolFileColumn" class="xl:col-span-8 space-y-4">
 
         <!-- File Staging Toolbar -->
         <div class="p-3 rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine flex flex-wrap items-center justify-between gap-3">
@@ -496,7 +498,7 @@
       </div>
 
       <!-- RIGHT COLUMN (4 Cols): Tool Configuration & Execution Panel -->
-      <div class="xl:col-span-4">
+      <div id="toolSettingsColumn" class="xl:col-span-4">
         <div class="rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine p-5 sticky top-20 space-y-4">
           <div class="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-darkLine">
             <h2 class="font-display text-sm font-bold text-ink dark:text-white">
@@ -645,12 +647,12 @@
         title: 'Kelompok 1: PDF — Gabung & Pisah',
         subtitle: 'Susun ulang, gabungkan PDF maupun gambar, pecah per halaman, dan ekstrak isi dokumen.',
         tools: [
-          { id: 'merge-pdf', name: 'Merge PDF', desc: 'Gabungkan banyak file PDF sesuai urutan seret', icon: 'file-plus-2', engine: 'merge-pdf-image' },
+          { id: 'merge-pdf', name: 'Merge PDF', desc: 'Gabungkan dua atau lebih dokumen PDF sesuai urutan.', icon: 'file-plus-2', engine: 'merge-pdf' },
           { id: 'merge-pdf-image', name: 'Merge PDF & Gambar', desc: 'Gabung PDF dan foto JPG/PNG dalam satu dokumen', icon: 'layers', engine: 'merge-pdf-image' },
           { id: 'split-pdf', name: 'Split PDF', desc: 'Pisahkan halaman PDF menjadi file satuan atau rentang', icon: 'scissors', engine: 'split-pdf' },
-          { id: 'organize-pdf', name: 'Organize & Hapus Halaman PDF', desc: 'Geser posisi atau hapus halaman PDF yang tidak perlu', icon: 'layout-grid', engine: 'merge-pdf-image' },
+          { id: 'organize-pdf', name: 'Organize & Hapus Halaman PDF', desc: 'Susun ulang atau hapus halaman PDF dengan mengatur kartu halaman.', icon: 'layout-grid', engine: 'organize-pdf' },
           { id: 'extract-pdf-pages', name: 'Ekstrak Halaman PDF', desc: 'Ambil nomor halaman tertentu menjadi PDF baru', icon: 'file-output', engine: 'split-pdf' },
-          { id: 'extract-pdf-images', name: 'Ekstrak Gambar dari PDF', desc: 'Simpan seluruh halaman PDF sebagai gambar HD', icon: 'images', engine: 'pdf-to-image' }
+          { id: 'extract-pdf-images', name: 'Ekspor Halaman PDF ke Gambar', desc: 'Render setiap halaman PDF menjadi PNG, JPG, atau WebP.', icon: 'images', engine: 'pdf-to-image' }
         ]
       },
       {
@@ -659,12 +661,12 @@
         title: 'Kelompok 2: PDF — Edit & Optimasi',
         subtitle: 'Perkecil ukuran file, putar orientasi, potong margin, nomor halaman, dan proteksi.',
         tools: [
-          { id: 'compress-pdf', name: 'Compress PDF', desc: 'Perkecil ukuran MB/KB dokumen PDF secara terkontrol', icon: 'minimize-2', engine: 'compress-pdf' },
-          { id: 'rotate-pdf', name: 'Rotate PDF', desc: 'Putar halaman PDF 90° atau 180° per item', icon: 'rotate-cw', engine: 'merge-pdf-image' },
+          { id: 'compress-pdf', name: 'Compress PDF (Rasterisasi)', desc: 'Kompres dengan merender ulang halaman menjadi gambar; teks dan vektor tidak lagi dapat dipilih.', icon: 'minimize-2', engine: 'compress-pdf' },
+          { id: 'rotate-pdf', name: 'Rotate PDF', desc: 'Putar halaman PDF 90°, 180°, atau 270°.', icon: 'rotate-cw', engine: 'rotate-pdf' },
           { id: 'crop-pdf', name: 'Crop PDF', desc: 'Potong area margin tepi halaman PDF', icon: 'crop', engine: 'crop-pdf' },
           { id: 'page-number-pdf', name: 'Tambah Nomor Halaman', desc: 'Sisipkan penomoran halaman otomatis di bagian bawah', icon: 'hash', engine: 'watermark-pdf' },
           { id: 'watermark-pdf', name: 'Tambah Watermark PDF', desc: 'Beri teks stempel watermark transparan di setiap halaman', icon: 'stamp', engine: 'watermark-pdf' },
-          { id: 'protect-pdf', name: 'Kunci & Buka Kunci PDF', desc: 'Atur metadata perlindungan atau salin ulang struktur PDF', icon: 'lock', engine: 'protect-pdf' }
+          { id: 'pdf-copy', name: 'Salin Ulang PDF', desc: 'Baca dan simpan ulang struktur PDF tanpa mengklaim menambah atau menghapus password.', icon: 'file-check', engine: 'copy-pdf' }
         ]
       },
       {
@@ -673,10 +675,10 @@
         title: 'Kelompok 3: Konversi Dokumen & eBook',
         subtitle: 'Konversi lintas format antara gambar, PDF, teks dokumen, lembar kerja, dan eBook.',
         tools: [
-          { id: 'image-to-pdf', name: 'Gambar / JPG ke PDF', desc: 'Ubah JPG, PNG, WebP menjadi dokumen PDF A4/Fit', icon: 'file-image', engine: 'image-to-pdf' },
+          { id: 'image-to-pdf', name: 'Gambar ke PDF', desc: 'Ubah gambar JPG, PNG, WebP, AVIF, atau BMP menjadi PDF.', icon: 'file-image', engine: 'image-to-pdf' },
           { id: 'pdf-to-image', name: 'PDF ke Gambar / JPG', desc: 'Render setiap halaman PDF menjadi PNG atau JPG', icon: 'image', engine: 'pdf-to-image' },
           { id: 'word-to-pdf', name: 'Word / DOCX ke PDF', desc: 'Konversi isi teks dokumen Word/RTF menjadi PDF bersih', icon: 'file-text', engine: 'doc-to-pdf' },
-          { id: 'pdf-to-word', name: 'PDF ke Word / TXT', desc: 'Ekstrak seluruh teks dari file PDF ke dokumen teks/DOC', icon: 'file-type', engine: 'pdf-to-text' },
+          { id: 'pdf-to-word', name: 'PDF ke TXT (Ekstrak Teks)', desc: 'Ekstrak lapisan teks PDF ke TXT. PDF scan tanpa OCR tidak menghasilkan teks.', icon: 'file-type', engine: 'pdf-to-text' },
           { id: 'excel-to-pdf', name: 'Excel / CSV ke PDF', desc: 'Ubah data tabel CSV/TSV menjadi halaman laporan PDF', icon: 'table', engine: 'doc-to-pdf' },
           { id: 'ppt-to-pdf', name: 'PPT / Slide Teks ke PDF', desc: 'Konversi kerangka presentasi menjadi halaman PDF', icon: 'presentation', engine: 'doc-to-pdf' },
           { id: 'txt-to-pdf', name: 'TXT ke PDF', desc: 'Tulis atau unggah file .txt lalu simpan sebagai PDF', icon: 'align-left', engine: 'text-to-pdf' },
@@ -693,7 +695,7 @@
           { id: 'image-splitter', name: 'Image Splitter (Pemisah Gambar Seimbang)', desc: 'Potong gambar menjadi N bagian ke samping & M bagian ke bawah dengan pratinjau garis presisi', icon: 'grid', engine: 'image-splitter', badge: 'PRESISI GRID' },
           { id: 'join-images', name: 'JPG / PNG Joiner (Gabung Gambar)', desc: 'Satukan banyak gambar secara vertikal atau horizontal sesuai urutan', icon: 'columns', engine: 'join-images' },
           { id: 'stitch-screenshot', name: 'Stitch Screenshot', desc: 'Sambung potongan screenshot menjadi satu gambar panjang utuh', icon: 'smartphone', engine: 'join-images' },
-          { id: 'photo-collage', name: 'Photo Collage & Grid Instagram 3x3', desc: 'Susun kolase foto rapi atau pecah foto untuk feed Instagram', icon: 'layout-grid', engine: 'image-splitter' },
+          { id: 'photo-collage', name: 'Instagram Grid Splitter 3×3', desc: 'Pecah satu foto menjadi sembilan potongan berurutan untuk feed Instagram.', icon: 'layout-grid', engine: 'image-splitter' },
           { id: 'overlay-images', name: 'Overlay Gambar', desc: 'Tumpuk gambar kedua (logo/stempel) di atas gambar utama', icon: 'copy', engine: 'overlay-images' }
         ]
       },
@@ -707,7 +709,7 @@
           { id: 'resize-pixel', name: 'Resize Pixel & Persentase', desc: 'Ubah dimensi piksel atau skala persentase gambar secara akurat', icon: 'maximize-2', engine: 'resize-image' },
           { id: 'resize-official', name: 'Resize Resmi & Pas Foto (3.5x4.5cm / 3x4 / 4x6 / A4)', desc: 'Preset pas foto KTP, CPNS, Visa, dan kertas cetak A4 300 DPI', icon: 'user-square', engine: 'resize-image' },
           { id: 'bulk-resize', name: 'Bulk Resize Gambar', desc: 'Ubah ukuran puluhan gambar sekaligus dalam satu proses', icon: 'layers', engine: 'resize-image' },
-          { id: 'dpi-checker', name: 'DPI Checker & Ubah DPI', desc: 'Hitung ukuran cetak fisik CM/MM terhadap resolusi piksel DPI', icon: 'ruler', engine: 'dpi-calc' }
+          { id: 'dpi-checker', name: 'Kalkulator Dimensi Cetak', desc: 'Hitung kebutuhan piksel dari ukuran cetak dan DPI.', icon: 'ruler', engine: 'dpi-calc' }
         ]
       },
       {
@@ -732,12 +734,12 @@
         subtitle: 'Penamaan massal berurutan, pengarsipan ZIP, warna HEX, QR/Barcode, dan konverter satuan.',
         tools: [
           { id: 'batch-rename', name: 'Batch Rename File', desc: 'Ganti nama puluhan file sekaligus dengan nomor urut rapi', icon: 'edit-3', engine: 'batch-rename' },
-          { id: 'gif-tools', name: 'GIF Maker & Ekstrak Frame GIF', desc: 'Buat animasi rangkaian gambar atau ekstrak frame gambar statis', icon: 'film', engine: 'convert-image' },
+          { id: 'gif-tools', name: 'GIF Maker & Ekstrak Frame GIF', desc: 'Buat animasi GIF dari rangkaian gambar, atau ekstrak frame dari satu file GIF.', icon: 'film', engine: 'gif-tools' },
           { id: 'zip-tools', name: 'ZIP Maker & Extractor', desc: 'Bungkus kumpulan file ke dalam ZIP atau lihat isi arsip ZIP', icon: 'archive', engine: 'zip-maker' },
           { id: 'color-picker', name: 'Image Color Picker & Hex Inverter', desc: 'Ekstrak palet warna HEX/RGB dari gambar atau balik kode warna', icon: 'pipette', engine: 'color-picker' },
-          { id: 'qr-generator', name: 'Barcode / QR Generator', desc: 'Buat kode matriks/barcode dari teks atau tautan dan unduh PNG', icon: 'qr-code', engine: 'qr-generator' },
+          { id: 'qr-generator', name: 'QR Code Generator', desc: 'Buat QR Code standar yang bisa dipindai dari teks atau tautan.', icon: 'qr-code', engine: 'qr-generator' },
           { id: 'password-gen', name: 'Password Generator', desc: 'Buat kata sandi acak kuat untuk pengamanan dokumen', icon: 'key-round', engine: 'password-gen' },
-          { id: 'unit-converter', name: 'Konverter Satuan PX / CM / MM / Inch', desc: 'Konversi satuan desain grafis dan cetak secara presisi', icon: 'calculator', engine: 'dpi-calc' }
+          { id: 'unit-converter', name: 'Konverter PX / CM / MM / Inch', desc: 'Konversi panjang antar PX, CM, MM, dan Inch berdasarkan DPI.', icon: 'calculator', engine: 'unit-converter' }
         ]
       }
     ];
@@ -766,7 +768,7 @@
         label: 'View & Edit',
         icon: 'file-pen-line',
         description: 'Atur tata letak halaman, putar orientasi, potong margin, ekstrak halaman, dan tambahkan elemen PDF.',
-        toolIds: ['crop-pdf', 'organize-pdf', 'rotate-pdf', 'extract-pdf-pages', 'extract-pdf-images', 'page-number-pdf', 'watermark-pdf']
+        toolIds: ['crop-pdf', 'organize-pdf', 'rotate-pdf', 'extract-pdf-pages', 'extract-pdf-images', 'page-number-pdf', 'watermark-pdf', 'pdf-copy']
       },
       {
         id: 'pdf-to',
@@ -784,10 +786,10 @@
       },
       {
         id: 'pdf-security',
-        label: 'PDF Security',
-        icon: 'shield-check',
-        description: 'Lindungi PDF atau buka dokumen yang memiliki proteksi.',
-        toolIds: ['protect-pdf']
+        label: 'PDF Utilities',
+        icon: 'file-check',
+        description: 'Salin ulang struktur PDF tanpa klaim password atau enkripsi.',
+        toolIds: ['pdf-copy']
       },
       {
         id: 'image-optimize',
@@ -1511,9 +1513,9 @@
           <div>
             <label class="block text-xs font-semibold mb-1">Ukuran Halaman Gambar</label>
             <select id="optPageSize" onchange="renderWorkspaceItems()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
-              <option value="A4" selected>Kertas A4 (210 × 297 mm)</option>
+              <option value="FIT" selected>Sesuai Dimensi Asli Gambar</option>
+              <option value="A4">Kertas A4 (210 × 297 mm)</option>
               <option value="Letter">US Letter</option>
-              <option value="FIT">Sesuai Ukuran Asli Tiap Gambar</option>
             </select>
           </div>
           <div>
@@ -1528,7 +1530,7 @@
             <label class="block text-xs font-semibold mb-1">Margin (pt)</label>
             <select id="optMargin" onchange="renderWorkspaceItems()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
               <option value="0">0 pt (Penuh Tanpa Margin)</option>
-              <option value="20" selected>20 pt (Tipis)</option>
+              <option value="20">20 pt (Tipis)</option>
               <option value="40">40 pt (Standar)</option>
             </select>
           </div>
@@ -1545,8 +1547,8 @@
                 <option value="very-low">Very Low — ukuran paling kecil</option>
                 <option value="low">Low — ringan</option>
                 <option value="medium">Medium — seimbang</option>
-                <option value="high" selected>High — kualitas tinggi</option>
-                <option value="original">Same as Image — 100% / kualitas asli</option>
+                <option value="high">High — kualitas tinggi</option>
+                <option value="original" selected>Same as Image — 100% / kualitas asli</option>
               </select>
               <p class="mt-1.5 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
                 Kualitas lebih rendah akan menurunkan resolusi dan kompresi gambar di dalam PDF. File gambar asli tidak diubah.
@@ -2397,9 +2399,9 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
     }
 
     function getSimulatedPdfPageMetrics(item) {
-      const pageSizeOpt = document.getElementById('optPageSize')?.value || 'A4';
+      const pageSizeOpt = document.getElementById('optPageSize')?.value || 'FIT';
       const orientOpt = document.getElementById('optOrientation')?.value || 'auto';
-      const marginOpt = parseInt(document.getElementById('optMargin')?.value || '20', 10);
+      const marginOpt = parseInt(document.getElementById('optMargin')?.value || '0', 10);
 
       const swap = item.rotation === 90 || item.rotation === 270;
       const effW = (swap ? item.height : item.width) || 600;
@@ -3076,11 +3078,11 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
     // --- ENGINE 3: MERGE PDF & IMAGES ---
     async function runMergePdfAndImages(baseName) {
       const outPdf = await PDFLib.PDFDocument.create();
-      const pageSizeOpt = document.getElementById('optPageSize')?.value || 'A4';
-      const marginOpt = parseInt(document.getElementById('optMargin')?.value || '20', 10);
+      const pageSizeOpt = document.getElementById('optPageSize')?.value || 'FIT';
+      const marginOpt = parseInt(document.getElementById('optMargin')?.value || '0', 10);
       const orientOpt = document.getElementById('optOrientation')?.value || 'auto';
       const imagePdfQuality = state.activeToolObj?.id === 'image-to-pdf'
-        ? (document.getElementById('optImagePdfQuality')?.value || 'high')
+        ? (document.getElementById('optImagePdfQuality')?.value || 'original')
         : 'high';
 
       for (let i = 0; i < state.items.length; i++) {
