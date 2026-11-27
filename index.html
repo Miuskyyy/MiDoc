@@ -1505,6 +1505,26 @@
             </div>
           </div>
         `;
+      } else if (engine === 'merge-pdf') {
+        extBadge.textContent = '.pdf';
+        filenameInput.value = 'MiDoc_Gabungan_PDF';
+        btnLabel.textContent = 'Gabungkan PDF';
+        box.innerHTML = '<p class="text-xs text-zinc-600 dark:text-zinc-400">Pilih minimal dua dokumen PDF. File selain PDF akan ditolak.</p>';
+      } else if (engine === 'organize-pdf') {
+        extBadge.textContent = '.pdf';
+        filenameInput.value = 'MiDoc_PDF_Tersusun';
+        btnLabel.textContent = 'Simpan Susunan Halaman PDF';
+        box.innerHTML = '<p class="text-xs text-zinc-600 dark:text-zinc-400">Unggah satu PDF lalu tekan Pecah Per Halaman PDF. Geser kartu untuk mengubah urutan, gunakan tombol putar, atau hapus kartu. Urutan kartu menjadi urutan halaman PDF baru.</p>';
+      } else if (engine === 'rotate-pdf') {
+        extBadge.textContent = '.pdf';
+        filenameInput.value = 'MiDoc_PDF_Rotasi';
+        btnLabel.textContent = 'Terapkan Rotasi PDF';
+        box.innerHTML = '<label class="block text-xs font-semibold mb-1">Rotasi Tambahan Semua Halaman</label><select id="optPdfRotation" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="0">Tidak ada</option><option value="90">90° searah jarum jam</option><option value="180">180°</option><option value="270">270° searah jarum jam</option></select><p class="mt-2 text-[11px] text-zinc-500">Tombol rotasi pada setiap kartu tetap dapat digunakan untuk mengatur halaman tertentu.</p>';
+      } else if (engine === 'copy-pdf') {
+        extBadge.textContent = '.pdf';
+        filenameInput.value = 'MiDoc_PDF_Salinan';
+        btnLabel.textContent = 'Buat Salinan PDF';
+        box.innerHTML = '<p class="text-xs text-zinc-600 dark:text-zinc-400">Menyimpan ulang dokumen PDF. Fitur ini tidak menambahkan, membuka, atau menghapus password.</p>';
       } else if (engine === 'merge-pdf-image' || engine === 'image-to-pdf') {
         extBadge.textContent = '.pdf';
         filenameInput.value = 'MiDoc_Dokumen_Gabungan';
@@ -1595,7 +1615,7 @@
             </select>
           </div>
         `;
-      } else if (engine === 'compress-pdf' || engine === 'protect-pdf') {
+      } else if (engine === 'compress-pdf') {
         extBadge.textContent = '.pdf';
         filenameInput.value = 'MiDoc_PDF_Optimasi';
         btnLabel.textContent = 'Buat PDF Teroptimasi';
@@ -1632,6 +1652,7 @@
             <span>Sertakan nomor halaman otomatis di bawah</span>
           </label>
         `;
+        if (toolObj.id === 'page-number-pdf') document.getElementById('optPdfWatermarkText').value = '';
       } else if (engine === 'text-to-pdf' || engine === 'doc-to-pdf') {
         extBadge.textContent = '.pdf';
         filenameInput.value = 'MiDoc_Dokumen';
@@ -1708,7 +1729,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
             <input id="optBgFill" type="color" value="#ffffff" class="w-full h-8 rounded-sm border border-zinc-300 dark:border-darkLine bg-transparent" />
           </div>
           <p class="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-            AVIF bergantung pada dukungan encoder browser. GIF yang dikonversi menjadi gambar statis hanya mengambil frame yang dapat dibaca browser.
+            AVIF bergantung pada dukungan encoder browser. GIF animasi diproses melalui alat GIF khusus agar frame tidak hilang.
           </p>
         `;
         updateConvertImageOptions();
@@ -1751,7 +1772,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       } else if (engine === 'filters-image') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Edit_Gambar';
-        btnLabel.textContent = 'Terapkan Edit PDF';
+        btnLabel.textContent = 'Terapkan Edit Gambar';
         box.innerHTML = `
           <div>
             <label class="block text-xs font-semibold mb-1">Bentuk Potongan</label>
@@ -1847,6 +1868,12 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
             </div>
           </div>
         `;
+      } else if (engine === 'gif-tools') {
+        extBadge.textContent = '.gif';
+        filenameInput.value = 'MiDoc_Animasi';
+        btnLabel.textContent = 'Buat GIF Animasi';
+        box.innerHTML = '<div><label class="block text-xs font-semibold mb-1">Mode GIF</label><select id="optGifMode" onchange="updateGifToolMode()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="create" selected>Buat GIF dari rangkaian gambar</option><option value="extract">Ekstrak frame dari file GIF</option></select></div><p id="gifModeDescription" class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-200 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">Pilih minimal dua gambar statis. Urutan kartu menjadi urutan frame GIF.</p><div id="gifCreateOptions" class="space-y-3"><div><label class="block text-xs font-semibold mb-1">Durasi setiap frame (ms)</label><input id="optGifDelay" type="number" min="20" max="10000" step="10" value="250" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" /></div><div><label class="block text-xs font-semibold mb-1">Pengulangan</label><select id="optGifRepeat" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="0" selected>Berulang terus</option><option value="-1">Putar satu kali</option><option value="3">Ulangi 3 kali</option></select></div><div><label class="block text-xs font-semibold mb-1">Lebar maksimum</label><select id="optGifMaxWidth" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="0" selected>Ikuti ukuran gambar pertama</option><option value="480">480 px</option><option value="720">720 px</option><option value="1080">1080 px</option></select></div></div><p id="gifExtractOptions" class="hidden p-2.5 rounded-sm border border-zinc-200 dark:border-darkLine text-[11px] text-zinc-500">Pilih tepat satu file GIF animasi. Semua frame akan disimpan sebagai PNG dalam arsip ZIP.</p>';
+        updateGifToolMode();
       } else if (engine === 'zip-maker') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Arsip';
@@ -1898,6 +1925,11 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
             MiDoc#9482!Secure
           </div>
         `;
+      } else if (engine === 'unit-converter') {
+        filenameGroup.classList.add('hidden');
+        btnLabel.textContent = 'Konversi Satuan';
+        box.innerHTML = '<div><label class="block text-xs font-semibold mb-1">Nilai</label><input id="unitValue" type="number" min="0" step="any" value="100" oninput="recalcUnitConverter()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" /></div><div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Dari</label><select id="unitFrom" onchange="recalcUnitConverter()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="px">PX</option><option value="cm">CM</option><option value="mm">MM</option><option value="inch">Inch</option></select></div><div><label class="block text-xs font-semibold mb-1">Ke</label><select id="unitTo" onchange="recalcUnitConverter()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="cm">CM</option><option value="px">PX</option><option value="mm">MM</option><option value="inch">Inch</option></select></div></div><div><label class="block text-xs font-semibold mb-1">DPI (digunakan untuk konversi PX)</label><input id="unitDpi" type="number" min="1" max="2400" value="300" oninput="recalcUnitConverter()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" /></div><div id="unitConvertResult" class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-accent text-center font-mono text-sm font-bold text-accent">100 px = 0,8467 cm</div>';
+        recalcUnitConverter();
       } else if (engine === 'dpi-calc') {
         filenameGroup.classList.add('hidden');
         btnLabel.textContent = 'Hitung Konversi Satuan';
@@ -1926,6 +1958,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
           </div>
         `;
       }
+      applyToolInputConfig(toolObj);
     }
 
     function setSplitterGrid(cols, rows) {
