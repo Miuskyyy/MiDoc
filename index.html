@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MiDoc — Studio Dokumen & Gambar Presisi Tinggi</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Plus Jakarta Sans, IBM Plex Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- PDF-Lib & PDF.js -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- JSZip -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Plus Jakarta Sans"', 'sans-serif'],
+            sans: ['"IBM Plex Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            accent: '#2563EB',
+            accentHover: '#1D4ED8',
+            ink: '#111827',
+            darkCanvas: '#121214',
+            darkSurface: '#18181B',
+            darkLine: '#27272A',
+          },
+          borderRadius: {
+            none: '0px',
+            sm: '2px',
+            DEFAULT: '3px',
+            md: '4px',
+            lg: '4px',
+            xl: '4px',
+            '2xl': '4px',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Strict Flat Minimalism: No blur, no shadows, crisp 1px borders, sharp 2px-4px corners */
+    * {
+      box-shadow: none !important;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #71717A;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #2563EB;
+    }
+
+    .file-card {
+      user-select: none;
+      transition: border-color 0.12s ease, background-color 0.12s ease;
+    }
+    .file-card.dragging {
+      opacity: 0.45;
+      border-color: #2563EB !important;
+    }
+    .file-card.drag-over-left {
+      border-left: 3px solid #2563EB !important;
+    }
+    .file-card.drag-over-right {
+      border-right: 3px solid #2563EB !important;
+    }
+
+    /* Subtle flat checkerboard for transparent PNGs */
+    .checkerboard {
+      background-image:
+        linear-gradient(45deg, rgba(128, 128, 128, 0.1) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(128, 128, 128, 0.1) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(128, 128, 128, 0.1) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(128, 128, 128, 0.1) 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+    }
+  </style>
+</head>
+
+<body class="bg-white text-ink dark:bg-darkCanvas dark:text-zinc-100 font-sans antialiased min-h-screen flex flex-col selection:bg-accent selection:text-white">
+
+  <!-- ==================== TOP FLAT NAVBAR (11zon-Inspired Structure) ==================== -->
+  <header id="mainHeader" class="sticky top-0 z-50 bg-white dark:bg-darkSurface border-b border-zinc-200 dark:border-darkLine">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+      
+      <!-- Left: Brand + Mega Menu Triggers -->
+      <div class="flex items-center h-full gap-1">
+        <button onclick="navigateToHome()" class="flex items-center gap-2.5 pr-4 h-full text-left focus:outline-none">
+          <span class="w-7 h-7 rounded-sm bg-accent text-white font-display font-extrabold text-base flex items-center justify-center">
+            M
+          </span>
+          <span class="font-display font-extrabold text-xl tracking-tight text-ink dark:text-white">
+            <span class="text-accent">Mi</span>Doc
+          </span>
+        </button>
+
+        <!-- Desktop Mega Menu Triggers (Beranda Direktori tepat di samping MiDoc) -->
+        <nav class="hidden lg:flex items-center h-full" id="desktopNav">
+          <button onclick="navigateToHome()" id="navHomeBtn" class="h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-accent border-b-2 border-accent">
+            <span>Beranda Direktori</span>
+          </button>
+
+          <button data-menu="pdf" class="nav-trigger h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-b-2 border-transparent">
+            <span>Alat PDF</span>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-70"></i>
+          </button>
+
+          <button data-menu="image" class="nav-trigger h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-b-2 border-transparent">
+            <span>Alat Gambar</span>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-70"></i>
+          </button>
+
+          <button data-menu="converter" class="nav-trigger h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-b-2 border-transparent">
+            <span>Konverter & Utilitas</span>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-70"></i>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Right: Quick Search, Theme Switcher, Mobile Toggle -->
+      <div class="flex items-center gap-2">
+        <div class="relative hidden sm:block w-56 md:w-64">
+          <i data-lucide="search" class="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          <input
+            id="navToolSearch"
+            type="text"
+            placeholder="Cari alat cepat..."
+            class="w-full pl-8 pr-3 py-1.5 text-xs rounded-sm bg-zinc-100 dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-ink dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-accent"
+          />
+          <div id="navSearchDropdown" class="hidden absolute right-0 mt-1 w-80 max-h-96 overflow-y-auto rounded-sm bg-white dark:bg-darkSurface border border-zinc-300 dark:border-darkLine p-1.5 z-50"></div>
+        </div>
+
+        <span class="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-mono text-zinc-600 dark:text-zinc-400">
+          Lokal • Tanpa Upload Server
+        </span>
+
+        <!-- Theme Switcher -->
+        <button onclick="toggleTheme()" class="p-2 rounded-sm border border-zinc-200 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent" title="Ganti Tema Terang / Gelap">
+          <i data-lucide="contrast" class="w-4 h-4"></i>
+        </button>
+
+        <!-- Mobile Menu Button -->
+        <button onclick="toggleMobileMenu()" class="lg:hidden p-2 rounded-sm border border-zinc-200 dark:border-darkLine text-zinc-700 dark:text-zinc-300">
+          <i data-lucide="menu" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== MEGA MENU PANEL ==================== -->
+    <div id="megaMenuContainer" class="hidden absolute left-0 right-0 bg-white dark:bg-darkSurface border-b border-zinc-300 dark:border-darkLine z-40">
+      <div id="megaMenuContent" class="max-w-[1440px] mx-auto px-6 py-6"></div>
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div id="mobileNavDrawer" class="hidden lg:hidden bg-white dark:bg-darkSurface border-b border-zinc-300 dark:border-darkLine px-4 py-4 max-h-[80vh] overflow-y-auto">
+      <div id="mobileMenuContent" class="space-y-4"></div>
+    </div>
+  </header>
+
+  <!-- ==================== VIEW 1: BERANDA UTAMA (DIRECTORY HUB) ==================== -->
+  <main id="homeDirectoryView" class="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-8 sm:py-10">
+    
+    <!-- Minimalist Flat Header & Instant Directory Filter -->
+    <section class="pb-8 border-b border-zinc-200 dark:border-darkLine">
+      <div class="max-w-3xl">
+        <h1 class="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-ink dark:text-white">
+          Direktori Alat Dokumen & Gambar MiDoc
+        </h1>
+        <p class="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 mt-2 leading-relaxed">
+          Pilih alat yang ingin digunakan. Semua pemrosesan berjalan langsung di browser Anda dengan urutan file yang terkunci presisi saat drag-and-drop dan dapat digeser bebas.
+        </p>
+      </div>
+
+      <!-- Instant Search & Group Tabs -->
+      <div class="mt-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        <div class="relative flex-1 max-w-xl">
+          <i data-lucide="search" class="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          <input
+            id="homeSearchInput"
+            type="text"
+            placeholder="Ketik nama fitur (contoh: Pemisah Gambar, Split PDF, Pas Foto, Gabung Gambar, Word ke PDF)..."
+            class="w-full pl-10 pr-4 py-2.5 text-sm rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-300 dark:border-darkLine text-ink dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-accent"
+          />
+        </div>
+
+        <div class="flex flex-wrap items-center gap-1.5" id="homeGroupFilters">
+          <button onclick="filterHomeGroups('all')" data-group="all" class="home-filter-btn px-3 py-2 text-xs font-semibold rounded-sm bg-accent text-white">
+            Semua Kelompok (7)
+          </button>
+          <button onclick="filterHomeGroups('pdf')" data-group="pdf" class="home-filter-btn px-3 py-2 text-xs font-semibold rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent">
+            Alat PDF
+          </button>
+          <button onclick="filterHomeGroups('image')" data-group="image" class="home-filter-btn px-3 py-2 text-xs font-semibold rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent">
+            Alat Gambar
+          </button>
+          <button onclick="filterHomeGroups('converter')" data-group="converter" class="home-filter-btn px-3 py-2 text-xs font-semibold rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent">
+            Konverter & Batch
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Structured 7-Group Functional Directory -->
+    <section id="directoryGroupsContainer" class="mt-8 space-y-10"></section>
+  </main>
+
+  <!-- ==================== VIEW 2: WORKSPACE ALAT AKTIF ==================== -->
+  <main id="toolWorkspaceView" class="hidden flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-6">
+
+    <!-- Top Breadcrumb & Active Tool Bar -->
+    <div class="mb-6 pb-5 border-b border-zinc-200 dark:border-darkLine flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div class="space-y-1.5">
+        <div class="flex items-center gap-2 text-xs">
+          <button onclick="navigateToHome()" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent hover:text-accent font-medium">
+            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+            <span>Kembali ke Beranda</span>
+          </button>
+          <span class="text-zinc-400">/</span>
+          <span id="wsGroupLabel" class="font-mono text-zinc-500 dark:text-zinc-400">Kelompok Alat</span>
+        </div>
+
+        <div class="flex items-center gap-3 pt-1">
+          <div id="wsIconBox" class="w-9 h-9 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
+            <i data-lucide="layers" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h1 id="wsTitle" class="font-display text-xl sm:text-2xl font-extrabold text-ink dark:text-white">
+              Judul Alat
+            </h1>
+            <p id="wsDesc" class="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400">
+              Deskripsi fungsi alat.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Direct Cross-Tool Bridge Button (e.g., Image Joiner <-> Image Splitter) -->
+      <div id="crossToolBridgeContainer" class="flex flex-wrap items-center gap-2"></div>
+    </div>
+
+    <!-- Main 12-Column Flat Split Workspace -->
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+
+      <!-- LEFT COLUMN (8 Cols): Precision Dropzone, Reorderable Grid & Live Splitter Canvas -->
+      <div class="xl:col-span-8 space-y-4">
+
+        <!-- File Staging Toolbar -->
+        <div class="p-3 rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <label class="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-2 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>Tambah File</span>
+              <input id="fileInput" type="file" multiple class="hidden" />
+            </label>
+
+            <button onclick="loadDemoFiles()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas hover:border-accent text-zinc-700 dark:text-zinc-200 text-xs font-medium">
+              <i data-lucide="file-check" class="w-3.5 h-3.5 text-accent"></i>
+              <span>Muat Contoh File</span>
+            </button>
+
+            <button id="expandPdfPagesBtn" onclick="explodeAllPdfsToPages()" class="hidden inline-flex items-center gap-1.5 px-3 py-2 rounded-sm border border-accent text-accent bg-accent/10 hover:bg-accent hover:text-white text-xs font-semibold">
+              <i data-lucide="scissors" class="w-3.5 h-3.5"></i>
+              <span>Pecah Per Halaman PDF</span>
+            </button>
+          </div>
+
+          <!-- Precision Order & View Controls -->
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine">
+              <span class="text-xs text-zinc-500">Urutan:</span>
+              <select id="sortOrderSelect" onchange="applySortOrder(this.value)" class="bg-transparent text-xs font-semibold text-ink dark:text-zinc-100 focus:outline-none cursor-pointer">
+                <option value="drop" class="dark:bg-darkSurface">Urutan Drop Asli (Terkunci)</option>
+                <option value="natural-az" class="dark:bg-darkSurface">Nama A - Z (1, 2, 10)</option>
+                <option value="natural-za" class="dark:bg-darkSurface">Nama Z - A</option>
+                <option value="size-asc" class="dark:bg-darkSurface">Ukuran Terkecil</option>
+                <option value="size-desc" class="dark:bg-darkSurface">Ukuran Terbesar</option>
+                <option value="reverse" class="dark:bg-darkSurface">Balik Urutan Saat Ini</option>
+              </select>
+            </div>
+
+            <div class="flex items-center rounded-sm border border-zinc-300 dark:border-darkLine overflow-hidden">
+              <button id="viewGridBtn" onclick="setViewMode('grid')" class="p-1.5 bg-accent text-white" title="Tampilan Grid">
+                <i data-lucide="grid" class="w-3.5 h-3.5"></i>
+              </button>
+              <button id="viewListBtn" onclick="setViewMode('list')" class="p-1.5 bg-white dark:bg-darkCanvas text-zinc-500" title="Tampilan Daftar">
+                <i data-lucide="list" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+            <button onclick="clearAllFiles()" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-600 dark:text-zinc-300 hover:border-red-600 hover:text-red-600" title="Kosongkan Workspace">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- LIVE IMAGE SPLITTER VISUAL GRID CANVAS (Shown specifically when Image Splitter is active and an image is loaded) -->
+        <div id="splitterLivePreviewPanel" class="hidden rounded-sm border border-zinc-300 dark:border-darkLine bg-zinc-50 dark:bg-darkSurface p-4 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-zinc-200 dark:border-darkLine">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 text-[11px] font-mono font-semibold bg-accent text-white rounded-sm">PRATINJAU POTONGAN</span>
+              <span id="splitterTargetImageName" class="text-xs font-semibold truncate max-w-[240px]">gambar.png</span>
+            </div>
+            <div id="splitterDimensionInfo" class="text-xs font-mono text-zinc-600 dark:text-zinc-300">
+              Total: 0×0 px • Tiap potongan: 0×0 px
+            </div>
+          </div>
+
+          <!-- Preview Height, Zoom & Fullscreen Controls -->
+          <div class="flex flex-wrap items-center justify-between gap-2 p-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-200 dark:border-darkLine text-xs">
+            <div class="flex items-center gap-1">
+              <span class="text-zinc-500 mr-1 font-medium">Tampilan:</span>
+              <button type="button" id="splitViewFullBtn" onclick="setPreviewDisplayMode('full')" class="px-2.5 py-1 rounded-sm bg-accent text-white font-semibold">
+                Panjang Penuh
+              </button>
+              <button type="button" id="splitViewFitBtn" onclick="setPreviewDisplayMode('fit')" class="px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent font-medium">
+                Fit Layar
+              </button>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <span class="text-zinc-500 font-medium">Zoom:</span>
+              <select id="previewZoomSelect" onchange="setPreviewZoom(this.value)" class="px-2 py-1 rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-300 dark:border-darkLine font-mono text-xs focus:outline-none focus:border-accent">
+                <option value="50">50%</option>
+                <option value="75">75%</option>
+                <option value="100" selected>100% (Lebar Penuh)</option>
+                <option value="150">150%</option>
+              </select>
+              <button type="button" onclick="openFullPreviewModal('splitter')" class="px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-zinc-700 dark:text-zinc-200 font-medium inline-flex items-center gap-1">
+                <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-accent"></i>
+                <span>Layar Penuh</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Canvas Container for Live Grid Overlay (Full Height by Default) -->
+          <div id="splitterCanvasWrapper" class="w-full checkerboard border border-zinc-200 dark:border-darkLine rounded-sm p-3 flex items-start justify-center overflow-x-auto">
+            <canvas id="splitterOverlayCanvas" class="w-full h-auto block"></canvas>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+            <span>Setiap keping ditampilkan terpisah sesuai hasil potong bersih tanpa garis menutupi gambar. Klik kartu gambar di bawah untuk mengganti target pratinjau.</span>
+            <span id="splitterTotalTilesBadge" class="font-mono font-semibold text-accent">0 Potongan</span>
+          </div>
+        </div>
+
+        <!-- LIVE IMAGE JOINER & OUTPUT RESULT PREVIEW PANEL -->
+        <div id="joinerLivePreviewPanel" class="hidden rounded-sm border border-zinc-300 dark:border-darkLine bg-zinc-50 dark:bg-darkSurface p-4 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-zinc-200 dark:border-darkLine">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 text-[11px] font-mono font-semibold bg-accent text-white rounded-sm">PRATINJAU GABUNGAN</span>
+              <span id="joinerPreviewCountLabel" class="text-xs font-semibold">0 Gambar Disusun</span>
+            </div>
+            <div id="joinerDimensionInfo" class="text-xs font-mono text-zinc-600 dark:text-zinc-300">
+              Estimasi: 0×0 px
+            </div>
+          </div>
+
+          <!-- Preview Height, Zoom & Fullscreen Controls for Long Joined Images -->
+          <div class="flex flex-wrap items-center justify-between gap-2 p-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-200 dark:border-darkLine text-xs">
+            <div class="flex items-center gap-1">
+              <span class="text-zinc-500 mr-1 font-medium">Tampilan:</span>
+              <button type="button" id="joinViewFullBtn" onclick="setPreviewDisplayMode('full')" class="px-2.5 py-1 rounded-sm bg-accent text-white font-semibold">
+                Panjang Penuh
+              </button>
+              <button type="button" id="joinViewFitBtn" onclick="setPreviewDisplayMode('fit')" class="px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent font-medium">
+                Fit Layar
+              </button>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <span class="text-zinc-500 font-medium">Zoom:</span>
+              <select id="joinPreviewZoomSelect" onchange="setPreviewZoom(this.value)" class="px-2 py-1 rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-300 dark:border-darkLine font-mono text-xs focus:outline-none focus:border-accent">
+                <option value="50">50%</option>
+                <option value="75">75%</option>
+                <option value="100" selected>100% (Lebar Penuh)</option>
+                <option value="150">150%</option>
+              </select>
+              <button type="button" onclick="openFullPreviewModal('joiner')" class="px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-zinc-700 dark:text-zinc-200 font-medium inline-flex items-center gap-1">
+                <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-accent"></i>
+                <span>Layar Penuh</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="joinerCanvasWrapper" class="w-full checkerboard border border-zinc-200 dark:border-darkLine rounded-sm p-3 flex items-start justify-center overflow-x-auto">
+            <canvas id="joinerOverlayCanvas" class="w-full h-auto block"></canvas>
+          </div>
+        </div>
+
+        <!-- Dropzone & Reorderable File Cards Container -->
+        <div
+          id="dropZoneContainer"
+          class="relative min-h-[360px] rounded-sm border border-dashed border-zinc-400 dark:border-zinc-700 bg-zinc-50/60 dark:bg-darkSurface p-4 sm:p-5"
+        >
+          <!-- External Drag Overlay -->
+          <div id="externalDragOverlay" class="hidden absolute inset-2 rounded-sm bg-accent/10 border-2 border-accent z-30 flex flex-col items-center justify-center pointer-events-none">
+            <p class="font-display text-base font-bold text-accent">Lepaskan File di Sini</p>
+            <p class="text-xs text-zinc-600 dark:text-zinc-300 mt-1">Urutan file akan dikunci persis sesuai urutan seret Anda</p>
+          </div>
+
+          <!-- Empty State -->
+          <div id="emptyStateBox" class="h-[310px] flex flex-col items-center justify-center text-center px-4">
+            <div class="w-12 h-12 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-accent flex items-center justify-center mb-3">
+              <i data-lucide="upload" class="w-5 h-5"></i>
+            </div>
+            <h3 class="font-display text-base font-bold text-ink dark:text-white">
+              Seret & Lepas File ke Area Ini
+            </h3>
+            <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-md mt-1">
+              Urutan file mengikuti persis urutan saat Anda menyeret atau memilihnya (<span class="font-mono text-accent">#1, #2, #3</span>) dan dapat digeser-geser kapan saja.
+            </p>
+            <div class="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+              <label class="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold">
+                <i data-lucide="folder-open" class="w-3.5 h-3.5"></i>
+                <span>Pilih File dari Perangkat</span>
+                <input id="emptyFileInput" type="file" multiple class="hidden" />
+              </label>
+              <button onclick="loadDemoFiles()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas hover:border-accent text-xs font-medium">
+                <span>Muat Contoh Gambar & PDF</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Reorderable Cards Grid -->
+          <div id="fileItemsGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5"></div>
+
+          <!-- Bottom Status Strip -->
+          <div id="bottomAddStrip" class="hidden mt-4 pt-3 border-t border-zinc-200 dark:border-darkLine flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+            <span>Geser kartu untuk menukar urutan posisi, atau gunakan tombol <strong>Kiri / Kanan</strong> di tiap kartu.</span>
+            <span id="totalSummaryText" class="font-mono font-semibold text-ink dark:text-zinc-200">0 item • 0 B</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN (4 Cols): Tool Configuration & Execution Panel -->
+      <div class="xl:col-span-4">
+        <div class="rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine p-5 sticky top-20 space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-darkLine">
+            <h2 class="font-display text-sm font-bold text-ink dark:text-white">
+              Pengaturan Alat
+            </h2>
+            <span class="font-mono text-[11px] px-2 py-0.5 rounded-sm bg-zinc-200 dark:bg-darkCanvas text-zinc-600 dark:text-zinc-400">
+              CLIENT-SIDE
+            </span>
+          </div>
+
+          <!-- Dynamic Tool Options -->
+          <div id="toolSettingsContainer" class="space-y-4 text-xs sm:text-sm"></div>
+
+          <!-- Output Filename -->
+          <div id="outputFilenameGroup" class="pt-3 border-t border-zinc-200 dark:border-darkLine space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label class="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                Nama File Dasar
+              </label>
+              <span id="namingRuleBadge" class="text-[10px] font-mono text-zinc-500 dark:text-zinc-400">
+                1 File: +Waktu
+              </span>
+            </div>
+            <div class="flex items-center rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine overflow-hidden">
+              <input
+                id="outputFilenameInput"
+                type="text"
+                value="MiDoc_Hasil"
+                oninput="updateFilenamePreviewHint()"
+                class="w-full px-3 py-2 text-xs bg-transparent focus:outline-none text-ink dark:text-zinc-100"
+              />
+              <span id="outputExtBadge" class="px-2.5 py-2 text-xs font-mono font-semibold text-zinc-500 bg-zinc-100 dark:bg-darkSurface border-l border-zinc-300 dark:border-darkLine">
+                .pdf
+              </span>
+            </div>
+            <div class="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 truncate">
+              Hasil unduhan: <span id="resolvedFilenamePreview" class="text-ink dark:text-zinc-200 font-semibold">MiDoc_Hasil_20261128_0010.pdf</span>
+            </div>
+          </div>
+
+          <!-- Execute Button -->
+          <button
+            id="executeActionBtn"
+            onclick="executeCurrentTool()"
+            class="w-full py-2.5 px-4 rounded-sm bg-accent hover:bg-accentHover text-white font-display font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <i data-lucide="play" class="w-4 h-4"></i>
+            <span id="executeBtnLabel">Proses & Unduh</span>
+          </button>
+
+          <!-- Progress Indicator -->
+          <div id="progressContainer" class="hidden space-y-1">
+            <div class="flex justify-between text-xs font-mono">
+              <span id="progressStatusText">Memproses...</span>
+              <span id="progressPercentText" class="text-accent font-semibold">0%</span>
+            </div>
+            <div class="w-full h-1.5 bg-zinc-200 dark:bg-darkCanvas overflow-hidden">
+              <div id="progressBarFill" class="h-full bg-accent" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Result Output Box -->
+          <div id="resultOutputBox" class="hidden p-3.5 rounded-sm bg-white dark:bg-darkCanvas border border-accent space-y-2.5 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-accent">Proses Selesai</span>
+              <span id="resultSizeBadge" class="font-mono font-semibold"></span>
+            </div>
+            <div class="p-2 rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine font-mono text-[11px] break-all">
+              File: <span id="resultSavedFilename" class="font-semibold text-ink dark:text-zinc-100"></span>
+            </div>
+            <p id="resultDetailText" class="text-zinc-600 dark:text-zinc-300 leading-relaxed"></p>
+            <div class="flex flex-col gap-1.5">
+              <button id="reDownloadBtn" class="w-full py-2 px-3 rounded-sm bg-accent hover:bg-accentHover text-white font-semibold flex items-center justify-center gap-1.5">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                <span>Unduh Hasil</span>
+              </button>
+              <button id="inspectResultPreviewBtn" class="hidden w-full py-2 px-3 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-ink dark:text-zinc-200 font-semibold flex items-center justify-center gap-1.5">
+                <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-accent"></i>
+                <span>Lihat Hasil Panjang Penuh</span>
+              </button>
+              <button id="sendResultToSplitterBtn" class="hidden w-full py-2 px-3 rounded-sm border border-accent text-accent hover:bg-accent hover:text-white font-semibold flex items-center justify-center gap-1.5">
+                <i data-lucide="grid" class="w-3.5 h-3.5"></i>
+                <span>Lanjut Potong di Image Splitter</span>
+              </button>
+            </div>
+          </div>
+  <!-- ==================== SCROLLABLE FULL-LENGTH IMAGE LIGHTBOX MODAL ==================== -->
+  <div id="fullPreviewLightboxModal" onclick="handleFullLightboxBackdropClick(event)" class="hidden fixed inset-0 z-50 bg-black/85 flex flex-col">
+    <div onclick="event.stopPropagation()" class="px-4 sm:px-6 h-14 bg-white dark:bg-darkSurface border-b border-zinc-300 dark:border-darkLine flex items-center justify-between gap-3 shrink-0">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <span class="px-2 py-0.5 text-[11px] font-mono font-semibold bg-accent text-white rounded-sm">LAYAR PENUH</span>
+        <h3 id="fullLightboxTitle" class="font-display font-bold text-sm truncate">Pratinjau Panjang Penuh</h3>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="hidden sm:inline text-xs text-zinc-500">Ketuk area kosong di luar gambar atau tekan ESC untuk kembali</span>
+        <button onclick="closeFullPreviewModal()" class="px-3 py-1.5 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold flex items-center gap-1.5">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          <span>Tutup</span>
+        </button>
+      </div>
+    </div>
+    <div id="fullLightboxScrollArea" onclick="handleFullLightboxBackdropClick(event)" class="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center items-start cursor-pointer">
+      <div id="fullLightboxContent" onclick="event.stopPropagation()" class="checkerboard border border-zinc-600 p-2 max-w-5xl w-full flex justify-center cursor-default"></div>
+    </div>
+  </div>
+
+  <!-- ==================== FILE INSPECTOR MODAL ==================== -->
+  <div id="inspectorModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-darkSurface border border-zinc-300 dark:border-darkLine rounded-sm max-w-2xl w-full overflow-hidden">
+      <div class="px-4 py-3 border-b border-zinc-200 dark:border-darkLine flex items-center justify-between">
+        <h3 id="inspectorTitle" class="font-display font-bold text-sm truncate">Detail File</h3>
+        <button onclick="closeInspectorModal()" class="p-1 text-zinc-500 hover:text-ink dark:hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-4 space-y-4">
+        <div id="inspectorPreviewContainer" class="w-full checkerboard border border-zinc-200 dark:border-darkLine rounded-sm p-3 flex items-center justify-center min-h-[240px]"></div>
+        <div id="inspectorMetaGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TOAST NOTIFICATION ==================== -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-1.5 pointer-events-none"></div>
+
+  <!-- ==================== APPLICATION LOGIC ==================== -->
+  <script>
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    // =========================================================================
+    // 1. COMPLETE 7-GROUP DIRECTORY CATALOG (Matches every feature from user prompt)
+    // =========================================================================
+    const DIRECTORY_GROUPS = [
+      {
+        id: 'group-pdf-merge',
+        navCat: 'pdf',
+        title: 'Kelompok 1: PDF — Gabung & Pisah',
+        subtitle: 'Susun ulang, gabungkan PDF maupun gambar, pecah per halaman, dan ekstrak isi dokumen.',
+        tools: [
+          { id: 'merge-pdf', name: 'Merge PDF', desc: 'Gabungkan banyak file PDF sesuai urutan seret', icon: 'file-plus-2', engine: 'merge-pdf-image' },
+          { id: 'merge-pdf-image', name: 'Merge PDF & Gambar', desc: 'Gabung PDF dan foto JPG/PNG dalam satu dokumen', icon: 'layers', engine: 'merge-pdf-image' },
+          { id: 'split-pdf', name: 'Split PDF', desc: 'Pisahkan halaman PDF menjadi file satuan atau rentang', icon: 'scissors', engine: 'split-pdf' },
+          { id: 'organize-pdf', name: 'Organize & Hapus Halaman PDF', desc: 'Geser posisi atau hapus halaman PDF yang tidak perlu', icon: 'layout-grid', engine: 'merge-pdf-image' },
+          { id: 'extract-pdf-pages', name: 'Ekstrak Halaman PDF', desc: 'Ambil nomor halaman tertentu menjadi PDF baru', icon: 'file-output', engine: 'split-pdf' },
+          { id: 'extract-pdf-images', name: 'Ekstrak Gambar dari PDF', desc: 'Simpan seluruh halaman PDF sebagai gambar HD', icon: 'images', engine: 'pdf-to-image' }
+        ]
+      },
+      {
+        id: 'group-pdf-edit',
+        navCat: 'pdf',
+        title: 'Kelompok 2: PDF — Edit & Optimasi',
+        subtitle: 'Perkecil ukuran file, putar orientasi, potong margin, nomor halaman, dan proteksi.',
+        tools: [
+          { id: 'compress-pdf', name: 'Compress PDF', desc: 'Perkecil ukuran MB/KB dokumen PDF secara terkontrol', icon: 'minimize-2', engine: 'compress-pdf' },
+          { id: 'rotate-pdf', name: 'Rotate PDF', desc: 'Putar halaman PDF 90° atau 180° per item', icon: 'rotate-cw', engine: 'merge-pdf-image' },
+          { id: 'crop-pdf', name: 'Crop PDF', desc: 'Potong area margin tepi halaman PDF', icon: 'crop', engine: 'crop-pdf' },
+          { id: 'page-number-pdf', name: 'Tambah Nomor Halaman', desc: 'Sisipkan penomoran halaman otomatis di bagian bawah', icon: 'hash', engine: 'watermark-pdf' },
+          { id: 'watermark-pdf', name: 'Tambah Watermark PDF', desc: 'Beri teks stempel watermark transparan di setiap halaman', icon: 'stamp', engine: 'watermark-pdf' },
+          { id: 'protect-pdf', name: 'Kunci & Buka Kunci PDF', desc: 'Atur metadata perlindungan atau salin ulang struktur PDF', icon: 'lock', engine: 'protect-pdf' }
+        ]
+      },
+      {
+        id: 'group-doc-convert',
+        navCat: 'converter',
+        title: 'Kelompok 3: Konversi Dokumen & eBook',
+        subtitle: 'Konversi lintas format antara gambar, PDF, teks dokumen, lembar kerja, dan eBook.',
+        tools: [
+          { id: 'image-to-pdf', name: 'Gambar / JPG ke PDF', desc: 'Ubah JPG, PNG, WebP menjadi dokumen PDF A4/Fit', icon: 'file-image', engine: 'image-to-pdf' },
+          { id: 'pdf-to-image', name: 'PDF ke Gambar / JPG', desc: 'Render setiap halaman PDF menjadi PNG atau JPG', icon: 'image', engine: 'pdf-to-image' },
+          { id: 'word-to-pdf', name: 'Word / DOCX ke PDF', desc: 'Konversi isi teks dokumen Word/RTF menjadi PDF bersih', icon: 'file-text', engine: 'doc-to-pdf' },
+          { id: 'pdf-to-word', name: 'PDF ke Word / TXT', desc: 'Ekstrak seluruh teks dari file PDF ke dokumen teks/DOC', icon: 'file-type', engine: 'pdf-to-text' },
+          { id: 'excel-to-pdf', name: 'Excel / CSV ke PDF', desc: 'Ubah data tabel CSV/TSV menjadi halaman laporan PDF', icon: 'table', engine: 'doc-to-pdf' },
+          { id: 'ppt-to-pdf', name: 'PPT / Slide Teks ke PDF', desc: 'Konversi kerangka presentasi menjadi halaman PDF', icon: 'presentation', engine: 'doc-to-pdf' },
+          { id: 'txt-to-pdf', name: 'TXT ke PDF', desc: 'Tulis atau unggah file .txt lalu simpan sebagai PDF', icon: 'align-left', engine: 'text-to-pdf' },
+          { id: 'ebook-to-pdf', name: 'eBook EPUB / MOBI / AZW ke PDF', desc: 'Ekstrak konten buku digital EPUB/HTML ke format PDF', icon: 'book-open', engine: 'doc-to-pdf' },
+          { id: 'pdf-to-ebook', name: 'PDF ke eBook (EPUB / TXT)', desc: 'Ubah dokumen PDF menjadi teks bacaan eBook ringan', icon: 'book', engine: 'pdf-to-text' }
+        ]
+      },
+      {
+        id: 'group-img-split-join',
+        navCat: 'image',
+        title: 'Kelompok 4: Gambar — Gabung & Pemisah Grid',
+        subtitle: 'Gabungkan gambar secara berurutan atau potong gambar secara seimbang ke samping & ke bawah.',
+        tools: [
+          { id: 'image-splitter', name: 'Image Splitter (Pemisah Gambar Seimbang)', desc: 'Potong gambar menjadi N bagian ke samping & M bagian ke bawah dengan pratinjau garis presisi', icon: 'grid', engine: 'image-splitter', badge: 'PRESISI GRID' },
+          { id: 'join-images', name: 'JPG / PNG Joiner (Gabung Gambar)', desc: 'Satukan banyak gambar secara vertikal atau horizontal sesuai urutan', icon: 'columns', engine: 'join-images' },
+          { id: 'stitch-screenshot', name: 'Stitch Screenshot', desc: 'Sambung potongan screenshot menjadi satu gambar panjang utuh', icon: 'smartphone', engine: 'join-images' },
+          { id: 'photo-collage', name: 'Photo Collage & Grid Instagram 3x3', desc: 'Susun kolase foto rapi atau pecah foto untuk feed Instagram', icon: 'layout-grid', engine: 'image-splitter' },
+          { id: 'overlay-images', name: 'Overlay Gambar', desc: 'Tumpuk gambar kedua (logo/stempel) di atas gambar utama', icon: 'copy', engine: 'overlay-images' }
+        ]
+      },
+      {
+        id: 'group-img-resize',
+        navCat: 'image',
+        title: 'Kelompok 5: Gambar — Optimasi & Ubah Ukuran',
+        subtitle: 'Kompres ukuran KB, atur piksel/persentase, ukuran pas foto resmi, dan pengecekan DPI.',
+        tools: [
+          { id: 'compress-image', name: 'Compress Gambar & Target KB', desc: 'Kompres JPG, PNG, WebP dengan kontrol kualitas & batas lebar', icon: 'shrink', engine: 'compress-image' },
+          { id: 'resize-pixel', name: 'Resize Pixel & Persentase', desc: 'Ubah dimensi piksel atau skala persentase gambar secara akurat', icon: 'maximize-2', engine: 'resize-image' },
+          { id: 'resize-official', name: 'Resize Resmi & Pas Foto (3.5x4.5cm / 3x4 / 4x6 / A4)', desc: 'Preset pas foto KTP, CPNS, Visa, dan kertas cetak A4 300 DPI', icon: 'user-square', engine: 'resize-image' },
+          { id: 'bulk-resize', name: 'Bulk Resize Gambar', desc: 'Ubah ukuran puluhan gambar sekaligus dalam satu proses', icon: 'layers', engine: 'resize-image' },
+          { id: 'dpi-checker', name: 'DPI Checker & Ubah DPI', desc: 'Hitung ukuran cetak fisik CM/MM terhadap resolusi piksel DPI', icon: 'ruler', engine: 'dpi-calc' }
+        ]
+      },
+      {
+        id: 'group-img-edit',
+        navCat: 'image',
+        title: 'Kelompok 6: Gambar — Edit, Warna & Efek',
+        subtitle: 'Potong lingkaran, sudut melengkung, tanda tangan digital, filter warna, dan hapus EXIF.',
+        tools: [
+          { id: 'crop-circle', name: 'Crop & Circle Crop', desc: 'Potong foto menjadi lingkaran transparan atau rasio persegi', icon: 'circle', engine: 'filters-image' },
+          { id: 'rotate-flip', name: 'Rotate & Flip Gambar', desc: 'Putar 90°/180° atau balik gambar secara horizontal/vertikal', icon: 'flip-horizontal', engine: 'rotate-flip' },
+          { id: 'rounded-corners', name: 'Rounded Corners', desc: 'Beri lengkungan sudut halus transparan pada gambar', icon: 'square', engine: 'filters-image' },
+          { id: 'watermark-image', name: 'Watermark & Teks Gambar', desc: 'Tambahkan teks hak cipta atau label pada foto', icon: 'type', engine: 'watermark-image' },
+          { id: 'photo-signature', name: 'Foto + Tanda Tangan & Stempel Digital', desc: 'Gabungkan pas foto dengan gambar tanda tangan/stempel', icon: 'pen-tool', engine: 'overlay-images' },
+          { id: 'color-filters', name: 'Filter Warna (Grayscale, Sepia, Invert, Kontras, Blur)', desc: 'Sesuaikan pencahayaan, hitam-putih, sepia, kontras, atau pixelate', icon: 'sliders', engine: 'filters-image' },
+          { id: 'remove-exif', name: 'Hapus Metadata EXIF', desc: 'Bersihkan data lokasi GPS & info kamera dari file foto', icon: 'shield', engine: 'convert-image' }
+        ]
+      },
+      {
+        id: 'group-utilities',
+        navCat: 'converter',
+        title: 'Kelompok 7: Utilitas & Batch Tools',
+        subtitle: 'Penamaan massal berurutan, pengarsipan ZIP, warna HEX, QR/Barcode, dan konverter satuan.',
+        tools: [
+          { id: 'batch-rename', name: 'Batch Rename File', desc: 'Ganti nama puluhan file sekaligus dengan nomor urut rapi', icon: 'edit-3', engine: 'batch-rename' },
+          { id: 'gif-tools', name: 'GIF Maker & Ekstrak Frame GIF', desc: 'Buat animasi rangkaian gambar atau ekstrak frame gambar statis', icon: 'film', engine: 'convert-image' },
+          { id: 'zip-tools', name: 'ZIP Maker & Extractor', desc: 'Bungkus kumpulan file ke dalam ZIP atau lihat isi arsip ZIP', icon: 'archive', engine: 'zip-maker' },
+          { id: 'color-picker', name: 'Image Color Picker & Hex Inverter', desc: 'Ekstrak palet warna HEX/RGB dari gambar atau balik kode warna', icon: 'pipette', engine: 'color-picker' },
+          { id: 'qr-generator', name: 'Barcode / QR Generator', desc: 'Buat kode matriks/barcode dari teks atau tautan dan unduh PNG', icon: 'qr-code', engine: 'qr-generator' },
+          { id: 'password-gen', name: 'Password Generator', desc: 'Buat kata sandi acak kuat untuk pengamanan dokumen', icon: 'key-round', engine: 'password-gen' },
+          { id: 'unit-converter', name: 'Konverter Satuan PX / CM / MM / Inch', desc: 'Konversi satuan desain grafis dan cetak secara presisi', icon: 'calculator', engine: 'dpi-calc' }
+        ]
+      }
+    ];
+
+    // =========================================================================
+    // 2. APPLICATION STATE
+    // =========================================================================
+    const state = {
+      currentView: 'home', // 'home' | 'workspace'
+      activeToolObj: null,
+      activeEngine: 'image-splitter',
+      items: [], // { id, dropOrder, name, size, type, file, arrayBuffer, thumbUrl, isPdf, isImage, pageCount, singlePageIndex, rotation, width, height }
+      dropCounter: 0,
+      viewMode: 'grid',
+      draggedItemId: null,
+      lastBlobUrl: null,
+      lastDownloadName: null,
+      lastProcessedImageFile: null, // Used for seamless Joiner -> Splitter pipeline
+      splitterSelectedItemId: null,
+      activeMenu: null,
+      previewDisplayMode: 'full', // 'full' | 'fit'
+      previewZoom: 100
+    };
+
+    // =========================================================================
+    // 3. INITIALIZATION & NAVIGATION
+    // =========================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      renderHomeDirectory('all', '');
+      setupNavAndSearch();
+      setupWorkspaceDragAndDrop();
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeFullPreviewModal();
+          closeInspectorModal();
+        }
+      });
+      lucide.createIcons();
+    });
+
+    function initTheme() {
+      const saved = localStorage.getItem('midoc_flat_theme');
+      if (saved === 'light') {
+        document.documentElement.classList.remove('dark');
+      } else {
+        document.documentElement.classList.add('dark');
+      }
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('midoc_flat_theme', isDark ? 'dark' : 'light');
+      if (state.currentView === 'workspace' && state.activeEngine === 'image-splitter') {
+        drawSplitterLivePreview();
+      }
+    }
+
+    function navigateToHome() {
+      closeMegaMenu();
+      state.currentView = 'home';
+      document.getElementById('homeDirectoryView').classList.remove('hidden');
+      document.getElementById('toolWorkspaceView').classList.add('hidden');
+      document.getElementById('navHomeBtn').classList.add('text-accent', 'border-accent');
+      document.getElementById('navHomeBtn').classList.remove('border-transparent');
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+
+    function openToolWorkspace(toolId) {
+      closeMegaMenu();
+      const allTools = getAllToolsFlat();
+      const found = allTools.find(t => t.id === toolId) || allTools[0];
+      state.activeToolObj = found;
+      state.activeEngine = found.engine;
+      state.currentView = 'workspace';
+
+      document.getElementById('homeDirectoryView').classList.add('hidden');
+      document.getElementById('toolWorkspaceView').classList.remove('hidden');
+      document.getElementById('navHomeBtn').classList.remove('text-accent', 'border-accent');
+      document.getElementById('navHomeBtn').classList.add('border-transparent');
+
+      // Update Workspace Header
+      document.getElementById('wsGroupLabel').textContent = found.groupTitle;
+      document.getElementById('wsTitle').textContent = found.name;
+      document.getElementById('wsDesc').textContent = found.desc;
+      document.getElementById('wsIconBox').innerHTML = `<i data-lucide="${found.icon}" class="w-5 h-5"></i>`;
+
+      // Configure Cross-Tool Bridge (e.g., Joiner <-> Splitter)
+      const bridge = document.getElementById('crossToolBridgeContainer');
+      if (found.engine === 'join-images') {
+        bridge.innerHTML = `
+          <button onclick="openToolWorkspace('image-splitter')" class="px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-semibold flex items-center gap-1.5">
+            <i data-lucide="grid" class="w-3.5 h-3.5 text-accent"></i>
+            <span>Buka Image Splitter (Pemisah Grid)</span>
+          </button>
+        `;
+      } else if (found.engine === 'image-splitter') {
+        bridge.innerHTML = `
+          <button onclick="openToolWorkspace('join-images')" class="px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-semibold flex items-center gap-1.5">
+            <i data-lucide="columns" class="w-3.5 h-3.5 text-accent"></i>
+            <span>Buka Image Joiner (Gabung Gambar)</span>
+          </button>
+        `;
+      } else {
+        bridge.innerHTML = '';
+      }
+
+      document.getElementById('resultOutputBox').classList.add('hidden');
+      renderEngineSettings(found);
+      renderWorkspaceItems();
+      updateFilenamePreviewHint();
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      lucide.createIcons();
+    }
+
+    function getAllToolsFlat() {
+      const list = [];
+      DIRECTORY_GROUPS.forEach(g => {
+        g.tools.forEach(t => {
+          list.push({ ...t, groupTitle: g.title, navCat: g.navCat });
+        });
+      });
+      return list;
+    }
+
+    // =========================================================================
+    // 4. HOME DIRECTORY RENDERING & FILTERING
+    // =========================================================================
+    let currentHomeGroupFilter = 'all';
+
+    function filterHomeGroups(cat) {
+      currentHomeGroupFilter = cat;
+      document.querySelectorAll('.home-filter-btn').forEach(btn => {
+        if (btn.getAttribute('data-group') === cat) {
+          btn.className = 'home-filter-btn px-3 py-2 text-xs font-semibold rounded-sm bg-accent text-white';
+        } else {
+          btn.className = 'home-filter-btn px-3 py-2 text-xs font-semibold rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent';
+        }
+      });
+      const q = document.getElementById('homeSearchInput').value || '';
+      renderHomeDirectory(cat, q);
+    }
+
+    function renderHomeDirectory(catFilter, queryText) {
+      const container = document.getElementById('directoryGroupsContainer');
+      const q = queryText.trim().toLowerCase();
+
+      const visibleGroups = DIRECTORY_GROUPS.filter(g => {
+        if (catFilter !== 'all' && g.navCat !== catFilter) return false;
+        return true;
+      }).map(g => {
+        const matchingTools = g.tools.filter(t =>
+          !q ||
+          t.name.toLowerCase().includes(q) ||
+          t.desc.toLowerCase().includes(q) ||
+          g.title.toLowerCase().includes(q)
+        );
+        return { ...g, tools: matchingTools };
+      }).filter(g => g.tools.length > 0);
+
+      if (visibleGroups.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 rounded-sm border border-zinc-200 dark:border-darkLine text-center">
+            <p class="text-sm font-semibold">Tidak ada alat yang cocok dengan pencarian "${escapeHtml(queryText)}".</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = visibleGroups.map(group => `
+        <div class="space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 pb-2 border-b border-zinc-200 dark:border-darkLine">
+            <h2 class="font-display text-base sm:text-lg font-bold text-ink dark:text-white">
+              ${group.title}
+            </h2>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400">
+              ${group.subtitle}
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            ${group.tools.map(tool => `
+              <button
+                onclick="openToolWorkspace('${tool.id}')"
+                class="group p-4 rounded-sm bg-zinc-50/70 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine hover:border-accent dark:hover:border-accent text-left flex items-start gap-3.5 transition-colors"
+              >
+                <div class="w-8 h-8 rounded-sm bg-accent text-white flex items-center justify-center shrink-0 mt-0.5">
+                  <i data-lucide="${tool.icon}" class="w-4 h-4"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-2">
+                    <h3 class="font-display text-sm font-bold text-ink dark:text-zinc-100 group-hover:text-accent truncate">
+                      ${tool.name}
+                    </h3>
+                    ${tool.badge ? `<span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-sm bg-accent/15 text-accent shrink-0">${tool.badge}</span>` : ''}
+                  </div>
+                  <p class="text-xs text-zinc-600 dark:text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
+                    ${tool.desc}
+                  </p>
+                </div>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    // =========================================================================
+    // 5. NAVBAR MEGA-MENU & INSTANT SEARCH
+    // =========================================================================
+    function setupNavAndSearch() {
+      document.getElementById('homeSearchInput').addEventListener('input', (e) => {
+        renderHomeDirectory(currentHomeGroupFilter, e.target.value);
+      });
+
+      const navSearch = document.getElementById('navToolSearch');
+      const navDropdown = document.getElementById('navSearchDropdown');
+
+      navSearch.addEventListener('input', (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        if (!q) {
+          navDropdown.classList.add('hidden');
+          return;
+        }
+        const matches = getAllToolsFlat().filter(t =>
+          t.name.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q)
+        );
+        navDropdown.innerHTML = matches.length === 0
+          ? `<div class="p-2.5 text-xs text-zinc-500">Tidak ditemukan alat.</div>`
+          : matches.map(m => `
+              <button onclick="openToolWorkspace('${m.id}'); document.getElementById('navSearchDropdown').classList.add('hidden');" class="w-full p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2.5">
+                <span class="w-6 h-6 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
+                  <i data-lucide="${m.icon}" class="w-3.5 h-3.5"></i>
+                </span>
+                <div class="min-w-0">
+                  <div class="text-xs font-bold truncate">${m.name}</div>
+                  <div class="text-[11px] text-zinc-500 truncate">${m.groupTitle}</div>
+                </div>
+              </button>
+            `).join('');
+        navDropdown.classList.remove('hidden');
+        lucide.createIcons();
+      });
+
+      document.querySelectorAll('.nav-trigger').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const menuCat = btn.getAttribute('data-menu');
+          if (state.activeMenu === menuCat) {
+            closeMegaMenu();
+          } else {
+            openMegaMenu(menuCat, btn);
+          }
+        });
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!document.getElementById('mainHeader').contains(e.target)) {
+          closeMegaMenu();
+        }
+        if (!navSearch.contains(e.target) && !navDropdown.contains(e.target)) {
+          navDropdown.classList.add('hidden');
+        }
+      });
+
+      // Build mobile menu
+      const mobileContainer = document.getElementById('mobileMenuContent');
+      mobileContainer.innerHTML = DIRECTORY_GROUPS.map(g => `
+        <div>
+          <div class="text-xs font-bold text-zinc-400 mb-1.5">${g.title}</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
+            ${g.tools.map(t => `
+              <button onclick="openToolWorkspace('${t.id}'); toggleMobileMenu();" class="p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2 text-xs font-medium">
+                <span class="w-5 h-5 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
+                  <i data-lucide="${t.icon}" class="w-3 h-3"></i>
+                </span>
+                <span class="truncate">${t.name}</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openMegaMenu(catKey, triggerBtn) {
+      state.activeMenu = catKey;
+      document.querySelectorAll('.nav-trigger').forEach(b => {
+        b.classList.remove('bg-zinc-100', 'dark:bg-zinc-800', 'border-accent');
+        b.classList.add('border-transparent');
+      });
+      triggerBtn.classList.add('bg-zinc-100', 'dark:bg-zinc-800', 'border-accent');
+      triggerBtn.classList.remove('border-transparent');
+
+      const groups = DIRECTORY_GROUPS.filter(g => g.navCat === catKey);
+      const gridCols = groups.length === 2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-3';
+      document.getElementById('megaMenuContent').innerHTML = `
+        <div class="grid ${gridCols} gap-6">
+          ${groups.map(g => `
+            <div>
+              <h3 class="font-display text-xs font-bold text-zinc-400 pb-2 mb-2.5 border-b border-zinc-200 dark:border-darkLine">
+                ${g.title}
+              </h3>
+              <div class="space-y-1">
+                ${g.tools.map(t => `
+                  <button onclick="openToolWorkspace('${t.id}')" class="w-full p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2.5">
+                    <span class="w-7 h-7 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
