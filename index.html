@@ -187,9 +187,7 @@
           <div id="navSearchDropdown" class="hidden absolute right-0 mt-1 w-80 max-h-96 overflow-y-auto rounded-sm bg-white dark:bg-darkSurface border border-zinc-300 dark:border-darkLine p-1.5 z-50"></div>
         </div>
 
-        <span class="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-mono text-zinc-600 dark:text-zinc-400">
-          Lokal • Tanpa Upload Server
-        </span>
+
 
         <!-- Theme Switcher -->
         <button onclick="toggleTheme()" class="p-2 rounded-sm border border-zinc-200 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent" title="Ganti Tema Terang / Gelap">
@@ -546,7 +544,7 @@
             class="w-full py-2.5 px-4 rounded-sm bg-accent hover:bg-accentHover text-white font-display font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <i data-lucide="play" class="w-4 h-4"></i>
-            <span id="executeBtnLabel">Proses & Unduh</span>
+            <span id="executeBtnLabel">Proses & Buat Hasil</span>
           </button>
 
           <!-- Progress Indicator -->
@@ -724,7 +722,7 @@
           { id: 'watermark-image', name: 'Watermark & Teks Gambar', desc: 'Tambahkan teks hak cipta atau label pada foto', icon: 'type', engine: 'watermark-image' },
           { id: 'photo-signature', name: 'Foto + Tanda Tangan & Stempel Digital', desc: 'Gabungkan pas foto dengan gambar tanda tangan/stempel', icon: 'pen-tool', engine: 'overlay-images' },
           { id: 'color-filters', name: 'Filter Warna (Grayscale, Sepia, Invert, Kontras, Blur)', desc: 'Sesuaikan pencahayaan, hitam-putih, sepia, kontras, atau pixelate', icon: 'sliders', engine: 'filters-image' },
-          { id: 'remove-exif', name: 'Image Format Converter (JPG / PNG / WebP)', desc: 'Ubah format gambar dan bersihkan metadata gambar melalui ekspor ulang', icon: 'file-image', engine: 'convert-image' }
+          { id: 'remove-exif', name: 'Konversi Format Gambar & Hapus Metadata', desc: 'Konversi JPG, PNG, WebP, AVIF, BMP, dan bersihkan metadata melalui ekspor ulang', icon: 'file-image', engine: 'convert-image' }
         ]
       },
       {
@@ -863,7 +861,9 @@
       splitterSelectedItemId: null,
       activeMenu: null,
       previewDisplayMode: 'full', // 'full' | 'fit'
-      previewZoom: 100
+      previewZoom: 100,
+      zipArchiveFiles: [],
+      zipArchiveSourceName: null
     };
 
     let toolNavigationRequestId = 0;
@@ -907,11 +907,18 @@
 
     function navigateToHome(options = {}) {
       closeMegaMenu();
-      // Cancel any pending workspace transition before returning home.
-      toolNavigationRequestId += 1;
-      if (options.updateHistory !== false && window.location.hash) {
-        window.history.pushState({ view: 'home' }, '', window.location.pathname + window.location.search);
+      if (!options.fromRoute) {
+        const targetUrl = new URL(window.location.href);
+        targetUrl.searchParams.delete('tool');
+        targetUrl.searchParams.delete('transfer');
+        targetUrl.hash = '';
+        const target = targetUrl.pathname + targetUrl.search;
+        const current = window.location.pathname + window.location.search + window.location.hash;
+        if (current === target) window.location.reload();
+        else window.location.assign(target);
+        return;
       }
+
       state.currentView = 'home';
       document.title = HOME_DOCUMENT_TITLE;
       document.getElementById('homeDirectoryView').classList.remove('hidden');
@@ -924,16 +931,30 @@
     }
 
     function restoreRouteFromLocation() {
-      const match = window.location.hash.match(/^#tool=([^&]+)/);
-      if (match) {
-        const toolId = decodeURIComponent(match[1]);
-        const exists = getAllToolsFlat().some(tool => tool.id === toolId);
-        if (exists) {
-          openToolWorkspace(toolId, { updateHistory: false, showLoading: false });
-          return;
+      const routeParams = new URLSearchParams(window.location.search);
+      const toolId = routeParams.get('tool');
+      const transferId = routeParams.get('transfer');
+
+      if (toolId && getAllToolsFlat().some(tool => tool.id === toolId)) {
+        openToolWorkspace(toolId, { fromRoute: true });
+        if (transferId) {
+          consumePendingToolTransfer(transferId)
+            .then(async files => {
+              if (files.length) {
+                await ingestFilesInExactOrder(files);
+                const cleanUrl = new URL(window.location.href);
+                cleanUrl.searchParams.delete('transfer');
+                window.history.replaceState(window.history.state, '', cleanUrl.pathname + cleanUrl.search);
+              }
+            })
+            .catch(error => {
+              console.error(error);
+              showToast('File antar-alat tidak dapat dipulihkan: ' + error.message, 'error');
+            });
         }
+        return;
       }
-      navigateToHome({ updateHistory: false });
+      navigateToHome({ fromRoute: true });
     }
 
     function updateNavbarActiveCategory(activeKey) {
@@ -959,92 +980,153 @@
     }
 
     function openToolWorkspace(toolId, options = {}) {
-      const allTools = getAllToolsFlat();
-      const found = allTools.find(t => t.id === toolId);
+      const found = getAllToolsFlat().find(tool => tool.id === toolId);
       if (!found) return;
 
-      const updateHistory = options.updateHistory !== false;
-      const showLoading = options.showLoading !== false;
-      const nextHash = '#tool=' + encodeURIComponent(toolId);
-      if (updateHistory && window.location.hash !== nextHash) {
-        window.history.pushState({ toolId }, '', nextHash);
-      }
-
-      const requestId = ++toolNavigationRequestId;
-      const overlay = document.getElementById('toolLoadingOverlay');
-      if (showLoading) {
-        document.getElementById('toolLoadingTitle').textContent = 'Membuka ' + found.name;
-        overlay.classList.remove('hidden');
-        overlay.setAttribute('aria-hidden', 'false');
-      } else {
-        overlay.classList.add('hidden');
-        overlay.setAttribute('aria-hidden', 'true');
+      if (!options.fromRoute) {
+        const targetUrl = new URL(window.location.href);
+        targetUrl.searchParams.set('tool', toolId);
+        targetUrl.searchParams.delete('transfer');
+        targetUrl.hash = '';
+        const target = targetUrl.pathname + targetUrl.search;
+        const current = window.location.pathname + window.location.search + window.location.hash;
+        if (current === target) window.location.reload();
+        else window.location.assign(target);
+        return;
       }
 
       closeMegaMenu();
-      const searchDropdown = document.getElementById('navSearchDropdown');
-      if (searchDropdown) searchDropdown.classList.add('hidden');
+      state.activeToolObj = found;
+      state.activeEngine = found.engine;
+      state.currentView = 'workspace';
+      document.title = 'MiDoc - ' + found.name;
+
+      document.getElementById('homeDirectoryView').classList.add('hidden');
+      document.getElementById('toolWorkspaceView').classList.remove('hidden');
+      document.getElementById('toolLoadingOverlay').classList.add('hidden');
+      document.getElementById('toolLoadingOverlay').setAttribute('aria-hidden', 'true');
       document.getElementById('mobileNavDrawer').classList.add('hidden');
 
-      // Let the browser paint the loading state before rebuilding the workspace.
-      window.requestAnimationFrame(() => {
-        if (requestId !== toolNavigationRequestId) return;
+      const navCategory = NAV_CATEGORIES.find(category => category.toolIds.includes(found.id));
+      const navGroup = navCategory
+        ? NAV_GROUPS.find(group => group.categoryIds.includes(navCategory.id))
+        : null;
+      updateNavbarActiveCategory(navGroup ? navGroup.id : 'home');
 
-        state.activeToolObj = found;
-        state.activeEngine = found.engine;
-        state.currentView = 'workspace';
+      document.getElementById('wsGroupLabel').textContent = navCategory ? navCategory.label : found.groupTitle;
+      document.getElementById('wsTitle').textContent = found.name;
+      document.getElementById('wsDesc').textContent = found.desc;
+      document.getElementById('wsIconBox').innerHTML = `<i data-lucide="${found.icon}" class="w-5 h-5"></i>`;
 
-        document.title = 'MiDoc - ' + found.name;
-        document.getElementById('homeDirectoryView').classList.add('hidden');
-        document.getElementById('toolWorkspaceView').classList.remove('hidden');
+      const bridge = document.getElementById('crossToolBridgeContainer');
+      if (found.engine === 'join-images') {
+        bridge.innerHTML = `
+          <button onclick="navigateToToolWithCurrentImages('image-splitter')" class="px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-semibold flex items-center gap-1.5">
+            <i data-lucide="grid" class="w-3.5 h-3.5 text-accent"></i>
+            <span>Buka Image Splitter (Pemisah Grid)</span>
+          </button>
+        `;
+      } else if (found.engine === 'image-splitter') {
+        bridge.innerHTML = `
+          <button onclick="navigateToToolWithCurrentImages('join-images')" class="px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-semibold flex items-center gap-1.5">
+            <i data-lucide="columns" class="w-3.5 h-3.5 text-accent"></i>
+            <span>Buka Image Joiner (Gabung Gambar)</span>
+          </button>
+        `;
+      } else {
+        bridge.innerHTML = '';
+      }
 
-        const navCategory = NAV_CATEGORIES.find(category => category.toolIds.includes(found.id));
-        const navGroup = navCategory
-          ? NAV_GROUPS.find(group => group.categoryIds.includes(navCategory.id))
-          : null;
-        updateNavbarActiveCategory(navGroup ? navGroup.id : 'home');
+      document.getElementById('resultOutputBox').classList.add('hidden');
+      document.getElementById('progressContainer').classList.add('hidden');
+      renderEngineSettings(found);
+      renderWorkspaceItems();
+      updateFilenamePreviewHint();
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      lucide.createIcons();
+    }
 
-        document.getElementById('wsGroupLabel').textContent = navCategory ? navCategory.label : found.groupTitle;
-        document.getElementById('wsTitle').textContent = found.name;
-        document.getElementById('wsDesc').textContent = found.desc;
-        document.getElementById('wsIconBox').innerHTML = `<i data-lucide="${found.icon}" class="w-5 h-5"></i>`;
-
-        // Keep the Joiner <-> Splitter bridge available between related tools.
-        const bridge = document.getElementById('crossToolBridgeContainer');
-        if (found.engine === 'join-images') {
-          bridge.innerHTML = `
-            <button onclick="openToolWorkspace('image-splitter')" class="px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-semibold flex items-center gap-1.5">
-              <i data-lucide="grid" class="w-3.5 h-3.5 text-accent"></i>
-              <span>Buka Image Splitter (Pemisah Grid)</span>
-            </button>
-          `;
-        } else if (found.engine === 'image-splitter') {
-          bridge.innerHTML = `
-            <button onclick="openToolWorkspace('join-images')" class="px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-semibold flex items-center gap-1.5">
-              <i data-lucide="columns" class="w-3.5 h-3.5 text-accent"></i>
-              <span>Buka Image Joiner (Gabung Gambar)</span>
-            </button>
-          `;
-        } else {
-          bridge.innerHTML = '';
+    function openToolTransferDatabase() {
+      return new Promise((resolve, reject) => {
+        if (!('indexedDB' in window)) {
+          reject(new Error('Browser tidak menyediakan penyimpanan transfer file.'));
+          return;
         }
-
-        document.getElementById('resultOutputBox').classList.add('hidden');
-        renderEngineSettings(found);
-        renderWorkspaceItems();
-        updateFilenamePreviewHint();
-        window.scrollTo({ top: 0, behavior: 'auto' });
-        lucide.createIcons();
-
-        if (showLoading) {
-          window.setTimeout(() => {
-            if (requestId === toolNavigationRequestId) {
-              overlay.classList.add('hidden');
-              overlay.setAttribute('aria-hidden', 'true');
-            }
-          }, 180);
-        }
+        const request = indexedDB.open('midoc-tool-transfer', 1);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains('pending')) db.createObjectStore('pending', { keyPath: 'id' });
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('Gagal membuka penyimpanan transfer.'));
       });
+    }
+
+    async function savePendingToolTransfer(files) {
+      const db = await openToolTransferDatabase();
+      const id = (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 'transfer_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+      const items = files.map(file => ({
+        name: file.name || 'MiDoc_File',
+        type: file.type || 'application/octet-stream',
+        lastModified: file.lastModified || Date.now(),
+        blob: file
+      }));
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction('pending', 'readwrite');
+        tx.objectStore('pending').put({ id, createdAt: Date.now(), items });
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error || new Error('Gagal menyimpan file sementara.'));
+        tx.onabort = () => reject(tx.error || new Error('Transfer file dibatalkan.'));
+      });
+      db.close();
+      return id;
+    }
+
+    async function consumePendingToolTransfer(id) {
+      const db = await openToolTransferDatabase();
+      const record = await new Promise((resolve, reject) => {
+        const tx = db.transaction('pending', 'readwrite');
+        const store = tx.objectStore('pending');
+        const request = store.get(id);
+        let value = null;
+        request.onsuccess = () => {
+          value = request.result || null;
+          if (value) store.delete(id);
+        };
+        request.onerror = () => reject(request.error || new Error('Gagal membaca file sementara.'));
+        tx.oncomplete = () => resolve(value);
+        tx.onerror = () => reject(tx.error || new Error('Gagal mengambil file sementara.'));
+        tx.onabort = () => reject(tx.error || new Error('Transfer file dibatalkan.'));
+      });
+      db.close();
+      return (record?.items || []).map(item => new File(
+        [item.blob], item.name, { type: item.type, lastModified: item.lastModified }
+      ));
+    }
+
+    async function navigateToToolWithFiles(toolId, files) {
+      if (!files || !files.length) {
+        openToolWorkspace(toolId);
+        return;
+      }
+      try {
+        const transferId = await savePendingToolTransfer(files);
+        const targetUrl = new URL(window.location.href);
+        targetUrl.searchParams.set('tool', toolId);
+        targetUrl.searchParams.set('transfer', transferId);
+        targetUrl.hash = '';
+        window.location.assign(targetUrl.pathname + targetUrl.search);
+      } catch (error) {
+        console.error(error);
+        showToast('Tidak dapat membawa file ke alat berikutnya: ' + error.message, 'error');
+      }
+    }
+
+    function navigateToToolWithCurrentImages(toolId) {
+      const files = state.items.filter(item => item.isImage && item.file).map(item => item.file);
+      return navigateToToolWithFiles(toolId, files);
     }
 
     function getAllToolsFlat() {
@@ -1356,7 +1438,7 @@
       if (engine === 'image-splitter') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Potongan_Grid';
-        btnLabel.textContent = 'Potong Gambar & Unduh ZIP';
+        btnLabel.textContent = 'Proses Pemotongan Gambar';
 
         box.innerHTML = `
           <div class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">
@@ -1454,6 +1536,24 @@
             Setiap kartu di sebelah kiri langsung menampilkan simulasi kertas PDF & area margin secara real-time.
           </div>
         `;
+        if (toolObj.id === 'image-to-pdf') {
+          btnLabel.textContent = 'Buat PDF dari Gambar';
+          box.insertAdjacentHTML('beforeend', `
+            <div>
+              <label class="block text-xs font-semibold mb-1.5">Kualitas & Ukuran File PDF</label>
+              <select id="optImagePdfQuality" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+                <option value="very-low">Very Low — ukuran paling kecil</option>
+                <option value="low">Low — ringan</option>
+                <option value="medium">Medium — seimbang</option>
+                <option value="high" selected>High — kualitas tinggi</option>
+                <option value="original">Same as Image — 100% / kualitas asli</option>
+              </select>
+              <p class="mt-1.5 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                Kualitas lebih rendah akan menurunkan resolusi dan kompresi gambar di dalam PDF. File gambar asli tidak diubah.
+              </p>
+            </div>
+          `);
+        }
       } else if (engine === 'split-pdf') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Split_PDF';
@@ -1496,7 +1596,7 @@
       } else if (engine === 'compress-pdf' || engine === 'protect-pdf') {
         extBadge.textContent = '.pdf';
         filenameInput.value = 'MiDoc_PDF_Optimasi';
-        btnLabel.textContent = 'Proses & Unduh PDF';
+        btnLabel.textContent = 'Buat PDF Teroptimasi';
         box.innerHTML = `
           <div>
             <div class="flex justify-between text-xs font-semibold mb-1">
@@ -1586,17 +1686,30 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
         box.innerHTML = `
           <div>
             <label class="block text-xs font-semibold mb-1">Format Tujuan</label>
-            <select id="optTargetFormat" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
-              <option value="image/jpeg">JPG (.jpg)</option>
+            <select id="optTargetFormat" onchange="updateConvertImageOptions()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="image/jpeg">JPG / JPEG (.jpg)</option>
               <option value="image/png" selected>PNG (.png)</option>
               <option value="image/webp">WebP (.webp)</option>
+              <option value="image/avif">AVIF (.avif) — jika browser mendukung</option>
+              <option value="image/bmp">BMP (.bmp)</option>
             </select>
           </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1">Warna Latar (untuk PNG ke JPG)</label>
+          <div id="optConvertQualityGroup">
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <label for="optConvertQuality">Kualitas Output</label>
+              <span id="optConvertQualityLabel" class="font-mono text-accent">85%</span>
+            </div>
+            <input id="optConvertQuality" type="range" min="10" max="100" value="85" oninput="document.getElementById('optConvertQualityLabel').textContent = this.value + '%'" class="w-full accent-accent" />
+          </div>
+          <div id="optBgFillGroup">
+            <label class="block text-xs font-semibold mb-1">Warna Latar (untuk JPG/JPEG)</label>
             <input id="optBgFill" type="color" value="#ffffff" class="w-full h-8 rounded-sm border border-zinc-300 dark:border-darkLine bg-transparent" />
           </div>
+          <p class="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+            AVIF bergantung pada dukungan encoder browser. GIF yang dikonversi menjadi gambar statis hanya mengambil frame yang dapat dibaca browser.
+          </p>
         `;
+        updateConvertImageOptions();
       } else if (engine === 'resize-image') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Resize_Gambar';
@@ -1636,7 +1749,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       } else if (engine === 'filters-image') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Edit_Gambar';
-        btnLabel.textContent = 'Terapkan Edit & Unduh';
+        btnLabel.textContent = 'Terapkan Edit PDF';
         box.innerHTML = `
           <div>
             <label class="block text-xs font-semibold mb-1">Bentuk Potongan</label>
@@ -1711,7 +1824,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       } else if (engine === 'batch-rename') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Batch_Rename';
-        btnLabel.textContent = 'Ganti Nama & Unduh ZIP';
+        btnLabel.textContent = 'Proses Batch Rename';
         box.innerHTML = `
           <div>
             <label class="block text-xs font-semibold mb-1">Awalan Nama (Prefix)</label>
@@ -1736,7 +1849,21 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Arsip';
         btnLabel.textContent = 'Buat Arsip ZIP';
-        box.innerHTML = `<p class="text-xs text-zinc-600 dark:text-zinc-400">Mengemas semua file sesuai urutan kartu ke dalam satu arsip .ZIP.</p>`;
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Mode ZIP</label>
+            <select id="optZipMode" onchange="updateZipToolMode()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="create" selected>Buat ZIP dari file yang dipilih</option>
+              <option value="extract">Ekstrak ZIP ke folder</option>
+              <option value="view">Lihat isi ZIP saja</option>
+            </select>
+          </div>
+          <div id="zipModeDescription" class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-200 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">
+            Kemas semua file di workspace sesuai urutan kartu menjadi satu arsip ZIP.
+          </div>
+          <div id="zipContentsPanel" class="hidden space-y-2"></div>
+        `;
+        updateZipToolMode();
       } else if (engine === 'color-picker') {
         filenameGroup.classList.add('hidden');
         btnLabel.textContent = 'Ekstrak Palet Warna Gambar #1';
@@ -1747,7 +1874,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       } else if (engine === 'qr-generator') {
         extBadge.textContent = '.png';
         filenameInput.value = 'MiDoc_Kode_Matrix';
-        btnLabel.textContent = 'Generate & Unduh PNG';
+        btnLabel.textContent = 'Generate Kode QR';
         box.innerHTML = `
           <div>
             <label class="block text-xs font-semibold mb-1">Teks atau Tautan URL</label>
@@ -2114,7 +2241,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       const entries = filesArray.map(file => {
         state.dropCounter++;
         const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-        const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(file.name);
+        const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp|avif|svg)$/i.test(file.name);
         const entry = {
           id: 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
           dropOrder: state.dropCounter,
@@ -2624,7 +2751,8 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
 
     function isCurrentOperationBulkOrZip() {
       const engine = state.activeEngine;
-      if (['image-splitter', 'pdf-to-image', 'batch-rename', 'zip-maker'].includes(engine)) return true;
+      if (engine === 'zip-maker') return (document.getElementById('optZipMode')?.value || 'create') === 'create';
+      if (['image-splitter', 'pdf-to-image', 'batch-rename'].includes(engine)) return true;
       if (engine === 'split-pdf') {
         return (document.getElementById('optSplitMode')?.value || 'all') === 'all';
       }
@@ -2679,13 +2807,6 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       state.lastBlobUrl = url;
       state.lastDownloadName = filename;
 
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-
       const resBox = document.getElementById('resultOutputBox');
       resBox.classList.remove('hidden');
       document.getElementById('resultSizeBadge').textContent = formatBytes(blob.size);
@@ -2693,10 +2814,13 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       document.getElementById('resultDetailText').textContent = detailMsg;
 
       document.getElementById('reDownloadBtn').onclick = () => {
+        if (!state.lastBlobUrl || !state.lastDownloadName) return;
         const link = document.createElement('a');
         link.href = state.lastBlobUrl;
         link.download = state.lastDownloadName;
+        document.body.appendChild(link);
         link.click();
+        link.remove();
       };
 
       const inspectResBtn = document.getElementById('inspectResultPreviewBtn');
@@ -2712,10 +2836,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
         sendBtn.classList.remove('hidden');
         sendBtn.onclick = async () => {
           const joinedFile = state.lastProcessedImageFile;
-          state.items = [];
-          state.dropCounter = 0;
-          openToolWorkspace('image-splitter');
-          await ingestFilesInExactOrder([joinedFile]);
+          await navigateToToolWithFiles('image-splitter', [joinedFile]);
         };
       } else {
         sendBtn.classList.add('hidden');
@@ -2958,6 +3079,9 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       const pageSizeOpt = document.getElementById('optPageSize')?.value || 'A4';
       const marginOpt = parseInt(document.getElementById('optMargin')?.value || '20', 10);
       const orientOpt = document.getElementById('optOrientation')?.value || 'auto';
+      const imagePdfQuality = state.activeToolObj?.id === 'image-to-pdf'
+        ? (document.getElementById('optImagePdfQuality')?.value || 'high')
+        : 'high';
 
       for (let i = 0; i < state.items.length; i++) {
         const item = state.items[i];
@@ -2975,8 +3099,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
           });
         } else if (item.isImage && item.thumbUrl) {
           const canvas = await renderItemToCanvas(item);
-          const jpgBytes = await fetch(canvas.toDataURL('image/jpeg', 0.92)).then(r => r.arrayBuffer());
-          const img = await outPdf.embedJpg(jpgBytes);
+          const img = await embedCanvasImageForPdf(outPdf, item, canvas, imagePdfQuality);
 
           let pw = img.width + marginOpt * 2;
           let ph = img.height + marginOpt * 2;
@@ -3191,6 +3314,137 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       finishWithBlob(new Blob([fullText], { type: 'text/plain;charset=utf-8' }), finalName, `Teks berhasil diekstrak dari dokumen PDF.`);
     }
 
+    function updateConvertImageOptions() {
+      const target = document.getElementById('optTargetFormat')?.value || 'image/png';
+      const isLossy = ['image/jpeg', 'image/webp', 'image/avif'].includes(target);
+      const qualityGroup = document.getElementById('optConvertQualityGroup');
+      const backgroundGroup = document.getElementById('optBgFillGroup');
+      if (qualityGroup) qualityGroup.classList.toggle('hidden', !isLossy);
+      if (backgroundGroup) backgroundGroup.classList.toggle('hidden', target !== 'image/jpeg');
+    }
+
+    function imageMimeToExtension(mime) {
+      const type = (mime || '').toLowerCase().split(';')[0];
+      const extensions = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'image/avif': 'avif',
+        'image/bmp': 'bmp'
+      };
+      return extensions[type] || 'png';
+    }
+
+    function canvasToBlobStrict(canvas, mime, quality) {
+      return new Promise((resolve, reject) => {
+        if (!canvas || typeof canvas.toBlob !== 'function') {
+          reject(new Error('Browser tidak mendukung ekspor format gambar ini.'));
+          return;
+        }
+        canvas.toBlob(blob => {
+          if (!blob) {
+            reject(new Error('Browser gagal membuat file gambar.'));
+            return;
+          }
+          const requested = (mime || '').toLowerCase();
+          const actual = (blob.type || '').toLowerCase();
+          if (actual !== requested) {
+            const label = requested === 'image/avif' ? 'AVIF' : requested;
+            reject(new Error(`Browser ini belum mendukung ekspor ${label}. Pilih format JPG, PNG, atau WebP.`));
+            return;
+          }
+          resolve(blob);
+        }, mime, quality);
+      });
+    }
+
+    function canvasToBmpBlob(canvas) {
+      const width = canvas.width;
+      const height = canvas.height;
+      const source = canvas.getContext('2d').getImageData(0, 0, width, height).data;
+      const rowStride = Math.ceil((width * 3) / 4) * 4;
+      const pixelBytes = rowStride * height;
+      const buffer = new ArrayBuffer(54 + pixelBytes);
+      const view = new DataView(buffer);
+      const bytes = new Uint8Array(buffer);
+
+      // BITMAPFILEHEADER.
+      view.setUint16(0, 0x4D42, true);
+      view.setUint32(2, 54 + pixelBytes, true);
+      view.setUint16(6, 0, true);
+      view.setUint16(8, 0, true);
+      view.setUint32(10, 54, true);
+
+      // BITMAPINFOHEADER (24-bit, uncompressed BI_RGB).
+      view.setUint32(14, 40, true);
+      view.setInt32(18, width, true);
+      view.setInt32(22, height, true);
+      view.setUint16(26, 1, true);
+      view.setUint16(28, 24, true);
+      view.setUint32(30, 0, true);
+      view.setUint32(34, pixelBytes, true);
+      view.setInt32(38, 2835, true);
+      view.setInt32(42, 2835, true);
+      view.setUint32(46, 0, true);
+      view.setUint32(50, 0, true);
+
+      for (let y = 0; y < height; y++) {
+        const targetRow = 54 + (height - 1 - y) * rowStride;
+        for (let x = 0; x < width; x++) {
+          const sourceIndex = (y * width + x) * 4;
+          const targetIndex = targetRow + x * 3;
+          const alpha = source[sourceIndex + 3] / 255;
+          const red = Math.round(source[sourceIndex] * alpha + 255 * (1 - alpha));
+          const green = Math.round(source[sourceIndex + 1] * alpha + 255 * (1 - alpha));
+          const blue = Math.round(source[sourceIndex + 2] * alpha + 255 * (1 - alpha));
+          bytes[targetIndex] = blue;
+          bytes[targetIndex + 1] = green;
+          bytes[targetIndex + 2] = red;
+        }
+      }
+      return new Blob([buffer], { type: 'image/bmp' });
+    }
+
+    async function embedCanvasImageForPdf(pdfDoc, item, canvas, qualityMode) {
+      const profiles = {
+        'very-low': { scale: 0.52, quality: 0.34 },
+        low: { scale: 0.68, quality: 0.50 },
+        medium: { scale: 0.84, quality: 0.68 },
+        high: { scale: 1, quality: 0.86 }
+      };
+
+      if (qualityMode === 'original') {
+        const sourceType = (item.type || '').toLowerCase();
+        if (sourceType.includes('png') && item.rotation === 0 && item.arrayBuffer) {
+          return pdfDoc.embedPng(item.arrayBuffer);
+        }
+        if ((sourceType.includes('jpeg') || sourceType.includes('jpg')) && item.rotation === 0 && item.arrayBuffer) {
+          return pdfDoc.embedJpg(item.arrayBuffer);
+        }
+        if (sourceType.includes('jpeg') || sourceType.includes('jpg')) {
+          const jpeg = await canvasToBlobStrict(canvas, 'image/jpeg', 1);
+          return pdfDoc.embedJpg(await jpeg.arrayBuffer());
+        }
+        const png = await canvasToBlobStrict(canvas, 'image/png');
+        return pdfDoc.embedPng(await png.arrayBuffer());
+      }
+
+      const profile = profiles[qualityMode] || profiles.high;
+      const scaled = profile.scale < 1
+        ? resizeCanvas(canvas, Math.max(1, Math.round(canvas.width * profile.scale)), Math.max(1, Math.round(canvas.height * profile.scale)), 'stretch')
+        : canvas;
+      const whiteCanvas = document.createElement('canvas');
+      whiteCanvas.width = scaled.width;
+      whiteCanvas.height = scaled.height;
+      const ctx = whiteCanvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, whiteCanvas.width, whiteCanvas.height);
+      ctx.drawImage(scaled, 0, 0);
+
+      const jpeg = await canvasToBlobStrict(whiteCanvas, 'image/jpeg', profile.quality);
+      return pdfDoc.embedJpg(await jpeg.arrayBuffer());
+    }
+
     // --- ENGINE 11: BATCH IMAGE OPERATIONS ---
     async function runBatchImageProcess(baseName, mode) {
       const imgItems = state.items.filter(i => i.isImage && i.thumbUrl);
@@ -3217,6 +3471,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
           }
         } else if (mode === 'convert-image') {
           mime = document.getElementById('optTargetFormat').value;
+          quality = (parseInt(document.getElementById('optConvertQuality')?.value || '85', 10)) / 100;
           if (mime === 'image/jpeg') {
             const bg = document.getElementById('optBgFill').value;
             const c = document.createElement('canvas');
@@ -3291,8 +3546,11 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
           mime = 'image/png';
         }
 
-        const ext = mime === 'image/png' ? 'png' : (mime === 'image/webp' ? 'webp' : 'jpg');
-        const blob = await new Promise(r => outCanvas.toBlob(r, mime, quality));
+        const blob = mime === 'image/bmp'
+          ? canvasToBmpBlob(outCanvas)
+          : await canvasToBlobStrict(outCanvas, mime, quality);
+        const outputMime = blob.type || mime;
+        const ext = imageMimeToExtension(outputMime);
         const innerName = `${firstClean}_${String(i + 1).padStart(2, '0')}.${ext}`;
         zip.file(innerName, blob);
         if (imgItems.length === 1) {
@@ -3349,15 +3607,214 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${state.items.length} file dinamai ulang sesuai urutan.`);
     }
 
+    function updateZipToolMode() {
+      const mode = document.getElementById('optZipMode')?.value || 'create';
+      const description = document.getElementById('zipModeDescription');
+      const buttonLabel = document.getElementById('executeBtnLabel');
+      const filenameGroup = document.getElementById('outputFilenameGroup');
+      const panel = document.getElementById('zipContentsPanel');
+
+      state.zipArchiveFiles = [];
+      state.zipArchiveSourceName = null;
+      if (panel) {
+        panel.innerHTML = '';
+        panel.classList.add('hidden');
+      }
+      document.getElementById('resultOutputBox')?.classList.add('hidden');
+
+      if (mode === 'create') {
+        filenameGroup?.classList.remove('hidden');
+        if (description) description.textContent = 'Kemas semua file di workspace sesuai urutan kartu menjadi satu arsip ZIP.';
+        if (buttonLabel) buttonLabel.textContent = 'Buat Arsip ZIP';
+      } else if (mode === 'extract') {
+        filenameGroup?.classList.add('hidden');
+        if (description) description.textContent = 'Pilih satu file .ZIP. MiDoc akan membaca isi arsip, lalu Anda bisa memilih folder tujuan untuk mengekstrak file dan struktur foldernya.';
+        if (buttonLabel) buttonLabel.textContent = 'Baca ZIP & Siapkan Ekstraksi';
+      } else {
+        filenameGroup?.classList.add('hidden');
+        if (description) description.textContent = 'Pilih satu file .ZIP untuk melihat daftar nama, struktur folder, dan ukuran file tanpa mengekstrak.';
+        if (buttonLabel) buttonLabel.textContent = 'Tampilkan Isi ZIP';
+      }
+      updateFilenamePreviewHint();
+    }
+
+    function getZipEntryUncompressedSize(entry) {
+      return Number(entry?._data?.uncompressedSize || 0);
+    }
+
+    function showZipArchiveContents(entries, sourceName, mode) {
+      const panel = document.getElementById('zipContentsPanel');
+      if (!panel) return;
+
+      const totalBytes = entries.reduce((sum, entry) => sum + getZipEntryUncompressedSize(entry), 0);
+      const supportsFolderPicker = typeof window.showDirectoryPicker === 'function';
+      const extractActions = mode === 'extract'
+        ? `
+          <div class="flex flex-wrap gap-2">
+            ${supportsFolderPicker ? `
+              <button type="button" id="zipExtractToFolderBtn" class="px-3 py-2 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold">
+                Pilih Folder & Ekstrak
+              </button>
+            ` : `
+              <p class="text-[11px] text-amber-600 dark:text-amber-400">Browser ini belum mendukung pemilihan folder langsung. Ekstrak file satu per satu melalui tombol Unduh di daftar ini.</p>
+            `}
+          </div>
+        `
+        : '';
+
+      panel.innerHTML = `
+        <div class="p-3 border border-zinc-300 dark:border-darkLine rounded-sm bg-white dark:bg-darkCanvas space-y-2">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <h3 class="font-display font-bold text-xs text-ink dark:text-white">Isi Arsip: ${escapeHtml(sourceName)}</h3>
+              <p class="text-[11px] text-zinc-500 mt-0.5">${entries.length} file · ${formatBytes(totalBytes)} total ukuran setelah diekstrak</p>
+            </div>
+            <span class="text-[10px] font-mono text-accent shrink-0">${mode === 'extract' ? 'EXTRACT' : 'VIEW'}</span>
+          </div>
+          ${extractActions}
+          <div class="max-h-72 overflow-y-auto border-t border-zinc-200 dark:border-darkLine pt-2 space-y-1">
+            ${entries.map((entry, index) => `
+              <div class="flex items-center justify-between gap-2 py-1.5 text-[11px]">
+                <span class="min-w-0 flex-1 break-all text-zinc-700 dark:text-zinc-200">${escapeHtml(entry.name)}</span>
+                <span class="text-[10px] font-mono text-zinc-500 shrink-0">${formatBytes(getZipEntryUncompressedSize(entry))}</span>
+                <button type="button" data-zip-entry-download="${index}" class="text-accent font-semibold hover:underline shrink-0">Unduh</button>
+              </div>
+            `).join('')}
+          </div>
+          <p id="zipExtractStatus" class="text-[11px] text-zinc-500 dark:text-zinc-400">File belum diekstrak atau diunduh.</p>
+        </div>
+      `;
+      panel.classList.remove('hidden');
+
+      panel.querySelectorAll('[data-zip-entry-download]').forEach(button => {
+        button.addEventListener('click', () => downloadZipEntry(Number(button.dataset.zipEntryDownload)));
+      });
+      document.getElementById('zipExtractToFolderBtn')?.addEventListener('click', extractZipToFolder);
+      updateProgress(100, 'Daftar isi ZIP berhasil dibaca.');
+      setTimeout(() => document.getElementById('progressContainer').classList.add('hidden'), 450);
+      showToast(`ZIP dibaca: ${entries.length} file ditemukan.`, 'success');
+    }
+
+    async function readZipArchiveForAction(mode) {
+      const zipItem = state.items.find(item =>
+        item.name.toLowerCase().endsWith('.zip') ||
+        item.type === 'application/zip' ||
+        item.type === 'application/x-zip-compressed'
+      );
+      if (!zipItem) {
+        showToast('Pilih satu file ZIP terlebih dahulu.', 'error');
+        return;
+      }
+
+      const archive = await JSZip.loadAsync(zipItem.file);
+      const entries = Object.values(archive.files).filter(entry => !entry.dir);
+      if (!entries.length) {
+        showToast('Arsip ZIP ini kosong atau tidak berisi file yang bisa diekstrak.', 'error');
+        return;
+      }
+      state.zipArchiveFiles = entries;
+      state.zipArchiveSourceName = zipItem.name;
+      showZipArchiveContents(entries, zipItem.name, mode);
+    }
+
+    async function downloadZipEntry(index) {
+      const entry = state.zipArchiveFiles[index];
+      if (!entry) return;
+      try {
+        const blob = await entry.async('blob');
+        const fileName = entry.name.split('/').filter(Boolean).pop() || 'MiDoc_File';
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 15000);
+        showToast('Menyiapkan unduhan: ' + fileName, 'success');
+      } catch (error) {
+        showToast('File ZIP gagal diekstrak: ' + error.message, 'error');
+      }
+    }
+
+    async function extractZipToFolder() {
+      if (typeof window.showDirectoryPicker !== 'function') {
+        showToast('Browser ini belum mendukung ekstraksi ke folder. Gunakan unduh per file.', 'error');
+        return;
+      }
+      let rootHandle;
+      try {
+        // Call the picker directly from the user's button interaction.
+        rootHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      } catch (error) {
+        if (error.name !== 'AbortError') showToast('Folder tujuan tidak dapat dibuka: ' + error.message, 'error');
+        return;
+      }
+
+      const entries = state.zipArchiveFiles;
+      let written = 0;
+      const skipped = [];
+      for (let index = 0; index < entries.length; index++) {
+        const entry = entries[index];
+        const normalized = entry.name.replace(/\\/g, '/');
+        if (normalized.startsWith('/') || normalized.split('/').includes('..')) {
+          skipped.push(entry.name);
+          continue;
+        }
+        const parts = normalized.split('/').filter(part => part && part !== '.');
+        if (!parts.length) continue;
+
+        try {
+          let directory = rootHandle;
+          for (const folderName of parts.slice(0, -1)) {
+            directory = await directory.getDirectoryHandle(folderName, { create: true });
+          }
+          const fileHandle = await directory.getFileHandle(parts[parts.length - 1], { create: true });
+          const writable = await fileHandle.createWritable();
+          const data = await entry.async('uint8array');
+          await writable.write(data);
+          await writable.close();
+          written++;
+          updateProgress(((index + 1) / entries.length) * 100, `Mengekstrak ${written}/${entries.length}: ${parts[parts.length - 1]}`);
+        } catch (error) {
+          skipped.push(entry.name + ' — ' + error.message);
+        }
+      }
+
+      const status = document.getElementById('zipExtractStatus');
+      if (status) status.textContent = `${written} file berhasil diekstrak ke folder yang dipilih.${skipped.length ? ' ' + skipped.length + ' file dilewati.' : ''}`;
+      setTimeout(() => document.getElementById('progressContainer').classList.add('hidden'), 500);
+      showToast(`${written} file berhasil diekstrak.`, written ? 'success' : 'error');
+    }
+
     async function runZipMaker(baseName) {
+      const mode = document.getElementById('optZipMode')?.value || 'create';
+      if (mode === 'view' || mode === 'extract') {
+        await readZipArchiveForAction(mode);
+        return;
+      }
+
+      if (!state.items.length) {
+        showToast('Tambahkan file yang ingin dimasukkan ke arsip ZIP.', 'error');
+        return;
+      }
+
       const zip = new JSZip();
       const firstClean = getFirstFileBaseName();
-      state.items.forEach((it, idx) => {
-        const ext = it.name.includes('.') ? it.name.split('.').pop() : 'bin';
-        zip.file(`${firstClean}_${String(idx + 1).padStart(2, '0')}.${ext}`, it.arrayBuffer || it.file);
-      });
+      for (let index = 0; index < state.items.length; index++) {
+        const item = state.items[index];
+        const ext = item.name.includes('.') ? item.name.split('.').pop() : 'bin';
+        const fileData = item.arrayBuffer || await item.file.arrayBuffer();
+        zip.file(`${firstClean}_${String(index + 1).padStart(2, '0')}.${ext}`, fileData);
+        updateProgress(((index + 1) / state.items.length) * 70, `Menambahkan file ${index + 1}/${state.items.length}: ${item.name}`);
+      }
+
       const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
-      finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${state.items.length} file dikemas dalam ZIP.`);
+      const blob = await zip.generateAsync(
+        { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+        metadata => updateProgress(70 + metadata.percent * 0.3, 'Menyusun arsip ZIP...')
+      );
+      finishWithBlob(blob, finalZipName, `${state.items.length} file berhasil dikemas dalam arsip ZIP.`);
     }
 
     // --- ENGINE 14: COLOR PICKER, QR GENERATOR, PASSWORD ---
