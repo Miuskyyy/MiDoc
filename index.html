@@ -1902,6 +1902,13 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
         filenameInput.value = 'MiDoc_Resize_Gambar';
         btnLabel.textContent = 'Ubah Ukuran Gambar';
         box.innerHTML = `
+          <div id="resizeModeGroup" class="hidden">
+            <label class="block text-xs font-semibold mb-1">Metode Resize</label>
+            <select id="optResizeMode" onchange="updateResizeMode(this.value)" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="dimensions" selected>Atur ukuran piksel (lebar × tinggi)</option>
+              <option value="percent">Atur berdasarkan persentase</option>
+            </select>
+          </div>
           <div>
             <label class="block text-xs font-semibold mb-1">Preset Ukuran Resmi & Pas Foto</label>
             <select id="optResizePreset" onchange="applyResizePreset(this.value)" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
@@ -1914,7 +1921,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
               <option value="1080x1080">Instagram Post (1080×1080 px)</option>
             </select>
           </div>
-          <div class="grid grid-cols-2 gap-2.5">
+          <div id="resizeDimensionsGroup" class="grid grid-cols-2 gap-2.5">
             <div>
               <label class="block text-xs font-semibold mb-1">Lebar (px)</label>
               <input id="optResizeW" type="number" value="413" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
@@ -1923,6 +1930,11 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
               <label class="block text-xs font-semibold mb-1">Tinggi (px)</label>
               <input id="optResizeH" type="number" value="531" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
             </div>
+          </div>
+          <div id="resizePercentGroup" class="hidden">
+            <label class="block text-xs font-semibold mb-1">Persentase Ukuran</label>
+            <div class="flex items-center gap-2"><input id="optResizePercent" type="number" min="1" max="500" step="1" value="100" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" /><span class="text-xs text-zinc-500">%</span></div>
+            <p class="mt-1 text-[11px] text-zinc-500">100% mempertahankan ukuran asli; 50% menjadi setengah lebar dan tinggi.</p>
           </div>
           <div>
             <label class="block text-xs font-semibold mb-1">Mode Penyesuaian</label>
@@ -1933,6 +1945,9 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
             </select>
           </div>
         `;
+        if (toolObj.id === 'resize-pixel') document.getElementById('resizeModeGroup')?.classList.remove('hidden');
+        else document.getElementById('resizeModeGroup')?.classList.add('hidden');
+        updateResizeMode(document.getElementById('optResizeMode')?.value || 'dimensions');
       } else if (engine === 'filters-image') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Edit_Gambar';
@@ -2133,6 +2148,13 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
         rowInput.value = rows;
         drawSplitterLivePreview();
       }
+    }
+
+    function updateResizeMode(mode) {
+      const percentMode = mode === 'percent';
+      document.getElementById('resizeDimensionsGroup')?.classList.toggle('hidden', percentMode);
+      document.getElementById('resizePercentGroup')?.classList.toggle('hidden', !percentMode);
+      document.getElementById('optResizePreset')?.closest('div')?.classList.toggle('hidden', percentMode);
     }
 
     function applyResizePreset(val) {
@@ -3961,10 +3983,21 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
             outCanvas = c;
           }
         } else if (mode === 'resize-image') {
-          const w = parseInt(document.getElementById('optResizeW').value, 10) || 413;
-          const h = parseInt(document.getElementById('optResizeH').value, 10) || 531;
-          const fit = document.getElementById('optResizeFit').value;
-          outCanvas = resizeCanvas(baseCanvas, w, h, fit);
+          if (state.activeToolObj?.id === 'resize-pixel' && document.getElementById('optResizeMode')?.value === 'percent') {
+            const percent = Number(document.getElementById('optResizePercent')?.value);
+            if (!Number.isFinite(percent) || percent < 1 || percent > 500) throw new Error('Persentase resize harus antara 1% dan 500%.');
+            const scale = percent / 100;
+            const w = Math.max(1, Math.round(baseCanvas.width * scale));
+            const h = Math.max(1, Math.round(baseCanvas.height * scale));
+            if (w > 12000 || h > 12000) throw new Error('Ukuran hasil terlalu besar. Kurangi persentase resize hingga dimensi maksimal 12.000 px.');
+            outCanvas = resizeCanvas(baseCanvas, w, h, 'stretch');
+          } else {
+            const w = Number(document.getElementById('optResizeW').value);
+            const h = Number(document.getElementById('optResizeH').value);
+            if (!Number.isInteger(w) || !Number.isInteger(h) || w < 1 || h < 1 || w > 12000 || h > 12000) throw new Error('Lebar dan tinggi harus berupa piksel 1–12.000.');
+            const fit = document.getElementById('optResizeFit').value;
+            outCanvas = resizeCanvas(baseCanvas, w, h, fit);
+          }
         } else if (mode === 'filters-image') {
           const shape = document.getElementById('optShapeCrop').value;
           const filter = document.getElementById('optColorFilter').value;
