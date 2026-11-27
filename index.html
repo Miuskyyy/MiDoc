@@ -4568,14 +4568,31 @@
       const parsed = module.parseGIF(await item.file.arrayBuffer());
       const frames = module.decompressFrames(parsed, true);
       if (!frames || !frames.length) throw new Error('Tidak ada frame animasi yang dapat diekstrak dari GIF ini.');
+      if (frames.length > 500) throw new Error('GIF ini memiliki lebih dari 500 frame. File terlalu besar untuk diekstrak dengan aman di browser.');
       const width = parsed.lsd.width;
       const height = parsed.lsd.height;
-      if (!width || !height) throw new Error('Dimensi GIF tidak valid.');
+      if (!width || !height || width > 6000 || height > 6000 || width * height > 18000000) {
+        throw new Error('Dimensi GIF terlalu besar untuk diproses dengan aman di browser (maksimal 6.000 px per sisi dan 18 megapiksel).');
+      }
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      ctx.clearRect(0, 0, width, height);
+      if (!ctx) throw new Error('Browser tidak dapat membuat kanvas untuk ekstraksi GIF.');
+      const backgroundIndex = parsed.lsd.backgroundColorIndex;
+      const backgroundColor = parsed.gct && parsed.gct[backgroundIndex];
+      const initialTransparent = frames[0] && frames[0].transparentIndex === backgroundIndex;
+      const paintBackground = (left, top, frameWidth, frameHeight, transparent) => {
+        if (transparent || !backgroundColor) {
+          ctx.clearRect(left, top, frameWidth, frameHeight);
+          return;
+        }
+        ctx.save();
+        ctx.fillStyle = 'rgb(' + backgroundColor[0] + ',' + backgroundColor[1] + ',' + backgroundColor[2] + ')';
+        ctx.fillRect(left, top, frameWidth, frameHeight);
+        ctx.restore();
+      };
+      paintBackground(0, 0, width, height, initialTransparent);
       const zip = new JSZip();
       let previousFrame = null;
       let previousRestore = null;
@@ -4583,16 +4600,30 @@
       for (let i = 0; i < frames.length; i++) {
         const frame = frames[i];
         if (previousFrame) {
+          const rect = previousFrame.dims;
           if (previousFrame.disposalType === 2) {
-            ctx.clearRect(previousFrame.dims.left, previousFrame.dims.top, previousFrame.dims.width, previousFrame.dims.height);
+            paintBackground(rect.left, rect.top, rect.width, rect.height, previousFrame.transparentIndex === backgroundIndex);
           } else if (previousFrame.disposalType === 3 && previousRestore) {
             ctx.putImageData(previousRestore, 0, 0);
           }
         }
         const restoreBeforeFrame = frame.disposalType === 3 ? ctx.getImageData(0, 0, width, height) : null;
-        const patch = ctx.createImageData(frame.dims.width, frame.dims.height);
-        patch.data.set(frame.patch);
-        ctx.putImageData(patch, frame.dims.left, frame.dims.top);
+        const patch = frame.patch;
+        const patchWidth = frame.dims.width;
+        const patchHeight = frame.dims.height;
+        if (!patch || patch.length !== patchWidth * patchHeight * 4) {
+          throw new Error('Data frame GIF ke-' + (i + 1) + ' tidak lengkap.');
+        }
+        const composed = ctx.getImageData(frame.dims.left, frame.dims.top, patchWidth, patchHeight);
+        for (let pixel = 0; pixel < patchWidth * patchHeight; pixel++) {
+          const offset = pixel * 4;
+          if (patch[offset + 3] === 0) continue;
+          composed.data[offset] = patch[offset];
+          composed.data[offset + 1] = patch[offset + 1];
+          composed.data[offset + 2] = patch[offset + 2];
+          composed.data[offset + 3] = patch[offset + 3];
+        }
+        ctx.putImageData(composed, frame.dims.left, frame.dims.top);
         const png = await new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Gagal membuat PNG frame ' + (i + 1) + '.')), 'image/png'));
         zip.file(sourceBase + '_frame_' + String(i + 1).padStart(4, '0') + '.png', png);
         previousFrame = frame;
@@ -4600,10 +4631,10 @@
         updateProgress(((i + 1) / frames.length) * 90, 'Mengekstrak frame ' + (i + 1) + ' dari ' + frames.length + '...');
       }
       const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const firstClean = sourceBase;
-      const finalName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
-      finishWithBlob(zipBlob, finalName, frames.length + ' frame GIF berhasil diekstrak menjadi PNG dalam satu arsip ZIP.');
+      const finalName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: sourceBase });
+      finishWithBlob(zipBlob, finalName, frames.length + ' frame GIF berhasil dikomposisikan menjadi PNG dalam satu arsip ZIP.');
     }
+
 
     async function runZipMaker(baseName) {
       const mode = document.getElementById('optZipMode')?.value || 'create';
