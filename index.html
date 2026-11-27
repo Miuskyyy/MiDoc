@@ -1806,7 +1806,21 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Arsip';
         btnLabel.textContent = 'Buat Arsip ZIP';
-        box.innerHTML = `<p class="text-xs text-zinc-600 dark:text-zinc-400">Mengemas semua file sesuai urutan kartu ke dalam satu arsip .ZIP.</p>`;
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Mode ZIP</label>
+            <select id="optZipMode" onchange="updateZipToolMode()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="create" selected>Buat ZIP dari file yang dipilih</option>
+              <option value="extract">Ekstrak ZIP ke folder</option>
+              <option value="view">Lihat isi ZIP saja</option>
+            </select>
+          </div>
+          <div id="zipModeDescription" class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-200 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">
+            Kemas semua file di workspace sesuai urutan kartu menjadi satu arsip ZIP.
+          </div>
+          <div id="zipContentsPanel" class="hidden space-y-2"></div>
+        `;
+        updateZipToolMode();
       } else if (engine === 'color-picker') {
         filenameGroup.classList.add('hidden');
         btnLabel.textContent = 'Ekstrak Palet Warna Gambar #1';
@@ -2694,7 +2708,8 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
 
     function isCurrentOperationBulkOrZip() {
       const engine = state.activeEngine;
-      if (['image-splitter', 'pdf-to-image', 'batch-rename', 'zip-maker'].includes(engine)) return true;
+      if (engine === 'zip-maker') return (document.getElementById('optZipMode')?.value || 'create') === 'create';
+      if (['image-splitter', 'pdf-to-image', 'batch-rename'].includes(engine)) return true;
       if (engine === 'split-pdf') {
         return (document.getElementById('optSplitMode')?.value || 'all') === 'all';
       }
@@ -2749,13 +2764,6 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       state.lastBlobUrl = url;
       state.lastDownloadName = filename;
 
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-
       const resBox = document.getElementById('resultOutputBox');
       resBox.classList.remove('hidden');
       document.getElementById('resultSizeBadge').textContent = formatBytes(blob.size);
@@ -2763,10 +2771,13 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       document.getElementById('resultDetailText').textContent = detailMsg;
 
       document.getElementById('reDownloadBtn').onclick = () => {
+        if (!state.lastBlobUrl || !state.lastDownloadName) return;
         const link = document.createElement('a');
         link.href = state.lastBlobUrl;
         link.download = state.lastDownloadName;
+        document.body.appendChild(link);
         link.click();
+        link.remove();
       };
 
       const inspectResBtn = document.getElementById('inspectResultPreviewBtn');
@@ -3416,15 +3427,230 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${state.items.length} file dinamai ulang sesuai urutan.`);
     }
 
+    function updateZipToolMode() {
+      const mode = document.getElementById('optZipMode')?.value || 'create';
+      const description = document.getElementById('zipModeDescription');
+      const buttonLabel = document.getElementById('executeBtnLabel');
+      const filenameGroup = document.getElementById('outputFilenameGroup');
+      const panel = document.getElementById('zipContentsPanel');
+
+      state.zipArchiveFiles = [];
+      state.zipArchiveSourceName = null;
+      if (panel) {
+        panel.innerHTML = '';
+        panel.classList.add('hidden');
+      }
+      document.getElementById('resultOutputBox')?.classList.add('hidden');
+
+      if (mode === 'create') {
+        filenameGroup?.classList.remove('hidden');
+        if (description) description.textContent = 'Kemas semua file di workspace sesuai urutan kartu menjadi satu arsip ZIP.';
+        if (buttonLabel) buttonLabel.textContent = 'Buat Arsip ZIP';
+      } else if (mode === 'extract') {
+        filenameGroup?.classList.add('hidden');
+        if (description) description.textContent = 'Pilih satu file .ZIP. MiDoc akan membaca isi arsip, lalu Anda bisa memilih folder tujuan untuk mengekstrak file dan struktur foldernya.';
+        if (buttonLabel) buttonLabel.textContent = 'Baca ZIP & Siapkan Ekstraksi';
+      } else {
+        filenameGroup?.classList.add('hidden');
+        if (description) description.textContent = 'Pilih satu file .ZIP untuk melihat daftar nama, struktur folder, dan ukuran file tanpa mengekstrak.';
+        if (buttonLabel) buttonLabel.textContent = 'Tampilkan Isi ZIP';
+      }
+      updateFilenamePreviewHint();
+    }
+
+    function getZipEntryUncompressedSize(entry) {
+      return Number(entry?._data?.uncompressedSize || 0);
+    }
+
+    function showZipArchiveContents(entries, sourceName, mode) {
+      const panel = document.getElementById('zipContentsPanel');
+      if (!panel) return;
+
+      const totalBytes = entries.reduce((sum, entry) => sum + getZipEntryUncompressedSize(entry), 0);
+      const supportsFolderPicker = typeof window.showDirectoryPicker === 'function';
+      const extractActions = mode === 'extract'
+        ? `
+          <div class="flex flex-wrap gap-2">
+            ${supportsFolderPicker ? `
+              <button type="button" id="zipExtractToFolderBtn" class="px-3 py-2 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold">
+                Pilih Folder & Ekstrak
+              </button>
+            ` : `
+              <p class="text-[11px] text-amber-600 dark:text-amber-400">Browser ini belum mendukung ekstraksi langsung ke folder. Gunakan tombol unduh per file di bawah.</p>
+            `}
+            <button type="button" id="zipDownloadAllBtn" class="px-3 py-2 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-semibold hover:border-accent">
+              Unduh Semua File Satu per Satu
+            </button>
+          </div>
+        `
+        : '';
+
+      panel.innerHTML = `
+        <div class="p-3 border border-zinc-300 dark:border-darkLine rounded-sm bg-white dark:bg-darkCanvas space-y-2">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <h3 class="font-display font-bold text-xs text-ink dark:text-white">Isi Arsip: ${escapeHtml(sourceName)}</h3>
+              <p class="text-[11px] text-zinc-500 mt-0.5">${entries.length} file · ${formatBytes(totalBytes)} total ukuran setelah diekstrak</p>
+            </div>
+            <span class="text-[10px] font-mono text-accent shrink-0">${mode === 'extract' ? 'EXTRACT' : 'VIEW'}</span>
+          </div>
+          ${extractActions}
+          <div class="max-h-72 overflow-y-auto border-t border-zinc-200 dark:border-darkLine pt-2 space-y-1">
+            ${entries.map((entry, index) => `
+              <div class="flex items-center justify-between gap-2 py-1.5 text-[11px]">
+                <span class="min-w-0 flex-1 break-all text-zinc-700 dark:text-zinc-200">${escapeHtml(entry.name)}</span>
+                <span class="text-[10px] font-mono text-zinc-500 shrink-0">${formatBytes(getZipEntryUncompressedSize(entry))}</span>
+                <button type="button" data-zip-entry-download="${index}" class="text-accent font-semibold hover:underline shrink-0">Unduh</button>
+              </div>
+            `).join('')}
+          </div>
+          <p id="zipExtractStatus" class="text-[11px] text-zinc-500 dark:text-zinc-400">File belum diekstrak atau diunduh.</p>
+        </div>
+      `;
+      panel.classList.remove('hidden');
+
+      panel.querySelectorAll('[data-zip-entry-download]').forEach(button => {
+        button.addEventListener('click', () => downloadZipEntry(Number(button.dataset.zipEntryDownload)));
+      });
+      document.getElementById('zipExtractToFolderBtn')?.addEventListener('click', extractZipToFolder);
+      document.getElementById('zipDownloadAllBtn')?.addEventListener('click', downloadAllZipEntries);
+      updateProgress(100, 'Daftar isi ZIP berhasil dibaca.');
+      setTimeout(() => document.getElementById('progressContainer').classList.add('hidden'), 450);
+      showToast(`ZIP dibaca: ${entries.length} file ditemukan.`, 'success');
+    }
+
+    async function readZipArchiveForAction(mode) {
+      const zipItem = state.items.find(item =>
+        item.name.toLowerCase().endsWith('.zip') ||
+        item.type === 'application/zip' ||
+        item.type === 'application/x-zip-compressed'
+      );
+      if (!zipItem) {
+        showToast('Pilih satu file ZIP terlebih dahulu.', 'error');
+        return;
+      }
+
+      const archive = await JSZip.loadAsync(zipItem.file);
+      const entries = Object.values(archive.files).filter(entry => !entry.dir);
+      if (!entries.length) {
+        showToast('Arsip ZIP ini kosong atau tidak berisi file yang bisa diekstrak.', 'error');
+        return;
+      }
+      state.zipArchiveFiles = entries;
+      state.zipArchiveSourceName = zipItem.name;
+      showZipArchiveContents(entries, zipItem.name, mode);
+    }
+
+    async function downloadZipEntry(index) {
+      const entry = state.zipArchiveFiles[index];
+      if (!entry) return;
+      try {
+        const blob = await entry.async('blob');
+        const fileName = entry.name.split('/').filter(Boolean).pop() || 'MiDoc_File';
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 15000);
+        showToast('Menyiapkan unduhan: ' + fileName, 'success');
+      } catch (error) {
+        showToast('File ZIP gagal diekstrak: ' + error.message, 'error');
+      }
+    }
+
+    async function downloadAllZipEntries() {
+      const entries = state.zipArchiveFiles;
+      if (!entries.length) return;
+      showToast('Unduhan banyak file mungkin meminta izin dari browser.', 'info');
+      for (let index = 0; index < entries.length; index++) {
+        await downloadZipEntry(index);
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      const status = document.getElementById('zipExtractStatus');
+      if (status) status.textContent = `${entries.length} file sudah dikirim ke daftar unduhan browser.`;
+    }
+
+    async function extractZipToFolder() {
+      if (typeof window.showDirectoryPicker !== 'function') {
+        showToast('Browser ini belum mendukung ekstraksi ke folder. Gunakan unduh per file.', 'error');
+        return;
+      }
+      let rootHandle;
+      try {
+        // Call the picker directly from the user's button interaction.
+        rootHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      } catch (error) {
+        if (error.name !== 'AbortError') showToast('Folder tujuan tidak dapat dibuka: ' + error.message, 'error');
+        return;
+      }
+
+      const entries = state.zipArchiveFiles;
+      let written = 0;
+      const skipped = [];
+      for (let index = 0; index < entries.length; index++) {
+        const entry = entries[index];
+        const normalized = entry.name.replace(/\\/g, '/');
+        if (normalized.startsWith('/') || normalized.split('/').includes('..')) {
+          skipped.push(entry.name);
+          continue;
+        }
+        const parts = normalized.split('/').filter(part => part && part !== '.');
+        if (!parts.length) continue;
+
+        try {
+          let directory = rootHandle;
+          for (const folderName of parts.slice(0, -1)) {
+            directory = await directory.getDirectoryHandle(folderName, { create: true });
+          }
+          const fileHandle = await directory.getFileHandle(parts[parts.length - 1], { create: true });
+          const writable = await fileHandle.createWritable();
+          const data = await entry.async('uint8array');
+          await writable.write(data);
+          await writable.close();
+          written++;
+          updateProgress(((index + 1) / entries.length) * 100, `Mengekstrak ${written}/${entries.length}: ${parts[parts.length - 1]}`);
+        } catch (error) {
+          skipped.push(entry.name + ' — ' + error.message);
+        }
+      }
+
+      const status = document.getElementById('zipExtractStatus');
+      if (status) status.textContent = `${written} file berhasil diekstrak ke folder yang dipilih.${skipped.length ? ' ' + skipped.length + ' file dilewati.' : ''}`;
+      setTimeout(() => document.getElementById('progressContainer').classList.add('hidden'), 500);
+      showToast(`${written} file berhasil diekstrak.`, written ? 'success' : 'error');
+    }
+
     async function runZipMaker(baseName) {
+      const mode = document.getElementById('optZipMode')?.value || 'create';
+      if (mode === 'view' || mode === 'extract') {
+        await readZipArchiveForAction(mode);
+        return;
+      }
+
+      if (!state.items.length) {
+        showToast('Tambahkan file yang ingin dimasukkan ke arsip ZIP.', 'error');
+        return;
+      }
+
       const zip = new JSZip();
       const firstClean = getFirstFileBaseName();
-      state.items.forEach((it, idx) => {
-        const ext = it.name.includes('.') ? it.name.split('.').pop() : 'bin';
-        zip.file(`${firstClean}_${String(idx + 1).padStart(2, '0')}.${ext}`, it.arrayBuffer || it.file);
-      });
+      for (let index = 0; index < state.items.length; index++) {
+        const item = state.items[index];
+        const ext = item.name.includes('.') ? item.name.split('.').pop() : 'bin';
+        const fileData = item.arrayBuffer || await item.file.arrayBuffer();
+        zip.file(`${firstClean}_${String(index + 1).padStart(2, '0')}.${ext}`, fileData);
+        updateProgress(((index + 1) / state.items.length) * 70, `Menambahkan file ${index + 1}/${state.items.length}: ${item.name}`);
+      }
+
       const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
-      finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${state.items.length} file dikemas dalam ZIP.`);
+      const blob = await zip.generateAsync(
+        { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+        metadata => updateProgress(70 + metadata.percent * 0.3, 'Menyusun arsip ZIP...')
+      );
+      finishWithBlob(blob, finalZipName, `${state.items.length} file berhasil dikemas dalam arsip ZIP.`);
     }
 
     // --- ENGINE 14: COLOR PICKER, QR GENERATOR, PASSWORD ---
