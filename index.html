@@ -544,7 +544,7 @@
             class="w-full py-2.5 px-4 rounded-sm bg-accent hover:bg-accentHover text-white font-display font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <i data-lucide="play" class="w-4 h-4"></i>
-            <span id="executeBtnLabel">Proses & Unduh</span>
+            <span id="executeBtnLabel">Proses & Buat Hasil</span>
           </button>
 
           <!-- Progress Indicator -->
@@ -1426,7 +1426,7 @@
       if (engine === 'image-splitter') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Potongan_Grid';
-        btnLabel.textContent = 'Potong Gambar & Unduh ZIP';
+        btnLabel.textContent = 'Proses Pemotongan Gambar';
 
         box.innerHTML = `
           <div class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">
@@ -1583,7 +1583,7 @@
       } else if (engine === 'compress-pdf' || engine === 'protect-pdf') {
         extBadge.textContent = '.pdf';
         filenameInput.value = 'MiDoc_PDF_Optimasi';
-        btnLabel.textContent = 'Proses & Unduh PDF';
+        btnLabel.textContent = 'Buat PDF Teroptimasi';
         box.innerHTML = `
           <div>
             <div class="flex justify-between text-xs font-semibold mb-1">
@@ -1736,7 +1736,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       } else if (engine === 'filters-image') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Edit_Gambar';
-        btnLabel.textContent = 'Terapkan Edit & Unduh';
+        btnLabel.textContent = 'Terapkan Edit PDF';
         box.innerHTML = `
           <div>
             <label class="block text-xs font-semibold mb-1">Bentuk Potongan</label>
@@ -1811,7 +1811,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       } else if (engine === 'batch-rename') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Batch_Rename';
-        btnLabel.textContent = 'Ganti Nama & Unduh ZIP';
+        btnLabel.textContent = 'Proses Batch Rename';
         box.innerHTML = `
           <div>
             <label class="block text-xs font-semibold mb-1">Awalan Nama (Prefix)</label>
@@ -1861,7 +1861,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       } else if (engine === 'qr-generator') {
         extBadge.textContent = '.png';
         filenameInput.value = 'MiDoc_Kode_Matrix';
-        btnLabel.textContent = 'Generate & Unduh PNG';
+        btnLabel.textContent = 'Generate Kode QR';
         box.innerHTML = `
           <div>
             <label class="block text-xs font-semibold mb-1">Teks atau Tautan URL</label>
@@ -2228,7 +2228,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       const entries = filesArray.map(file => {
         state.dropCounter++;
         const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-        const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp|avif|heic|heif|tif|tiff|svg)$/i.test(file.name);
+        const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp|avif|svg)$/i.test(file.name);
         const entry = {
           id: 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
           dropOrder: state.dropCounter,
@@ -3458,6 +3458,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
           }
         } else if (mode === 'convert-image') {
           mime = document.getElementById('optTargetFormat').value;
+          quality = (parseInt(document.getElementById('optConvertQuality')?.value || '85', 10)) / 100;
           if (mime === 'image/jpeg') {
             const bg = document.getElementById('optBgFill').value;
             const c = document.createElement('canvas');
