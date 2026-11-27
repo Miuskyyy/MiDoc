@@ -90,7 +90,8 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#optMargin').inputValue(), '0');
     assert.equal(await page.locator('#optImagePdfQuality').inputValue(), 'original');
     await page.locator('#fileInput').setInputFiles([
-      { name: 'source.png', mimeType: 'image/png', buffer: redPng }
+      { name: 'source-red.png', mimeType: 'image/png', buffer: redPng },
+      { name: 'source-blue.png', mimeType: 'image/png', buffer: bluePng }
     ]);
     await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
     await page.locator('button[onclick="executeCurrentTool()"]').click();
@@ -115,6 +116,22 @@ const assert = require('node:assert/strict');
       return box && !box.classList.contains('hidden');
     }, { timeout: 45000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
+
+    // Organize PDF must require splitting the source into page cards before processing.
+    await openTool('organize-pdf');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForTimeout(500);
+    assert.equal(await page.locator('#resultOutputBox').evaluate(el => el.classList.contains('hidden')), true, 'Organize PDF must not silently return an unchanged file before page cards are split');
+    await page.locator('#expandPdfPagesBtn').click();
+    await page.waitForFunction(() => document.querySelectorAll('#fileItemsGrid .file-card').length === 2, { timeout: 15000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => {
+      const box = document.getElementById('resultOutputBox');
+      return box && !box.classList.contains('hidden');
+    }, { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
 
     // ZIP Maker creates a real archive while preserving source names.
     await openTool('zip-tools');
