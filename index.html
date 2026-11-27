@@ -4607,12 +4607,28 @@
 
       const zip = new JSZip();
       const firstClean = getFirstFileBaseName();
+      const usedNames = new Set();
       for (let index = 0; index < state.items.length; index++) {
         const item = state.items[index];
-        const ext = item.name.includes('.') ? item.name.split('.').pop() : 'bin';
+        const relativeName = (item.file?.webkitRelativePath || item.name || ('File_' + (index + 1))).replace(/\\/g, '/');
+        const safeParts = relativeName.split('/').filter(part => part && part !== '.' && part !== '..');
+        let entryName = safeParts.join('/') || ('File_' + (index + 1));
+        const slash = entryName.lastIndexOf('/');
+        const directory = slash >= 0 ? entryName.slice(0, slash + 1) : '';
+        const leaf = slash >= 0 ? entryName.slice(slash + 1) : entryName;
+        const dot = leaf.lastIndexOf('.');
+        const stem = dot > 0 ? leaf.slice(0, dot) : leaf;
+        const extension = dot > 0 ? leaf.slice(dot) : '';
+        let uniqueName = entryName;
+        let duplicate = 2;
+        while (usedNames.has(uniqueName.toLowerCase())) {
+          uniqueName = directory + stem + '_' + duplicate + extension;
+          duplicate++;
+        }
+        usedNames.add(uniqueName.toLowerCase());
         const fileData = item.arrayBuffer || await item.file.arrayBuffer();
-        zip.file(`${firstClean}_${String(index + 1).padStart(2, '0')}.${ext}`, fileData);
-        updateProgress(((index + 1) / state.items.length) * 70, `Menambahkan file ${index + 1}/${state.items.length}: ${item.name}`);
+        zip.file(uniqueName, fileData);
+        updateProgress(((index + 1) / state.items.length) * 70, 'Menambahkan ' + uniqueName + ' (' + (index + 1) + '/' + state.items.length + ')');
       }
 
       const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
@@ -4620,7 +4636,7 @@
         { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
         metadata => updateProgress(70 + metadata.percent * 0.3, 'Menyusun arsip ZIP...')
       );
-      finishWithBlob(blob, finalZipName, `${state.items.length} file berhasil dikemas dalam arsip ZIP.`);
+      finishWithBlob(blob, finalZipName, ' + state.items.length + ' file berhasil dikemas. Nama asli dan struktur folder dipertahankan; nama duplikat diberi nomor tambahan.');
     }
 
     // --- ENGINE 14: COLOR PICKER, QR GENERATOR, PASSWORD ---
