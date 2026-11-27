@@ -250,16 +250,16 @@
 
         <div class="flex flex-wrap items-center gap-1.5" id="homeGroupFilters">
           <button onclick="filterHomeGroups('all')" data-group="all" class="home-filter-btn px-3 py-2 text-xs font-semibold rounded-sm bg-accent text-white">
-            Semua Kelompok (7)
+            Semua Kategori
           </button>
           <button onclick="filterHomeGroups('pdf')" data-group="pdf" class="home-filter-btn px-3 py-2 text-xs font-semibold rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent">
-            Alat PDF
+            Alat PDF (6 Sub-Grup)
           </button>
           <button onclick="filterHomeGroups('image')" data-group="image" class="home-filter-btn px-3 py-2 text-xs font-semibold rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent">
-            Alat Gambar
+            Alat Gambar (4 Sub-Grup)
           </button>
           <button onclick="filterHomeGroups('converter')" data-group="converter" class="home-filter-btn px-3 py-2 text-xs font-semibold rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent">
-            Konverter & Batch
+            Utilitas & Batch
           </button>
         </div>
       </div>
@@ -745,29 +745,29 @@
     ];
 
     // =========================================================================
-    // TOP NAVIGATION CATEGORIES (11zon-style grouped tool menus)
-    // Every entry points to an existing tool ID in DIRECTORY_GROUPS.
+    // NAVIGATION + DIRECTORY GROUPS
+    // One shared catalog powers the top dropdowns and the homepage directory.
     // =========================================================================
     const NAV_CATEGORIES = [
       {
         id: 'pdf-optimize',
         label: 'Optimize PDF',
         icon: 'minimize-2',
-        description: 'Perkecil ukuran dokumen PDF.',
+        description: 'Kompres ukuran dokumen PDF agar lebih ringan dikirim atau diunggah.',
         toolIds: ['compress-pdf']
       },
       {
         id: 'pdf-merge-split',
         label: 'Merge & Split',
         icon: 'combine',
-        description: 'Gabungkan PDF dan gambar atau pisahkan halaman PDF.',
+        description: 'Gabungkan beberapa PDF dan gambar atau pisahkan halaman PDF.',
         toolIds: ['merge-pdf', 'merge-pdf-image', 'split-pdf']
       },
       {
         id: 'pdf-view-edit',
         label: 'View & Edit',
         icon: 'file-pen-line',
-        description: 'Atur halaman, putar, potong, ekstrak, dan tambahkan elemen PDF.',
+        description: 'Atur tata letak halaman, putar orientasi, potong margin, ekstrak halaman, dan tambahkan elemen PDF.',
         toolIds: ['crop-pdf', 'organize-pdf', 'rotate-pdf', 'extract-pdf-pages', 'extract-pdf-images', 'page-number-pdf', 'watermark-pdf']
       },
       {
@@ -788,40 +788,46 @@
         id: 'pdf-security',
         label: 'PDF Security',
         icon: 'shield-check',
-        description: 'Kelola perlindungan dokumen PDF.',
+        description: 'Lindungi PDF atau buka dokumen yang memiliki proteksi.',
         toolIds: ['protect-pdf']
       },
       {
         id: 'image-optimize',
         label: 'Optimize Image',
-        icon: 'file-image',
-        description: 'Kompres, ubah dimensi, dan siapkan gambar untuk kebutuhan cetak.',
+        icon: 'image',
+        description: 'Kompres, ubah ukuran, dan siapkan gambar untuk kebutuhan cetak.',
         toolIds: ['compress-image', 'resize-pixel', 'resize-official', 'bulk-resize', 'dpi-checker']
       },
       {
         id: 'image-convert',
         label: 'Convert Image',
         icon: 'images',
-        description: 'Konversi format gambar dan kelola GIF.',
+        description: 'Konversi format gambar dan kelola frame GIF.',
         toolIds: ['remove-exif', 'gif-tools']
+      },
+      {
+        id: 'image-merge-split',
+        label: 'Merge & Split Image',
+        icon: 'grid-2x2',
+        description: 'Gabungkan, sambungkan, buat kolase, atau potong gambar menjadi beberapa bagian.',
+        toolIds: ['image-splitter', 'join-images', 'stitch-screenshot', 'photo-collage']
       },
       {
         id: 'image-edit',
         label: 'Edit Image',
-        icon: 'sliders',
-        description: 'Potong, putar, gabungkan, susun, dan beri efek pada gambar.',
-        toolIds: ['image-splitter', 'join-images', 'stitch-screenshot', 'photo-collage', 'overlay-images', 'crop-circle', 'rotate-flip', 'rounded-corners', 'watermark-image', 'photo-signature', 'color-filters']
+        icon: 'sliders-horizontal',
+        description: 'Potong, putar, beri efek, watermark, tanda tangan, dan susun gambar.',
+        toolIds: ['overlay-images', 'crop-circle', 'rotate-flip', 'rounded-corners', 'watermark-image', 'photo-signature', 'color-filters']
       },
       {
         id: 'utilities',
         label: 'Utilities & Batch',
         icon: 'wrench',
-        description: 'Alat bantu file, arsip, penamaan, kode, dan konversi satuan.',
+        description: 'Alat bantu untuk pengelolaan file, arsip, kode, dan konversi satuan.',
         toolIds: ['batch-rename', 'zip-tools', 'color-picker', 'qr-generator', 'password-gen', 'unit-converter']
       }
     ];
 
-    // Original three top-level menus, with detailed 11zon-style groups inside each dropdown.
     const NAV_GROUPS = [
       {
         id: 'pdf',
@@ -831,7 +837,7 @@
       {
         id: 'image',
         label: 'Alat Gambar',
-        categoryIds: ['image-optimize', 'image-convert', 'image-edit']
+        categoryIds: ['image-optimize', 'image-convert', 'image-merge-split', 'image-edit']
       },
       {
         id: 'converter',
@@ -1043,9 +1049,18 @@
 
     function getAllToolsFlat() {
       const list = [];
-      DIRECTORY_GROUPS.forEach(g => {
-        g.tools.forEach(t => {
-          list.push({ ...t, groupTitle: g.title, navCat: g.navCat });
+      DIRECTORY_GROUPS.forEach(group => {
+        group.tools.forEach(tool => {
+          const category = NAV_CATEGORIES.find(item => item.toolIds.includes(tool.id));
+          const navGroup = category
+            ? NAV_GROUPS.find(item => item.categoryIds.includes(category.id))
+            : null;
+          list.push({
+            ...tool,
+            groupTitle: category ? category.label : group.title,
+            navCat: navGroup ? navGroup.id : group.navCat,
+            navCategoryId: category ? category.id : null
+          });
         });
       });
       return list;
@@ -1059,55 +1074,74 @@
     function filterHomeGroups(cat) {
       currentHomeGroupFilter = cat;
       document.querySelectorAll('.home-filter-btn').forEach(btn => {
-        if (btn.getAttribute('data-group') === cat) {
-          btn.className = 'home-filter-btn px-3 py-2 text-xs font-semibold rounded-sm bg-accent text-white';
-        } else {
-          btn.className = 'home-filter-btn px-3 py-2 text-xs font-semibold rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent';
-        }
+        const active = btn.getAttribute('data-group') === cat;
+        btn.className = active
+          ? 'home-filter-btn px-3 py-2 text-xs font-semibold rounded-sm bg-accent text-white'
+          : 'home-filter-btn px-3 py-2 text-xs font-semibold rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent';
       });
-      const q = document.getElementById('homeSearchInput').value || '';
-      renderHomeDirectory(cat, q);
+      const query = document.getElementById('homeSearchInput').value || '';
+      renderHomeDirectory(cat, query);
     }
 
     function renderHomeDirectory(catFilter, queryText) {
       const container = document.getElementById('directoryGroupsContainer');
-      const q = queryText.trim().toLowerCase();
+      const query = (queryText || '').trim().toLowerCase();
+      const allTools = getAllToolsFlat();
 
-      const visibleGroups = DIRECTORY_GROUPS.filter(g => {
-        if (catFilter !== 'all' && g.navCat !== catFilter) return false;
-        return true;
-      }).map(g => {
-        const matchingTools = g.tools.filter(t =>
-          !q ||
-          t.name.toLowerCase().includes(q) ||
-          t.desc.toLowerCase().includes(q) ||
-          g.title.toLowerCase().includes(q)
+      const selectedGroups = catFilter === 'all'
+        ? NAV_GROUPS
+        : NAV_GROUPS.filter(group => group.id === catFilter);
+
+      const categories = selectedGroups.flatMap(group =>
+        group.categoryIds
+          .map(id => NAV_CATEGORIES.find(category => category.id === id))
+          .filter(Boolean)
+      );
+
+      const visibleCategories = categories.map(category => {
+        const categoryTools = category.toolIds
+          .map(id => allTools.find(tool => tool.id === id))
+          .filter(Boolean);
+
+        const categoryMatches = !query ||
+          category.label.toLowerCase().includes(query) ||
+          category.description.toLowerCase().includes(query);
+
+        const matchingTools = categoryTools.filter(tool =>
+          categoryMatches ||
+          tool.name.toLowerCase().includes(query) ||
+          tool.desc.toLowerCase().includes(query)
         );
-        return { ...g, tools: matchingTools };
-      }).filter(g => g.tools.length > 0);
 
-      if (visibleGroups.length === 0) {
+        return { ...category, tools: matchingTools };
+      }).filter(category => category.tools.length > 0);
+
+      if (visibleCategories.length === 0) {
         container.innerHTML = `
           <div class="p-8 rounded-sm border border-zinc-200 dark:border-darkLine text-center">
             <p class="text-sm font-semibold">Tidak ada alat yang cocok dengan pencarian "${escapeHtml(queryText)}".</p>
+            <p class="text-xs text-zinc-500 mt-1">Coba kata kunci lain atau pilih Semua Kategori.</p>
           </div>
         `;
         return;
       }
 
-      container.innerHTML = visibleGroups.map(group => `
-        <div class="space-y-4">
-          <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 pb-2 border-b border-zinc-200 dark:border-darkLine">
-            <h2 class="font-display text-base sm:text-lg font-bold text-ink dark:text-white">
-              ${group.title}
-            </h2>
-            <p class="text-xs text-zinc-500 dark:text-zinc-400">
-              ${group.subtitle}
+      container.innerHTML = visibleCategories.map(category => `
+        <section class="space-y-4">
+          <div class="pb-2 border-b border-zinc-200 dark:border-darkLine">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
+              <h2 class="font-display text-base sm:text-lg font-bold text-ink dark:text-white">
+                ${category.label}
+              </h2>
+              <span class="text-[10px] font-mono text-zinc-500 dark:text-zinc-400">${category.tools.length} alat</span>
+            </div>
+            <p class="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mt-1 leading-relaxed">
+              ${category.description}
             </p>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            ${group.tools.map(tool => `
+            ${category.tools.map(tool => `
               <button
                 onclick="openToolWorkspace('${tool.id}')"
                 class="group p-4 rounded-sm bg-zinc-50/70 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine hover:border-accent dark:hover:border-accent text-left flex items-start gap-3.5 transition-colors"
@@ -1116,12 +1150,9 @@
                   <i data-lucide="${tool.icon}" class="w-4 h-4"></i>
                 </div>
                 <div class="min-w-0 flex-1">
-                  <div class="flex items-center justify-between gap-2">
-                    <h3 class="font-display text-sm font-bold text-ink dark:text-zinc-100 group-hover:text-accent truncate">
-                      ${tool.name}
-                    </h3>
-                    ${tool.badge ? `<span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-sm bg-accent/15 text-accent shrink-0">${tool.badge}</span>` : ''}
-                  </div>
+                  <h3 class="font-display text-sm font-bold text-ink dark:text-zinc-100 group-hover:text-accent">
+                    ${tool.name}
+                  </h3>
                   <p class="text-xs text-zinc-600 dark:text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
                     ${tool.desc}
                   </p>
@@ -1129,7 +1160,7 @@
               </button>
             `).join('')}
           </div>
-        </div>
+        </section>
       `).join('');
 
       lucide.createIcons();
@@ -1193,7 +1224,7 @@
         }
       });
 
-      // Build mobile navigation with the same three top-level menus and detailed subgroups.
+      // Mobile drawer: the same top-level groups and detailed subgroups as desktop.
       const mobileContainer = document.getElementById('mobileMenuContent');
       const allTools = getAllToolsFlat();
       mobileContainer.innerHTML = NAV_GROUPS.map(group => {
@@ -1248,38 +1279,41 @@
         .filter(Boolean);
 
       const totalTools = categories.reduce((total, category) => total + category.toolIds.length, 0);
+      const gridColumns = group.id === 'pdf'
+        ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6'
+        : group.id === 'image'
+          ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+          : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+
       document.getElementById('megaMenuContent').innerHTML = `
         <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 pb-3 border-b border-zinc-200 dark:border-darkLine">
           <div>
             <h2 class="font-display text-base font-extrabold text-ink dark:text-white">${group.label}</h2>
-            <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Pilih kategori alat, lalu buka fitur yang ingin digunakan.</p>
+            <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Pilih alat yang ingin digunakan.</p>
           </div>
-          <span class="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">${categories.length} kategori · ${totalTools} alat</span>
+          <span class="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">${categories.length} sub-grup · ${totalTools} alat</span>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-5 gap-y-5 pt-4">
+
+        <div class="grid ${gridColumns} gap-x-5 gap-y-5 pt-4">
           ${categories.map(category => {
             const categoryTools = category.toolIds
               .map(id => allTools.find(tool => tool.id === id))
               .filter(Boolean);
             return `
               <section class="min-w-0">
-                <div class="pb-2 mb-1.5 border-b border-zinc-200 dark:border-darkLine">
-                  <div class="flex items-center gap-2">
-                    <i data-lucide="${category.icon}" class="w-4 h-4 text-accent shrink-0"></i>
-                    <h3 class="text-xs font-display font-bold text-ink dark:text-white">${category.label}</h3>
-                    <span class="ml-auto text-[10px] font-mono text-zinc-400">${categoryTools.length}</span>
-                  </div>
-                  <p class="mt-1 text-[10px] leading-relaxed text-zinc-500 dark:text-zinc-400">${category.description}</p>
+                <div class="pb-2 mb-2 border-b border-zinc-200 dark:border-darkLine min-h-[30px]">
+                  <h3 class="text-xs font-display font-bold text-zinc-700 dark:text-zinc-200 leading-snug">
+                    ${category.label}
+                  </h3>
                 </div>
-                <div class="space-y-0.5">
+                <div class="space-y-1">
                   ${categoryTools.map(tool => `
-                    <button onclick="openToolWorkspace('${tool.id}')" class="group w-full p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-start gap-2.5">
-                      <span class="w-6 h-6 rounded-sm bg-accent text-white flex items-center justify-center shrink-0 mt-0.5">
+                    <button onclick="openToolWorkspace('${tool.id}')" class="group w-full p-1.5 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
                         <i data-lucide="${tool.icon}" class="w-3.5 h-3.5"></i>
                       </span>
                       <span class="min-w-0 flex-1">
-                        <span class="block text-xs font-semibold text-ink dark:text-zinc-100 group-hover:text-accent">${tool.name}</span>
-                        <span class="block mt-0.5 text-[10px] leading-relaxed text-zinc-500 dark:text-zinc-400">${tool.desc}</span>
+                        <span class="block text-[11px] font-semibold leading-snug text-ink dark:text-zinc-100 group-hover:text-accent">${tool.name}</span>
                       </span>
                     </button>
                   `).join('')}
