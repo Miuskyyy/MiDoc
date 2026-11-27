@@ -98,13 +98,6 @@
       background-size: 13px 13px;
     }
 
-    #desktopNavCategories {
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-    }
-    #desktopNavCategories::-webkit-scrollbar {
-      display: none;
-    }
     #megaMenuContainer {
       max-height: min(72vh, 620px);
       overflow-y: auto;
@@ -148,8 +141,8 @@
     <div class="max-w-[1440px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
       
       <!-- Left: Brand + Mega Menu Triggers -->
-      <div class="flex items-center h-full gap-1 flex-1 min-w-0">
-        <button onclick="navigateToHome()" class="flex items-center gap-2.5 pr-3 h-full text-left focus:outline-none shrink-0">
+      <div class="flex items-center h-full gap-1">
+        <button onclick="navigateToHome()" class="flex items-center gap-2.5 pr-4 h-full text-left focus:outline-none">
           <span class="w-7 h-7 rounded-sm bg-accent text-white font-display font-extrabold text-base flex items-center justify-center">
             M
           </span>
@@ -158,18 +151,32 @@
           </span>
         </button>
 
-        <!-- Desktop navigation: category tabs are populated from NAV_CATEGORIES -->
-        <nav class="hidden lg:flex items-center h-full flex-1 min-w-0" id="desktopNav">
-          <button onclick="navigateToHome()" id="navHomeBtn" class="h-full px-3 flex items-center gap-1.5 text-xs font-semibold text-accent border-b-2 border-accent whitespace-nowrap shrink-0">
+        <!-- Desktop Mega Menu Triggers (original MiDoc navigation layout) -->
+        <nav class="hidden lg:flex items-center h-full" id="desktopNav">
+          <button onclick="navigateToHome()" id="navHomeBtn" class="h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-accent border-b-2 border-accent">
             <span>Beranda</span>
           </button>
-          <div id="desktopNavCategories" class="flex items-center h-full gap-0.5 flex-1 min-w-0 overflow-x-auto"></div>
+
+          <button data-menu="pdf" class="nav-trigger h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-b-2 border-transparent">
+            <span>Alat PDF</span>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-70"></i>
+          </button>
+
+          <button data-menu="image" class="nav-trigger h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-b-2 border-transparent">
+            <span>Alat Gambar</span>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-70"></i>
+          </button>
+
+          <button data-menu="converter" class="nav-trigger h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-b-2 border-transparent">
+            <span>Konverter & Utilitas</span>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-70"></i>
+          </button>
         </nav>
       </div>
 
       <!-- Right: Quick Search, Theme Switcher, Mobile Toggle -->
       <div class="flex items-center gap-2">
-        <div class="relative hidden 2xl:block w-44 shrink-0">
+        <div class="relative hidden sm:block w-56 md:w-64">
           <i data-lucide="search" class="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
           <input
             id="navToolSearch"
@@ -180,7 +187,7 @@
           <div id="navSearchDropdown" class="hidden absolute right-0 mt-1 w-80 max-h-96 overflow-y-auto rounded-sm bg-white dark:bg-darkSurface border border-zinc-300 dark:border-darkLine p-1.5 z-50"></div>
         </div>
 
-        <span class="hidden 2xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-mono text-zinc-600 dark:text-zinc-400">
+        <span class="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-mono text-zinc-600 dark:text-zinc-400">
           Lokal • Tanpa Upload Server
         </span>
 
@@ -814,6 +821,25 @@
       }
     ];
 
+    // Original three top-level menus, with detailed 11zon-style groups inside each dropdown.
+    const NAV_GROUPS = [
+      {
+        id: 'pdf',
+        label: 'Alat PDF',
+        categoryIds: ['pdf-optimize', 'pdf-merge-split', 'pdf-view-edit', 'pdf-to', 'pdf-from', 'pdf-security']
+      },
+      {
+        id: 'image',
+        label: 'Alat Gambar',
+        categoryIds: ['image-optimize', 'image-convert', 'image-edit']
+      },
+      {
+        id: 'converter',
+        label: 'Konverter & Utilitas',
+        categoryIds: ['utilities']
+      }
+    ];
+
     // =========================================================================
     // 2. APPLICATION STATE
     // =========================================================================
@@ -967,7 +993,10 @@
         document.getElementById('toolWorkspaceView').classList.remove('hidden');
 
         const navCategory = NAV_CATEGORIES.find(category => category.toolIds.includes(found.id));
-        updateNavbarActiveCategory(navCategory ? navCategory.id : 'home');
+        const navGroup = navCategory
+          ? NAV_GROUPS.find(group => group.categoryIds.includes(navCategory.id))
+          : null;
+        updateNavbarActiveCategory(navGroup ? navGroup.id : 'home');
 
         document.getElementById('wsGroupLabel').textContent = navCategory ? navCategory.label : found.groupTitle;
         document.getElementById('wsTitle').textContent = found.name;
@@ -1114,14 +1143,6 @@
         renderHomeDirectory(currentHomeGroupFilter, e.target.value);
       });
 
-      const navCategoryContainer = document.getElementById('desktopNavCategories');
-      navCategoryContainer.innerHTML = NAV_CATEGORIES.map(category => `
-        <button data-menu="${category.id}" class="nav-trigger h-full px-2.5 flex items-center gap-1 text-[11px] font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-b-2 border-transparent whitespace-nowrap shrink-0">
-          <span>${category.label}</span>
-          <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
-        </button>
-      `).join('');
-
       const navSearch = document.getElementById('navToolSearch');
       const navDropdown = document.getElementById('navSearchDropdown');
 
@@ -1172,31 +1193,39 @@
         }
       });
 
-      // Build the mobile drawer using the same named categories as desktop navigation.
+      // Build mobile navigation with the same three top-level menus and detailed subgroups.
       const mobileContainer = document.getElementById('mobileMenuContent');
-      mobileContainer.innerHTML = NAV_CATEGORIES.map(category => {
-        const categoryTools = category.toolIds
-          .map(id => getAllToolsFlat().find(tool => tool.id === id))
+      const allTools = getAllToolsFlat();
+      mobileContainer.innerHTML = NAV_GROUPS.map(group => {
+        const categories = group.categoryIds
+          .map(id => NAV_CATEGORIES.find(category => category.id === id))
           .filter(Boolean);
         return `
           <section class="pb-3 border-b border-zinc-200 dark:border-darkLine last:border-0">
-            <div class="flex items-center justify-between gap-2 mb-2">
-              <h3 class="text-xs font-display font-bold text-ink dark:text-white">${category.label}</h3>
-              <span class="text-[10px] font-mono text-zinc-400">${categoryTools.length} alat</span>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
-              ${categoryTools.map(tool => `
-                <button onclick="openToolWorkspace('${tool.id}')" class="p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2 text-xs font-medium">
-                  <span class="w-6 h-6 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
-                    <i data-lucide="${tool.icon}" class="w-3.5 h-3.5"></i>
-                  </span>
-                  <span class="min-w-0">
-                    <span class="block truncate font-semibold">${tool.name}</span>
-                    <span class="block truncate text-[10px] text-zinc-500">${tool.desc}</span>
-                  </span>
-                </button>
-              `).join('')}
-            </div>
+            <h3 class="text-sm font-display font-bold text-ink dark:text-white mb-3">${group.label}</h3>
+            ${categories.map(category => {
+              const categoryTools = category.toolIds
+                .map(id => allTools.find(tool => tool.id === id))
+                .filter(Boolean);
+              return `
+                <div class="mb-3 last:mb-0">
+                  <div class="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mb-1.5">${category.label}</div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    ${categoryTools.map(tool => `
+                      <button onclick="openToolWorkspace('${tool.id}')" class="p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2 text-xs font-medium">
+                        <span class="w-6 h-6 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
+                          <i data-lucide="${tool.icon}" class="w-3.5 h-3.5"></i>
+                        </span>
+                        <span class="min-w-0">
+                          <span class="block truncate font-semibold">${tool.name}</span>
+                          <span class="block truncate text-[10px] text-zinc-500">${tool.desc}</span>
+                        </span>
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+              `;
+            }).join('')}
           </section>
         `;
       }).join('');
@@ -1204,8 +1233,8 @@
     }
 
     function openMegaMenu(catKey, triggerBtn) {
-      const category = NAV_CATEGORIES.find(item => item.id === catKey);
-      if (!category) return;
+      const group = NAV_GROUPS.find(item => item.id === catKey);
+      if (!group) return;
 
       state.activeMenu = catKey;
       document.querySelectorAll('.nav-trigger').forEach(button => {
@@ -1214,35 +1243,50 @@
       triggerBtn.classList.add('bg-zinc-100', 'dark:bg-zinc-800');
 
       const allTools = getAllToolsFlat();
-      const categoryTools = category.toolIds
-        .map(id => allTools.find(tool => tool.id === id))
+      const categories = group.categoryIds
+        .map(id => NAV_CATEGORIES.find(category => category.id === id))
         .filter(Boolean);
 
+      const totalTools = categories.reduce((total, category) => total + category.toolIds.length, 0);
       document.getElementById('megaMenuContent').innerHTML = `
         <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 pb-3 border-b border-zinc-200 dark:border-darkLine">
           <div>
-            <div class="flex items-center gap-2">
-              <span class="w-7 h-7 rounded-sm bg-accent text-white flex items-center justify-center">
-                <i data-lucide="${category.icon}" class="w-4 h-4"></i>
-              </span>
-              <h2 class="font-display text-base font-extrabold text-ink dark:text-white">${category.label}</h2>
-            </div>
-            <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">${category.description}</p>
+            <h2 class="font-display text-base font-extrabold text-ink dark:text-white">${group.label}</h2>
+            <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Pilih kategori alat, lalu buka fitur yang ingin digunakan.</p>
           </div>
-          <span class="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">${categoryTools.length} alat tersedia</span>
+          <span class="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">${categories.length} kategori · ${totalTools} alat</span>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 pt-3">
-          ${categoryTools.map(tool => `
-            <button onclick="openToolWorkspace('${tool.id}')" class="group w-full p-3 rounded-sm border border-zinc-200 dark:border-darkLine hover:border-accent bg-zinc-50/70 dark:bg-darkCanvas text-left flex items-start gap-3 transition-colors">
-              <span class="w-8 h-8 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
-                <i data-lucide="${tool.icon}" class="w-4 h-4"></i>
-              </span>
-              <span class="min-w-0 flex-1">
-                <span class="block text-xs font-bold text-ink dark:text-zinc-100 group-hover:text-accent">${tool.name}</span>
-                <span class="block mt-0.5 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">${tool.desc}</span>
-              </span>
-            </button>
-          `).join('')}
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-5 gap-y-5 pt-4">
+          ${categories.map(category => {
+            const categoryTools = category.toolIds
+              .map(id => allTools.find(tool => tool.id === id))
+              .filter(Boolean);
+            return `
+              <section class="min-w-0">
+                <div class="pb-2 mb-1.5 border-b border-zinc-200 dark:border-darkLine">
+                  <div class="flex items-center gap-2">
+                    <i data-lucide="${category.icon}" class="w-4 h-4 text-accent shrink-0"></i>
+                    <h3 class="text-xs font-display font-bold text-ink dark:text-white">${category.label}</h3>
+                    <span class="ml-auto text-[10px] font-mono text-zinc-400">${categoryTools.length}</span>
+                  </div>
+                  <p class="mt-1 text-[10px] leading-relaxed text-zinc-500 dark:text-zinc-400">${category.description}</p>
+                </div>
+                <div class="space-y-0.5">
+                  ${categoryTools.map(tool => `
+                    <button onclick="openToolWorkspace('${tool.id}')" class="group w-full p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-start gap-2.5">
+                      <span class="w-6 h-6 rounded-sm bg-accent text-white flex items-center justify-center shrink-0 mt-0.5">
+                        <i data-lucide="${tool.icon}" class="w-3.5 h-3.5"></i>
+                      </span>
+                      <span class="min-w-0 flex-1">
+                        <span class="block text-xs font-semibold text-ink dark:text-zinc-100 group-hover:text-accent">${tool.name}</span>
+                        <span class="block mt-0.5 text-[10px] leading-relaxed text-zinc-500 dark:text-zinc-400">${tool.desc}</span>
+                      </span>
+                    </button>
+                  `).join('')}
+                </div>
+              </section>
+            `;
+          }).join('')}
         </div>
       `;
       document.getElementById('megaMenuContainer').classList.remove('hidden');
