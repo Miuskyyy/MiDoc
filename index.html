@@ -2929,6 +2929,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
 
     function isCurrentOperationBulkOrZip() {
       const engine = state.activeEngine;
+      if (engine === 'gif-tools') return (document.getElementById('optGifMode')?.value || 'create') === 'extract';
       if (engine === 'zip-maker') return (document.getElementById('optZipMode')?.value || 'create') === 'create';
       if (['image-splitter', 'pdf-to-image', 'batch-rename'].includes(engine)) return true;
       if (engine === 'split-pdf') {
@@ -3027,6 +3028,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
     async function executeCurrentTool() {
       const engine = state.activeEngine;
       const baseName = (document.getElementById('outputFilenameInput')?.value || 'MiDoc_Hasil').trim();
+      if (!(await validateCurrentToolFiles())) return;
 
       if (engine === 'text-to-pdf' || engine === 'doc-to-pdf') {
         await runDocOrTextToPdf(baseName);
@@ -3042,7 +3044,12 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       }
       if (engine === 'dpi-calc') {
         recalcDpi();
-        showToast('Perhitungan satuan selesai.', 'success');
+        showToast('Perhitungan DPI selesai.', 'success');
+        return;
+      }
+      if (engine === 'unit-converter') {
+        recalcUnitConverter();
+        showToast('Konversi satuan selesai.', 'success');
         return;
       }
 
@@ -3066,6 +3073,18 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
           case 'image-to-pdf':
             await runMergePdfAndImages(baseName);
             break;
+          case 'merge-pdf':
+            await runMergePdf(baseName);
+            break;
+          case 'organize-pdf':
+            await runOrganizePdf(baseName);
+            break;
+          case 'rotate-pdf':
+            await runRotatePdf(baseName);
+            break;
+          case 'copy-pdf':
+            await runCopyPdf(baseName);
+            break;
           case 'split-pdf':
             await runSplitPdf(baseName);
             break;
@@ -3073,7 +3092,6 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
             await runPdfToImages(baseName);
             break;
           case 'compress-pdf':
-          case 'protect-pdf':
             await runCompressPdf(baseName);
             break;
           case 'crop-pdf':
@@ -3101,6 +3119,9 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
             break;
           case 'zip-maker':
             await runZipMaker(baseName);
+            break;
+          case 'gif-tools':
+            await runGifTools(baseName);
             break;
           case 'color-picker':
             await runColorPicker();
@@ -3785,8 +3806,39 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${state.items.length} file dinamai ulang sesuai urutan.`);
     }
 
+    function updateGifToolMode() {
+      const mode = document.getElementById('optGifMode')?.value || 'create';
+      if (state.activeGifMode && state.activeGifMode !== mode) clearAllFiles();
+      state.activeGifMode = mode;
+      const createOptions = document.getElementById('gifCreateOptions');
+      const extractOptions = document.getElementById('gifExtractOptions');
+      const description = document.getElementById('gifModeDescription');
+      const label = document.getElementById('executeBtnLabel');
+      const ext = document.getElementById('outputExtBadge');
+      const name = document.getElementById('outputFilenameInput');
+      if (mode === 'extract') {
+        createOptions?.classList.add('hidden');
+        extractOptions?.classList.remove('hidden');
+        if (description) description.textContent = 'Mode ini hanya menerima satu file GIF animasi. Setiap frame akan disimpan sebagai PNG dalam ZIP.';
+        if (label) label.textContent = 'Ekstrak Frame GIF ke PNG';
+        if (ext) ext.textContent = '.zip';
+        if (name) name.value = 'MiDoc_Frame_GIF';
+      } else {
+        createOptions?.classList.remove('hidden');
+        extractOptions?.classList.add('hidden');
+        if (description) description.textContent = 'Mode ini hanya menerima gambar statis. Tambahkan minimal dua gambar; urutannya menjadi urutan frame GIF.';
+        if (label) label.textContent = 'Buat GIF Animasi';
+        if (ext) ext.textContent = '.gif';
+        if (name) name.value = 'MiDoc_Animasi';
+      }
+      applyToolInputConfig();
+      updateFilenamePreviewHint();
+    }
+
     function updateZipToolMode() {
       const mode = document.getElementById('optZipMode')?.value || 'create';
+      if (state.activeZipMode && state.activeZipMode !== mode) clearAllFiles();
+      state.activeZipMode = mode;
       const description = document.getElementById('zipModeDescription');
       const buttonLabel = document.getElementById('executeBtnLabel');
       const filenameGroup = document.getElementById('outputFilenameGroup');
@@ -3813,6 +3865,7 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
         if (description) description.textContent = 'Pilih satu file .ZIP untuk melihat daftar nama, struktur folder, dan ukuran file tanpa mengekstrak.';
         if (buttonLabel) buttonLabel.textContent = 'Tampilkan Isi ZIP';
       }
+      applyToolInputConfig();
       updateFilenamePreviewHint();
     }
 
