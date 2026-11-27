@@ -3429,7 +3429,8 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       const firstPdfClean = pdfItem.name.replace(/\.pdf$/i, '').trim();
 
       if (mode === 'range') {
-        const indices = parsePageRange(document.getElementById('optPageRange').value || '1', total);
+        const indices = [...new Set(parsePageRange(document.getElementById('optPageRange').value || '1', total))];
+        if (!indices.length || indices.some(index => index < 0 || index >= total)) throw new Error('Rentang halaman kosong atau di luar jumlah halaman PDF.');
         const newPdf = await PDFLib.PDFDocument.create();
         const pages = await newPdf.copyPages(srcPdf, indices);
         pages.forEach(p => newPdf.addPage(p));
@@ -3551,40 +3552,204 @@ Semua pemrosesan dilakukan secara lokal di browser tanpa mengunggah data ke serv
       finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, `Watermark & nomor halaman diterapkan.`);
     }
 
+
+    function parseXmlDocument(xmlText, label) {
+      const parsed = new DOMParser().parseFromString(xmlText, 'application/xml');
+      if (parsed.getElementsByTagName('parsererror').length) throw new Error('Struktur XML pada ' + label + ' tidak valid.');
+      return parsed;
+    }
+
+    function getLocalText(node, localName) {
+      return Array.from(node.getElementsByTagNameNS('*', localName)).map(el => el.textContent || '').join('');
+    }
+
+    function rtfToPlainText(raw) {
+      return raw
+        .replace(/\\'[0-9a-f]{2}/gi, token => String.fromCharCode(parseInt(token.slice(2), 16)))
+        .replace(/\\u(-?\d+)\??/g, (_, code) => String.fromCharCode(Number(code) < 0 ? Number(code) + 65536 : Number(code)))
+        .replace(/\\par[d]?/gi, '\n')
+        .replace(/\\line/gi, '\n')
+        .replace(/\\tab/gi, '\t')
+        .replace(/\\[a-z]+-?\d* ?/gi, '')
+        .replace(/[{}]/g, '')
+        .replace(/\\\\/g, '\\')
+        .replace(/\\([{}])/g, '$1')
+        .replace(/[ \t]+\n/g, '\n')
+        .trim();
+    }
+
+    function parseDelimitedRows(text, delimiter) {
+      const rows = [];
+      let row = [];
+      let cell = '';
+      let quoted = false;
+      const input = text.replace(/^\uFEFF/, '');
+      for (let i = 0; i < input.length; i++) {
+        const ch = input[i];
+        if (ch === '"') {
+          if (quoted && input[i + 1] === '"') { cell += '"'; i++; }
+          else quoted = !quoted;
+        } else if (ch === delimiter && !quoted) {
+          row.push(cell); cell = '';
+        } else if ((ch === '\n' || ch === '\r') && !quoted) {
+          if (ch === '\r' && input[i + 1] === '\n') i++;
+          row.push(cell); rows.push(row); row = []; cell = '';
+        } else {
+          cell += ch;
+        }
+      }
+      if (cell.length || row.length) { row.push(cell); rows.push(row); }
+      return rows.map(values => values.join('  |  ')).join('\n');
+    }
+
+    function zipPathFrom(basePath, relativePath) {
+      const url = new URL(relativePath, 'https://epub.invalid/' + basePath);
+      return decodeURIComponent(url.pathname.replace(/^\/+/, ''));
+    }
+
+    async function extractTextFromDocumentFile(file) {
+      const name = file.name.toLowerCase();
+      const ext = name.split('.').pop();
+      if (ext === 'txt' || ext === 'md') return await file.text();
+      if (ext === 'rtf') return rtfToPlainText(await file.text());
+      if (ext === 'html' || ext === 'htm') {
+        const doc = new DOMParser().parseFromString(await file.text(), 'text/html');
+        doc.querySelectorAll('script,style,head,nav').forEach(el => el.remove());
+        return doc.body?.innerText || doc.body?.textContent || '';
+      }
+      if (ext === 'csv' || ext === 'tsv') return parseDelimitedRows(await file.text(), ext === 'csv' ? ',' : '\t');
+      if (!['docx', 'xlsx', 'pptx', 'epub'].includes(ext)) {
+        throw new Error('Format dokumen tidak didukung. Gunakan DOCX, RTF, TXT, MD, HTML, CSV, TSV, XLSX, PPTX, atau EPUB.');
+      }
+      const archive = await JSZip.loadAsync(file);
+      if (ext === 'docx') {
+        const entry = archive.file('word/document.xml');
+        if (!entry) throw new Error('DOCX tidak berisi word/document.xml.');
+        const doc = parseXmlDocument(await entry.async('text'), file.name);
+        return Array.from(doc.getElementsByTagNameNS('*', 'p')).map(p => getLocalText(p, 't')).filter(Boolean).join('\n');
+      }
+      if (ext === 'xlsx') {
+        const sharedEntry = archive.file('xl/sharedStrings.xml');
+        let shared = [];
+        if (sharedEntry) {
+          const sharedDoc = parseXmlDocument(await sharedEntry.async('text'), 'sharedStrings.xml');
+          shared = Array.from(sharedDoc.getElementsByTagNameNS('*', 'si')).map(si => getLocalText(si, 't'));
+        }
+        const sheetPaths = Object.keys(archive.files).filter(path => /^xl\/worksheets\/sheet\d+\.xml$/i.test(path)).sort((a, b) => Number(a.match(/sheet(\d+)/i)[1]) - Number(b.match(/sheet(\d+)/i)[1]));
+        if (!sheetPaths.length) throw new Error('XLSX tidak memiliki worksheet yang bisa dibaca.');
+        const output = [];
+        for (const path of sheetPaths) {
+          const doc = parseXmlDocument(await archive.file(path).async('text'), path);
+          output.push('--- ' + path.split('/').pop() + ' ---');
+          Array.from(doc.getElementsByTagNameNS('*', 'row')).forEach(row => {
+            const cells = Array.from(row.getElementsByTagNameNS('*', 'c'));
+            const values = [];
+            cells.forEach(cell => {
+              const ref = cell.getAttribute('r') || '';
+              const letters = (ref.match(/^[A-Z]+/i) || ['A'])[0].toUpperCase();
+              let colIndex = 0;
+              for (const letter of letters) colIndex = colIndex * 26 + letter.charCodeAt(0) - 64;
+              colIndex = Math.max(0, colIndex - 1);
+              const type = cell.getAttribute('t');
+              let value = '';
+              if (type === 's') value = shared[Number(getLocalText(cell, 'v'))] || '';
+              else if (type === 'inlineStr') value = getLocalText(cell, 't');
+              else value = getLocalText(cell, 'v');
+              values[colIndex] = value;
+            });
+            output.push(values.map(value => value || '').join('  |  '));
+          });
+        }
+        return output.join('\n');
+      }
+      if (ext === 'pptx') {
+        const slidePaths = Object.keys(archive.files).filter(path => /^ppt\/slides\/slide\d+\.xml$/i.test(path)).sort((a, b) => Number(a.match(/slide(\d+)/i)[1]) - Number(b.match(/slide(\d+)/i)[1]));
+        if (!slidePaths.length) throw new Error('PPTX tidak memiliki slide yang dapat dibaca.');
+        const output = [];
+        for (let i = 0; i < slidePaths.length; i++) {
+          const doc = parseXmlDocument(await archive.file(slidePaths[i]).async('text'), slidePaths[i]);
+          const paragraphs = Array.from(doc.getElementsByTagNameNS('*', 'p')).map(p => getLocalText(p, 't')).filter(Boolean);
+          output.push('--- Slide ' + (i + 1) + ' ---\n' + paragraphs.join('\n'));
+        }
+        return output.join('\n\n');
+      }
+      if (ext === 'epub') {
+        const container = archive.file('META-INF/container.xml');
+        if (!container) throw new Error('EPUB tidak memiliki container.xml.');
+        const containerDoc = parseXmlDocument(await container.async('text'), 'container.xml');
+        const rootfile = containerDoc.getElementsByTagNameNS('*', 'rootfile')[0];
+        const opfPath = rootfile?.getAttribute('full-path');
+        if (!opfPath || !archive.file(opfPath)) throw new Error('File package OPF pada EPUB tidak ditemukan.');
+        const opfDoc = parseXmlDocument(await archive.file(opfPath).async('text'), 'package.opf');
+        const manifest = new Map(Array.from(opfDoc.getElementsByTagNameNS('*', 'item')).map(item => [item.getAttribute('id'), item.getAttribute('href')]));
+        const spine = Array.from(opfDoc.getElementsByTagNameNS('*', 'itemref')).map(item => manifest.get(item.getAttribute('idref'))).filter(Boolean);
+        const basePath = opfPath.split('/').slice(0, -1).join('/') + '/';
+        const output = [];
+        for (const href of spine) {
+          const path = zipPathFrom(basePath, href);
+          const chapter = archive.file(path);
+          if (!chapter) continue;
+          const doc = new DOMParser().parseFromString(await chapter.async('text'), 'text/html');
+          doc.querySelectorAll('script,style,nav').forEach(el => el.remove());
+          const chapterText = (doc.body?.innerText || doc.body?.textContent || '').trim();
+          if (chapterText) output.push(chapterText);
+        }
+        if (!output.length) throw new Error('Tidak ada konten XHTML yang bisa diekstrak dari EPUB.');
+        return output.join('\n\n');
+      }
+      return '';
+    }
+
     // --- ENGINE 9: DOC / TEXT / CSV / EPUB TO PDF ---
     async function runDocOrTextToPdf(baseName) {
       let text = document.getElementById('optRawTextContent')?.value || '';
-      if (state.items.length > 0) {
-        const first = state.items[0];
-        const raw = await first.file.text();
-        text = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || text;
-      }
-
+      if (state.items.length > 0) text = await extractTextFromDocumentFile(state.items[0].file);
+      text = String(text || '').replace(/\r/g, '').trim();
+      if (!text) throw new Error('Tidak ada teks yang bisa dimasukkan ke PDF.');
       const pdfDoc = await PDFLib.PDFDocument.create();
       const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+      const fontSize = 10.5;
+      const left = 48;
+      const maxWidth = 499;
+      const top = 790;
+      const bottom = 48;
+      const lineHeight = 14;
       let page = pdfDoc.addPage([595.28, 841.89]);
-      let y = 785;
-      const words = text.split(/\s+/);
-      let line = '';
-
-      for (const w of words) {
-        const test = line ? `${line} ${w}` : w;
-        if (font.widthOfTextAtSize(test, 11) > 495 && line) {
-          page.drawText(line, { x: 50, y, size: 11, font });
-          y -= 16;
-          line = w;
-          if (y < 55) {
-            page = pdfDoc.addPage([595.28, 841.89]);
-            y = 785;
+      let y = top;
+      const paragraphs = text.split(/\n+/);
+      for (const paragraph of paragraphs) {
+        const words = paragraph.split(/\s+/).filter(Boolean);
+        if (!words.length) {
+          y -= lineHeight;
+          continue;
+        }
+        let line = '';
+        for (const word of words) {
+          const candidate = line ? line + ' ' + word : word;
+          if (font.widthOfTextAtSize(candidate, fontSize) > maxWidth && line) {
+            page.drawText(line, { x: left, y, size: fontSize, font });
+            y -= lineHeight;
+            line = word;
+            if (y < bottom) {
+              page = pdfDoc.addPage([595.28, 841.89]);
+              y = top;
+            }
+          } else {
+            line = candidate;
           }
-        } else {
-          line = test;
+        }
+        if (line) {
+          page.drawText(line, { x: left, y, size: fontSize, font });
+          y -= lineHeight;
+        }
+        y -= 4;
+        if (y < bottom) {
+          page = pdfDoc.addPage([595.28, 841.89]);
+          y = top;
         }
       }
-      if (line) page.drawText(line, { x: 50, y, size: 11, font });
-
       const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
-      finishWithBlob(new Blob([await pdfDoc.save()], { type: 'application/pdf' }), finalName, `Dokumen dikonversi menjadi ${pdfDoc.getPageCount()} halaman PDF.`);
+      finishWithBlob(new Blob([await pdfDoc.save()], { type: 'application/pdf' }), finalName, 'Teks berhasil disusun menjadi ' + pdfDoc.getPageCount() + ' halaman PDF. Layout halaman asli tidak direplikasi; hanya teks yang diekstrak.');
     }
 
     // --- ENGINE 10: PDF TO TEXT ---
