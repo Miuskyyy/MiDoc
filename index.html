@@ -4636,7 +4636,7 @@
         { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
         metadata => updateProgress(70 + metadata.percent * 0.3, 'Menyusun arsip ZIP...')
       );
-      finishWithBlob(blob, finalZipName, ' + state.items.length + ' file berhasil dikemas. Nama asli dan struktur folder dipertahankan; nama duplikat diberi nomor tambahan.');
+      finishWithBlob(blob, finalZipName, state.items.length + ' file berhasil dikemas. Nama asli dan struktur folder dipertahankan; nama duplikat diberi nomor tambahan.');
     }
 
     // --- ENGINE 14: COLOR PICKER, QR GENERATOR, PASSWORD ---
