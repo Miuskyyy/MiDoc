@@ -723,7 +723,7 @@
           { id: 'watermark-image', name: 'Watermark & Teks Gambar', desc: 'Tambahkan teks hak cipta atau label pada foto', icon: 'type', engine: 'watermark-image' },
           { id: 'photo-signature', name: 'Foto + Tanda Tangan & Stempel Digital', desc: 'Gabungkan pas foto dengan gambar tanda tangan/stempel', icon: 'pen-tool', engine: 'overlay-images' },
           { id: 'color-filters', name: 'Filter Warna (Grayscale, Sepia, Invert, Kontras, Blur)', desc: 'Sesuaikan pencahayaan, hitam-putih, sepia, kontras, atau pixelate', icon: 'sliders', engine: 'filters-image' },
-          { id: 'remove-exif', name: 'Konversi Format Gambar & Hapus Metadata', desc: 'Konversi JPG, PNG, WebP, AVIF, BMP, dan bersihkan metadata melalui ekspor ulang', icon: 'file-image', engine: 'convert-image' }
+          { id: 'remove-exif', name: 'Hapus Metadata EXIF & GPS', desc: 'Ekspor ulang gambar dalam format sumber untuk menghapus metadata EXIF/GPS dan informasi kamera. Kualitas re-encode mengikuti kemampuan browser.', icon: 'shield-check', engine: 'remove-exif' }
         ]
       },
       {
@@ -878,7 +878,7 @@
       'photo-signature': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, max: 2, label: 'tepat dua gambar: foto dan tanda tangan/stempel' },
       'resize-pixel': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'resize-official': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
-      'bulk-resize': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'bulk-resize': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar raster statis' },
       'crop-circle': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'rounded-corners': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'color-filters': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
@@ -1907,6 +1907,11 @@
           </p>
         `;
         updateConvertImageOptions();
+      } else if (engine === 'remove-exif') {
+        extBadge.textContent = '.zip';
+        filenameInput.value = 'MiDoc_Gambar_Tanpa_Metadata';
+        btnLabel.textContent = 'Hapus Metadata Gambar';
+        box.innerHTML = '<p class="text-xs text-zinc-600 dark:text-zinc-400">Setiap gambar akan dirender ulang melalui Canvas dan disimpan kembali menggunakan format sumbernya (JPG, PNG, WebP, AVIF, atau BMP). Metadata EXIF/GPS dan metadata kamera tidak ikut disalin. Untuk format yang tidak didukung encoder browser, proses akan dihentikan dan tidak mengganti format secara otomatis.</p>';
       } else if (engine === 'resize-image') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Resize_Gambar';
@@ -1957,7 +1962,14 @@
         `;
         if (toolObj.id === 'resize-pixel') document.getElementById('resizeModeGroup')?.classList.remove('hidden');
         else document.getElementById('resizeModeGroup')?.classList.add('hidden');
-        updateResizeMode(document.getElementById('optResizeMode')?.value || 'dimensions');
+        if (toolObj.id === 'resize-pixel') {
+          const mode = document.getElementById('optResizeMode');
+          if (mode) mode.value = 'percent';
+          updateResizeMode('percent');
+        } else {
+          updateResizeMode('dimensions');
+          if (toolObj.id === 'bulk-resize') document.getElementById('optResizeFit').value = 'contain';
+        }
       } else if (engine === 'filters-image') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Edit_Gambar';
@@ -3045,7 +3057,7 @@
       if (engine === 'split-pdf') {
         return (document.getElementById('optSplitMode')?.value || 'all') === 'all';
       }
-      if (['compress-image', 'convert-image', 'resize-image', 'filters-image', 'rotate-flip', 'watermark-image'].includes(engine)) {
+      if (['compress-image', 'convert-image', 'resize-image', 'filters-image', 'rotate-flip', 'watermark-image', 'remove-exif'].includes(engine)) {
         const imgCount = state.items.filter(i => i.isImage).length;
         return imgCount > 1;
       }
@@ -3220,6 +3232,9 @@
           case 'rotate-flip':
           case 'watermark-image':
             await runBatchImageProcess(baseName, engine);
+            break;
+          case 'remove-exif':
+            await runRemoveExif(baseName);
             break;
           case 'overlay-images':
             await runOverlayImages(baseName);
@@ -4122,6 +4137,51 @@
     }
 
     // --- ENGINE 12: OVERLAY IMAGES ---
+    async function runRemoveExif(baseName) {
+      const images = state.items.filter(item => item.isImage && item.thumbUrl);
+      if (!images.length) throw new Error('Tambahkan minimal satu gambar raster.');
+      const zip = new JSZip();
+      let singleBlob = null;
+      let singleExt = '';
+      const firstBase = images[0].name.replace(/\.[^.]+$/, '').trim() || 'Gambar';
+      const mimeByFormat = {
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        webp: 'image/webp',
+        avif: 'image/avif',
+        bmp: 'image/bmp'
+      };
+      for (let i = 0; i < images.length; i++) {
+        const item = images[i];
+        const format = await sniffFileFormat(item.file);
+        const mime = mimeByFormat[format];
+        if (!mime) throw new Error('Format ' + item.name + ' tidak didukung untuk penghapusan EXIF.');
+        updateProgress((i / images.length) * 90, 'Menghapus metadata: ' + item.name);
+        const canvas = await renderItemToCanvas(item);
+        let blob;
+        if (format === 'bmp') {
+          blob = canvasToBmpBlob(canvas);
+        } else {
+          blob = await canvasToBlobStrict(canvas, mime, format === 'jpeg' ? 1 : undefined);
+        }
+        if (blob.type !== mime) throw new Error('Format keluaran ' + item.name + ' tidak sama dengan format sumber. Proses dihentikan.');
+        const ext = imageMimeToExtension(mime);
+        const innerName = item.name.replace(/\.[^.]+$/, '') + '_tanpa_metadata.' + ext;
+        zip.file(innerName, blob);
+        if (images.length === 1) {
+          singleBlob = blob;
+          singleExt = ext;
+        }
+      }
+      if (images.length === 1 && singleBlob) {
+        const finalName = formatDownloadFilename({ baseName, ext: singleExt, isBulkOrZip: false });
+        finishWithBlob(singleBlob, finalName, 'Gambar dirender ulang dalam format sumber. Metadata EXIF/GPS dan kamera tidak disertakan.', { isImageResult: true });
+      } else {
+        const finalName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstBase });
+        finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalName, images.length + ' gambar diproses dalam format sumber masing-masing tanpa metadata EXIF/GPS.');
+      }
+    }
+
     async function runOverlayImages(baseName) {
       const imgs = state.items.filter(i => i.isImage && i.thumbUrl);
       if (imgs.length < 2) { showToast('Tambahkan minimal 2 gambar (#1 utama, #2 overlay/tanda tangan).', 'error'); return; }
