@@ -3333,11 +3333,12 @@
         ${cropImage ? '<p class="text-[11px] text-accent leading-relaxed">Mode crop aktif: geser kotak biru untuk memindahkan area, atau tarik salah satu sudut untuk mengubah ukurannya.</p><div id="inspectorCropSummary" class="text-[11px] font-mono text-zinc-500"></div>' : ''}
         <button type="button" onclick="resetInspectorEdits()" class="w-full px-3 py-2 border border-zinc-300 dark:border-darkLine rounded-sm text-xs font-semibold hover:border-accent">Reset rotasi, flip, dan crop</button>
       ` : (item.isPdf ? `
-        <div class="grid grid-cols-2 gap-2">
-          <button type="button" onclick="adjustInspectorItem('rotate-left')" class="px-2 py-2 border border-zinc-300 dark:border-darkLine rounded-sm text-xs font-semibold hover:border-accent flex items-center justify-center gap-1"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Putar -90°</button>
-          <button type="button" onclick="adjustInspectorItem('rotate-right')" class="px-2 py-2 border border-zinc-300 dark:border-darkLine rounded-sm text-xs font-semibold hover:border-accent flex items-center justify-center gap-1"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> Putar +90°</button>
-        </div>
-        ${cropPdf ? '<p class="text-[11px] text-accent leading-relaxed">Mode crop PDF aktif. Area yang dipilih diterapkan ke halaman PDF secara proporsional.</p><div id="inspectorCropSummary" class="text-[11px] font-mono text-zinc-500"></div>' : '<p class="text-[11px] text-zinc-500">Rotasi disimpan pada file kerja dan akan ikut diterapkan saat alat PDF memproses dokumen.</p>'}
+        ${cropPdf ? '' : `
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" onclick="adjustInspectorItem('rotate-left')" class="px-2 py-2 border border-zinc-300 dark:border-darkLine rounded-sm text-xs font-semibold hover:border-accent flex items-center justify-center gap-1"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Putar -90°</button>
+            <button type="button" onclick="adjustInspectorItem('rotate-right')" class="px-2 py-2 border border-zinc-300 dark:border-darkLine rounded-sm text-xs font-semibold hover:border-accent flex items-center justify-center gap-1"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> Putar +90°</button>
+          </div>`}
+        ${cropPdf ? '<p class="text-[11px] text-accent leading-relaxed">Mode crop PDF aktif. Rotasi dinonaktifkan di mode ini agar posisi area potong sesuai dengan pratinjau.</p><div id="inspectorCropSummary" class="text-[11px] font-mono text-zinc-500"></div>' : '<p class="text-[11px] text-zinc-500">Rotasi disimpan pada file kerja dan akan ikut diterapkan saat alat PDF memproses dokumen.</p>'}
         <button type="button" onclick="resetInspectorEdits()" class="w-full px-3 py-2 border border-zinc-300 dark:border-darkLine rounded-sm text-xs font-semibold hover:border-accent">Reset rotasi dan area crop</button>
       ` : '<p class="text-xs text-zinc-500">File ini dapat diperiksa di pratinjau. Untuk mengubah isinya, pilih alat yang sesuai dari direktori MiDoc.</p>');
 
@@ -4104,6 +4105,14 @@
       const x = horizontal === 'left' ? pad : (horizontal === 'right' ? pageW - textW - pad : (pageW - textW) / 2);
       const y = vertical === 'top' ? pageH - textH - pad : (vertical === 'middle' ? (pageH - textH) / 2 : pad);
       return { x: Math.max(8, x), y: Math.max(8, y) };
+    }
+
+    function resolveNinePointCanvasCoords(posId, width, height, textWidth, textHeight, pad) {
+      const horizontal = posId.endsWith('-left') ? 'left' : (posId.endsWith('-right') ? 'right' : 'center');
+      const vertical = posId.startsWith('top-') ? 'top' : (posId.startsWith('mid-') || posId === 'center' ? 'middle' : 'bottom');
+      const x = horizontal === 'left' ? pad : (horizontal === 'right' ? width - textWidth - pad : (width - textWidth) / 2);
+      const y = vertical === 'top' ? pad + textHeight : (vertical === 'middle' ? (height + textHeight) / 2 : height - pad);
+      return { x: Math.max(8, x), y: Math.min(height - 2, Math.max(textHeight, y)) };
     }
 
     // --- ENGINE 8: WATERMARK PDF ---
