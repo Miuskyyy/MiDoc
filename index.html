@@ -1869,16 +1869,7 @@
         extBadge.textContent = '.pdf';
         filenameInput.value = 'MiDoc_PDF_Crop';
         btnLabel.textContent = 'Terapkan Crop PDF';
-        box.innerHTML = `
-          <p class="text-xs text-zinc-600 dark:text-zinc-400">Atur bidang crop langsung pada pratinjau halaman. Geser area crop pada gambar; pindah halaman untuk crop berbeda, atau aktifkan crop sama untuk semua halaman.</p>
-          <div class="grid grid-cols-2 gap-2">
-            <div><label class="block text-xs font-semibold mb-1">X (%)</label><input id="optPdfCropX" type="number" min="0" max="99" value="6" oninput="syncPdfCropRect()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
-            <div><label class="block text-xs font-semibold mb-1">Y (%)</label><input id="optPdfCropY" type="number" min="0" max="99" value="6" oninput="syncPdfCropRect()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
-            <div><label class="block text-xs font-semibold mb-1">Lebar (%)</label><input id="optPdfCropW" type="number" min="1" max="100" value="88" oninput="syncPdfCropRect()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
-            <div><label class="block text-xs font-semibold mb-1">Tinggi (%)</label><input id="optPdfCropH" type="number" min="1" max="100" value="88" oninput="syncPdfCropRect()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
-          </div>
-          <label class="flex items-center gap-2 text-xs"><input id="optPdfCropAll" type="checkbox" checked class="accent-accent"><span>Terapkan area crop yang sama ke semua halaman</span></label>
-        `;
+        box.innerHTML = '<p class="text-xs text-zinc-600 dark:text-zinc-400">Atur bidang crop langsung pada halaman di pratinjau tengah. Geser bagian dalam untuk memindahkan, lalu tarik sudut atau sisi untuk mengubah ukuran.</p><label class="flex items-center gap-2 text-xs"><input id="optPdfCropAll" type="checkbox" checked class="accent-accent"><span>Terapkan area crop yang sama ke semua halaman</span></label>';
       } else if (engine === 'watermark-pdf') {
         const numbering = toolObj.id === 'page-number-pdf';
         extBadge.textContent = '.pdf';
@@ -2017,15 +2008,7 @@
         extBadge.textContent = '.png';
         filenameInput.value = 'MiDoc_Crop_Image';
         btnLabel.textContent = 'Simpan Crop Image';
-        box.innerHTML = `
-          <div class="grid grid-cols-2 gap-2">
-            <div><label class="block text-xs font-semibold mb-1">X (px)</label><input id="optCropX" type="number" min="0" value="0" oninput="drawToolLivePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
-            <div><label class="block text-xs font-semibold mb-1">Y (px)</label><input id="optCropY" type="number" min="0" value="0" oninput="drawToolLivePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
-            <div><label class="block text-xs font-semibold mb-1">Lebar (px)</label><input id="optCropW" type="number" min="1" value="1000" oninput="drawToolLivePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
-            <div><label class="block text-xs font-semibold mb-1">Tinggi (px)</label><input id="optCropH" type="number" min="1" value="1000" oninput="drawToolLivePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
-          </div>
-          <p id="cropPixelInfo" class="text-[11px] text-zinc-500">Crop berdasarkan koordinat piksel gambar asli. Dimensi output mengikuti lebar × tinggi area yang dipilih.</p>
-        `;
+        box.innerHTML = '<p class="text-xs text-zinc-600 dark:text-zinc-400">Buat bidang crop langsung di pratinjau tengah. Tarik bagian dalam untuk memindahkan, lalu tarik sudut atau sisi untuk mengubah ukuran. Dimensi hasil mengikuti area grid dalam piksel.</p><button type="button" onclick="resetCropImageRect()" class="w-full px-3 py-2 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-semibold hover:border-accent">Reset bidang crop</button><input id="optCropX" type="hidden" value="0"><input id="optCropY" type="hidden" value="0"><input id="optCropW" type="hidden" value="1"><input id="optCropH" type="hidden" value="1"><p id="cropPixelInfo" class="text-[11px] text-zinc-500">Pilih gambar untuk menampilkan grid crop.</p>';
       } else if (engine === 'rotate-flip') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Rotate_Flip';
@@ -2044,20 +2027,7 @@
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Watermark_Gambar';
         btnLabel.textContent = 'Beri Teks Watermark';
-        box.innerHTML = `
-          <div>
-            <label class="block text-xs font-semibold mb-1">Teks Watermark</label>
-            <input id="optImgWatermarkText" type="text" value="MiDoc Document" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1">Posisi Teks</label>
-            <select id="optImgWatermarkPos" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
-              <option value="bottom-right" selected>Pojok Kanan Bawah</option>
-              <option value="center">Tengah Gambar</option>
-              <option value="bottom-left">Pojok Kiri Bawah</option>
-            </select>
-          </div>
-        `;
+        box.innerHTML = '<div><label class="block text-xs font-semibold mb-1">Teks Watermark</label><input id="optImgWatermarkText" type="text" value="MiDoc Document" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div><div><label class="block text-xs font-semibold mb-1">Posisi · Pilih 1 dari 9 titik</label><input id="optImgWatermarkPosition" type="hidden" value="br"><div class="grid grid-cols-3 gap-1.5 w-36"><button type="button" data-img-text-position="tl" onclick="setImageTextPosition(&quot;tl&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="tc" onclick="setImageTextPosition(&quot;tc&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="tr" onclick="setImageTextPosition(&quot;tr&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="ml" onclick="setImageTextPosition(&quot;ml&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="mc" onclick="setImageTextPosition(&quot;mc&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="mr" onclick="setImageTextPosition(&quot;mr&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="bl" onclick="setImageTextPosition(&quot;bl&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="bc" onclick="setImageTextPosition(&quot;bc&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="br" onclick="setImageTextPosition(&quot;br&quot;)" class="min-w-10 min-h-10 rounded-sm border border-accent bg-accent/10 text-accent">●</button></div></div><div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Ukuran (px)</label><input id="optImgWatermarkSize" type="number" min="8" max="240" value="36" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div><div><label class="block text-xs font-semibold mb-1">Transparansi</label><input id="optImgWatermarkOpacity" type="range" min="5" max="100" value="70" class="w-full accent-accent"></div></div><div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Warna Teks</label><input id="optImgWatermarkColor" type="color" value="#FFFFFF" class="w-full h-9 bg-transparent border rounded-sm"></div><div><label class="block text-xs font-semibold mb-1">Jenis Font</label><select id="optImgWatermarkFont" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option></select></div></div>';
       } else if (engine === 'overlay-images') {
         extBadge.textContent = '.png';
         filenameInput.value = 'MiDoc_Gabungan_Layer';
@@ -2113,10 +2083,7 @@
       } else if (engine === 'color-picker') {
         filenameGroup.classList.add('hidden');
         btnLabel.textContent = 'Ekstrak Palet Warna Gambar #1';
-        box.innerHTML = `
-          <p class="text-xs text-zinc-600 dark:text-zinc-400">Menampilkan kode warna HEX dominan dari gambar urutan #1.</p>
-          <div id="extractedPaletteSwatches" class="grid grid-cols-4 gap-1.5"></div>
-        `;
+        box.innerHTML = '<p class="text-xs text-zinc-600 dark:text-zinc-400">Palet warna langsung muncul di area pratinjau tengah setelah gambar ditambahkan.</p>';
       } else if (engine === 'qr-generator') {
         extBadge.textContent = '.png';
         filenameInput.value = 'MiDoc_QR_Barcode';
