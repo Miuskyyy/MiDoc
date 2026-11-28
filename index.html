@@ -1052,6 +1052,19 @@
       renderHomeDirectory('all', '');
       setupNavAndSearch();
       setupWorkspaceDragAndDrop();
+      const executeActionButton = document.getElementById('executeActionBtn');
+      if (executeActionButton) {
+        executeActionButton.removeAttribute('onclick');
+        executeActionButton.addEventListener('click', async event => {
+          event.preventDefault();
+          try {
+            await executeCurrentTool();
+          } catch (error) {
+            console.error(error);
+            showToast('Proses gagal: ' + (error?.message || String(error)), 'error');
+          }
+        });
+      }
       const liveSettings = document.getElementById('toolSettingsContainer');
       liveSettings?.addEventListener('input', event => { if (state.activeEngine === 'compress-image' && event.target?.id?.startsWith('opt')) { state.compressPreviewBlob = null; if (state.compressedPreviewUrl) URL.revokeObjectURL(state.compressedPreviewUrl); state.compressedPreviewUrl = null; const info=document.getElementById('compressPreviewInfo'); if(info)info.textContent='Pengaturan berubah. Tekan Kompres dulu untuk menghitung ulang ukuran hasil.'; } drawToolLivePreview(); });
       liveSettings?.addEventListener('change', () => { refreshLayerSelectors(); drawToolLivePreview(); });
