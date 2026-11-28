@@ -215,12 +215,15 @@ const fs = require('node:fs');
     await page.waitForTimeout(1200);
     const barcodeSaveState = await page.evaluate(() => ({
       trace: window.__midocActionTrace || null,
+      executeType: typeof window.executeCurrentTool,
       engine: state.activeEngine,
       toolId: state.activeToolObj?.id,
       itemCount: state.items.length,
       buttonDisabled: document.getElementById('executeActionBtn')?.disabled,
       resultHidden: document.getElementById('resultOutputBox')?.classList.contains('hidden'),
-      toast: document.getElementById('toastContainer')?.innerText
+      toast: document.getElementById('toastContainer')?.innerText,
+      browserErrors: errors.slice(-5),
+      consoleMessages: consoleMessages.slice(-5)
     }));
     if (barcodeSaveState.resultHidden) {
       throw new Error('QR/barcode save failed: ' + JSON.stringify({ state: barcodeSaveState, consoleMessages }));
