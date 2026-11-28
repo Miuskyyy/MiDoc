@@ -139,6 +139,28 @@ const fs = require('node:fs');
     }, { timeout: 45000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
 
+    // Extract Images mode should return embedded raster assets, not page renders.
+    await openTool('pdf-to-image');
+    await page.locator('#optPdfExportMode').selectOption('embedded');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 45000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
+    const embeddedZipDownloadPromise = page.waitForEvent('download', { timeout: 10000 });
+    await page.locator('#reDownloadBtn').click();
+    const embeddedZipDownload = await embeddedZipDownloadPromise;
+    const embeddedZipPath = '/tmp/midoc-embedded-images-test.zip';
+    await embeddedZipDownload.saveAs(embeddedZipPath);
+    const embeddedZipBytes = fs.readFileSync(embeddedZipPath);
+    const embeddedImageEntries = await page.evaluate(async base64 => {
+      const binary = atob(base64);
+      const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+      const archive = await JSZip.loadAsync(bytes);
+      return Object.keys(archive.files).filter(name => !archive.files[name].dir && /\.(png|jpe?g|webp)$/i.test(name));
+    }, embeddedZipBytes.toString('base64'));
+    assert.ok(embeddedImageEntries.length > 0, 'Extract Images should export at least one embedded image asset from an image-based PDF.');
+
     // Organize PDF automatically expands each PDF page when the PDF is dropped.
     await openTool('organize-pdf');
     await page.locator('#fileInput').setInputFiles(pdfPath);
@@ -304,6 +326,16 @@ const fs = require('node:fs');
     await page.locator('button[onclick="executeCurrentTool()"]').click();
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
+
+    // Key editing controls should stay inside a narrow mobile viewport.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openTool('watermark-pdf');
+    const mobileLayout = await page.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      document: document.documentElement.scrollWidth
+    }));
+    assert.ok(mobileLayout.document <= mobileLayout.viewport + 1,
+      'Watermark PDF controls should not create horizontal overflow on mobile: ' + JSON.stringify(mobileLayout));
 
     assert.deepEqual(errors, [], 'No uncaught browser exceptions should occur');
     console.log('Browser smoke tests passed: GIF create/extract, strict PDF input guard, Image-to-PDF defaults/export, valid PDF-to-image export, ZIP create/view/extract/download, QR output.');
