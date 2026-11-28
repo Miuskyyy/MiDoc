@@ -126,7 +126,18 @@
       #fileItemsGrid { min-width: 0; }
       #toolWorkspaceView .flex, #toolWorkspaceView .min-w-0 { min-width: 0; }
     }
-    .nav-trigger { border-bottom: 2px solid transparent; transition: color .12s ease, border-color .12s ease; }\n    .nav-trigger:hover, .nav-trigger:focus-visible { color: #2563EB !important; border-bottom-color: #2563EB !important; }
+    .nav-trigger { border-bottom: 2px solid transparent; transition: color .12s ease, border-color .12s ease; }
+    .nav-trigger:hover, .nav-trigger:focus-visible, #navHomeBtn:hover, #navHomeBtn:focus-visible { color: #2563EB !important; }
+    #desktopNav { position: relative; }
+    #navHoverIndicator { position: absolute; bottom: 0; left: 0; height: 2px; width: 0; background: #2563EB; opacity: 0; transform: translateX(0); transition: transform .16s ease, width .16s ease, opacity .12s ease; pointer-events: none; }
+    #toolPreviewColumn > #toolLivePreviewPanel { position: sticky; top: 5.25rem; }
+    #toolPreviewColumn #toolLivePreviewContent { min-height: 260px; }
+    #toolSettingsContainer > div, #toolSettingsContainer > label { margin-top: 0 !important; }
+    #toolSettingsContainer input:not([type="checkbox"]):not([type="color"]):not([type="range"]), #toolSettingsContainer select, #toolSettingsContainer textarea { min-height: 34px; padding-top: .4rem !important; padding-bottom: .4rem !important; }
+    #fileItemsGrid .file-card { border-width: 1px !important; }
+    #fileItemsGrid .file-card .file-card-preview { padding: 5px !important; }
+    #fileItemsGrid .file-card .file-card-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    @media (max-width: 1279px) { #toolPreviewColumn > #toolLivePreviewPanel { position: static; } }
     .tool-edit-vertical { display: flex !important; flex-direction: column !important; gap: 12px !important; }
     .tool-edit-vertical > .file-card { width: 100%; }
 
@@ -321,7 +332,7 @@
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
 
       <!-- LEFT COLUMN (8 Cols): Precision Dropzone, Reorderable Grid & Live Splitter Canvas -->
-      <div id="toolFileColumn" class="xl:col-span-8 space-y-4">
+      <div id="toolFileColumn" class="xl:col-span-8 min-w-0 space-y-4">
 
         <!-- File Staging Toolbar -->
         <div class="p-3 rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine flex flex-wrap items-center justify-between gap-3">
@@ -510,9 +521,17 @@
 
       </div>
 
+      <!-- CENTER COLUMN: Live output / page preview -->
+      <div id="toolPreviewColumn" class="hidden xl:col-span-4 min-w-0 space-y-4">
+        <section id="toolLivePreviewPanel" class="hidden mt-4 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkSurface p-3 sm:p-4 space-y-3">
+          <div class="flex items-center justify-between gap-2 border-b border-zinc-200 dark:border-darkLine pb-2"><h3 id="toolLivePreviewTitle" class="font-display text-sm font-bold">Pratinjau Langsung</h3><span id="toolLivePreviewMeta" class="text-[11px] font-mono text-zinc-500"></span></div>
+          <div id="toolLivePreviewContent" class="w-full min-w-0 flex flex-col items-center gap-3"></div>
+        </section>
+      </div>
+
       <!-- RIGHT COLUMN (4 Cols): Tool Configuration & Execution Panel -->
-      <div id="toolSettingsColumn" class="xl:col-span-4">
-        <div class="rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine p-5 sticky top-20 space-y-4">
+      <div id="toolSettingsColumn" class="xl:col-span-4 min-w-0">
+        <div class="rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine p-3 sm:p-3.5 sticky top-20 space-y-3">
           <div class="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-darkLine">
             <h2 class="font-display text-sm font-bold text-ink dark:text-white">
               Pengaturan Alat
@@ -523,7 +542,7 @@
           </div>
 
           <!-- Dynamic Tool Options -->
-          <div id="toolSettingsContainer" class="space-y-4 text-xs sm:text-sm"></div>
+          <div id="toolSettingsContainer" class="space-y-3 text-xs sm:text-sm"></div>
 
           <!-- Output Filename -->
           <div id="outputFilenameGroup" class="pt-3 border-t border-zinc-200 dark:border-darkLine space-y-1.5">
@@ -604,10 +623,7 @@
 
     </div>
 
-    <section id="toolLivePreviewPanel" class="hidden mt-4 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkSurface p-3 sm:p-4 space-y-3">
-      <div class="flex items-center justify-between gap-2 border-b border-zinc-200 dark:border-darkLine pb-2"><h3 id="toolLivePreviewTitle" class="font-display text-sm font-bold">Pratinjau Langsung</h3><span id="toolLivePreviewMeta" class="text-[11px] font-mono text-zinc-500"></span></div>
-      <div id="toolLivePreviewContent" class="w-full min-w-0 flex flex-col items-center gap-3"></div>
-    </section>
+
   </main>
 
   <!-- ==================== SCROLLABLE FULL-LENGTH IMAGE LIGHTBOX MODAL ==================== -->
@@ -1150,24 +1166,14 @@
 
     function updateNavbarActiveCategory(activeKey) {
       const homeBtn = document.getElementById('navHomeBtn');
-      if (activeKey === 'home') {
-        homeBtn.classList.add('text-accent', 'border-accent');
-        homeBtn.classList.remove('text-zinc-700', 'dark:text-zinc-200', 'border-transparent');
-      } else {
-        homeBtn.classList.remove('text-accent', 'border-accent');
-        homeBtn.classList.add('text-zinc-700', 'dark:text-zinc-200', 'border-transparent');
-      }
-
+      if (homeBtn) homeBtn.setAttribute('aria-current', activeKey === 'home' ? 'page' : 'false');
       document.querySelectorAll('.nav-trigger').forEach(btn => {
-        const cat = btn.getAttribute('data-menu');
-        if (cat === activeKey) {
-          btn.classList.add('text-accent', 'border-accent');
-          btn.classList.remove('text-zinc-700', 'dark:text-zinc-200', 'border-transparent');
-        } else {
-          btn.classList.remove('text-accent', 'border-accent');
-          btn.classList.add('text-zinc-700', 'dark:text-zinc-200', 'border-transparent');
-        }
+        btn.setAttribute('aria-current', btn.getAttribute('data-menu') === activeKey ? 'page' : 'false');
+        btn.classList.remove('text-accent', 'border-accent');
+        btn.classList.add('text-zinc-700', 'dark:text-zinc-200', 'border-transparent');
       });
+      homeBtn?.classList.remove('text-accent', 'border-accent');
+      homeBtn?.classList.add('text-zinc-700', 'dark:text-zinc-200', 'border-transparent');
     }
 
     function openToolWorkspace(toolId, options = {}) {
@@ -1493,6 +1499,26 @@
           }
         });
       });
+
+      const desktopNav = document.getElementById('desktopNav');
+      if (desktopNav && !document.getElementById('navHoverIndicator')) {
+        const indicator = document.createElement('span');
+        indicator.id = 'navHoverIndicator';
+        desktopNav.appendChild(indicator);
+        const moveIndicator = target => {
+          const button = target?.closest('#navHomeBtn, .nav-trigger');
+          if (!button || !desktopNav.contains(button)) return;
+          const navRect = desktopNav.getBoundingClientRect();
+          const buttonRect = button.getBoundingClientRect();
+          indicator.style.width = buttonRect.width + 'px';
+          indicator.style.transform = 'translateX(' + (buttonRect.left - navRect.left + desktopNav.scrollLeft) + 'px)';
+          indicator.style.opacity = '1';
+        };
+        desktopNav.addEventListener('pointerover', e => moveIndicator(e.target));
+        desktopNav.addEventListener('pointermove', e => moveIndicator(e.target));
+        desktopNav.addEventListener('pointerleave', () => { indicator.style.opacity = '0'; });
+        desktopNav.querySelectorAll('#navHomeBtn, .nav-trigger').forEach(button => button.addEventListener('focus', () => moveIndicator(button)));
+      }
 
       document.addEventListener('click', (e) => {
         if (!document.getElementById('mainHeader').contains(e.target)) {
