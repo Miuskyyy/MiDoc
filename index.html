@@ -1797,7 +1797,7 @@
           </div>
           <p class="text-[11px] text-zinc-500">Page to Image merender halaman PDF. Extract Images mengambil objek gambar yang memang tertanam di dokumen; teks atau elemen vektor tidak diekspor sebagai foto.</p>
         `;
-      } else if (engine === 'compress-pdf') {      } else if (engine === 'compress-pdf') {
+      } else if (engine === 'compress-pdf') {
         extBadge.textContent = '.pdf';
         filenameInput.value = 'MiDoc_PDF_Optimasi';
         btnLabel.textContent = 'Buat PDF Teroptimasi';
@@ -1853,7 +1853,7 @@
           </div>
           <div><label class="block text-xs font-semibold mb-1">Transparency <span id="pdfTextOpacityLabel">${numbering ? 100 : 60}</span>%</label><input id="optPdfTextOpacity" type="range" min="0" max="100" value="${numbering ? 100 : 60}" oninput="document.getElementById('pdfTextOpacityLabel').textContent=this.value" class="w-full accent-accent"></div>
         `;
-      } else if (engine === 'text-to-pdf' || engine === 'doc-to-pdf') {      } else if (engine === 'text-to-pdf' || engine === 'doc-to-pdf') {
+      } else if (engine === 'text-to-pdf' || engine === 'doc-to-pdf') {
         extBadge.textContent = '.pdf';
         filenameInput.value = 'MiDoc_Dokumen';
         btnLabel.textContent = 'Konversi ke PDF';
@@ -1888,7 +1888,7 @@
           <div id="compressPreviewInfo" class="text-xs text-zinc-500">Tekan tombol di atas untuk menghitung ukuran hasil kompresi tanpa mengunduh atau mengganti file asli.</div>
         `;
         updateCompressImageOptions();
-      } else if (engine === 'convert-image') {      } else if (engine === 'convert-image') {
+      } else if (engine === 'convert-image') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Konversi_Gambar';
         btnLabel.textContent = 'Konversi Format Gambar';
@@ -1971,7 +1971,7 @@
           </div>
           <p id="cropPixelInfo" class="text-[11px] text-zinc-500">Crop berdasarkan koordinat piksel gambar asli. Dimensi output mengikuti lebar × tinggi area yang dipilih.</p>
         `;
-      } else if (engine === 'rotate-flip') {      } else if (engine === 'rotate-flip') {
+      } else if (engine === 'rotate-flip') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Rotate_Flip';
         btnLabel.textContent = 'Simpan Hasil Rotate / Flip';
@@ -2015,7 +2015,7 @@
           <div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Posisi X (%)</label><input id="optOverlayX" type="number" min="0" max="100" value="66" oninput="syncOverlayPosition()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div><div><label class="block text-xs font-semibold mb-1">Posisi Y (%)</label><input id="optOverlayY" type="number" min="0" max="100" value="66" oninput="syncOverlayPosition()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div></div>
           <p class="text-[11px] text-zinc-500">Kamu bisa drag layer langsung pada pratinjau. Pilih kedua file dulu; urutan tidak harus mengikuti urutan upload.</p>
         `;
-      } else if (engine === 'batch-rename') {      } else if (engine === 'batch-rename') {
+      } else if (engine === 'batch-rename') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Batch_Rename';
         btnLabel.textContent = 'Proses Batch Rename';
@@ -2055,7 +2055,7 @@
           <p id="zipModeDescription" class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-200 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">Kemas file menjadi satu arsip ZIP.</p>
         `;
         updateZipToolMode();
-      } else if (engine === 'color-picker') {      } else if (engine === 'color-picker') {
+      } else if (engine === 'color-picker') {
         filenameGroup.classList.add('hidden');
         btnLabel.textContent = 'Ekstrak Palet Warna Gambar #1';
         box.innerHTML = `
@@ -3727,7 +3727,7 @@
       finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, pageNumberOnly ? 'Nomor halaman ditambahkan dari ' + startNumber + ' pada halaman ' + from + '–' + Math.min(to,pages.length) + '.' : 'Watermark diterapkan pada halaman ' + from + '–' + Math.min(to,pages.length) + '.');
     }
 
-    function parseXmlDocument(xmlText, label) {    function parseXmlDocument(xmlText, label) {
+    function parseXmlDocument(xmlText, label) {
       const parsed = new DOMParser().parseFromString(xmlText, 'application/xml');
       if (parsed.getElementsByTagName('parsererror').length) throw new Error('Struktur XML pada ' + label + ' tidak valid.');
       return parsed;
@@ -4468,7 +4468,7 @@
       }
     }
 
-    async function runGifTools(baseName) {    async function runGifTools(baseName) {
+    async function runGifTools(baseName) {
       const mode = document.getElementById('optGifMode')?.value || 'create';
       if (mode === 'extract') {
         await extractGifFrames(baseName);
@@ -4766,7 +4766,7 @@
       finishWithBlob(blob,finalName,(document.getElementById('optCodeType')?.value||'qr')==='qr'?'QR Code berhasil dibuat.':'Barcode berhasil dibuat.',{isImageResult:true});
     }
 
-    function runPasswordGenerator() {    function runPasswordGenerator() {
+    function runPasswordGenerator() {
       const len = Number(document.getElementById('optPassLen')?.value || '16');
       if (!Number.isInteger(len) || len < 8 || len > 128) throw new Error('Panjang kata sandi harus antara 8 dan 128 karakter.');
       if (!window.crypto || !crypto.getRandomValues) throw new Error('Browser tidak menyediakan generator acak kriptografis yang aman.');
