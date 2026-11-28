@@ -145,7 +145,7 @@ jobs:
             ['Cross-tool transfer restore', 'function consumePendingToolTransfer']
           ];
 
-          const zipMode = html.match(/<select id="optZipMode"[\\s\\S]*?<\\/select>/)?.[0] || '';
+          const zipMode = html.match(/<select id="optZipMode"[\s\S]*?<\/select>/)?.[0] || '';
           if (zipMode.includes('value="extract"') || html.includes('extractZipToFolder')) {
             throw new Error('ZIP viewer should offer create/view only; folder extraction must stay removed.');
           }
