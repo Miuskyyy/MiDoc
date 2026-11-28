@@ -1047,6 +1047,8 @@
       cropPdfPage: 1,
       cropPdfRect: { x: 0.06, y: 0.06, w: 0.88, h: 0.88 },
       cropPdfRects: {},
+      cropImageRect: { x: 0, y: 0, w: 1, h: 1 },
+      cropImageItemId: null,
       compressPreviewBlob: null,
       compressedPreviewUrl: null,
       livePreviewToken: 0,
@@ -3714,33 +3716,24 @@
     async function runCropPdf(baseName) {
       const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
       if (!pdfItems.length) throw new Error('Tambahkan satu file PDF terlebih dahulu.');
-      const xPct = Math.max(0, Math.min(99, Number(document.getElementById('optPdfCropX')?.value ?? 6))) / 100;
-      const yPct = Math.max(0, Math.min(99, Number(document.getElementById('optPdfCropY')?.value ?? 6))) / 100;
-      const wPct = Math.max(1, Math.min(100 - xPct * 100, Number(document.getElementById('optPdfCropW')?.value ?? 88))) / 100;
-      const hPct = Math.max(1, Math.min(100 - yPct * 100, Number(document.getElementById('optPdfCropH')?.value ?? 88))) / 100;
       const cropAll = Boolean(document.getElementById('optPdfCropAll')?.checked);
       const selectedPage = Math.max(1, Number(state.cropPdfPage || 1));
-      state.cropPdfRects[selectedPage] = {x:xPct,y:yPct,w:wPct,h:hPct};
+      const activeRect = state.cropPdfRects[selectedPage] || state.cropPdfRect || {x:0.06,y:0.06,w:0.88,h:0.88};
+      state.cropPdfRects[selectedPage] = {...activeRect};
       const outPdf = await PDFLib.PDFDocument.create();
       for (const item of pdfItems) {
         const src = await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0));
         const pages = await outPdf.copyPages(src, src.getPageIndices());
         pages.forEach((page,index) => {
           const {width,height}=page.getSize();
-          const rect = cropAll ? {x:xPct,y:yPct,w:wPct,h:hPct} : state.cropPdfRects[index + 1];
-          if (cropAll || rect) {
-            const r = rect || {x:xPct,y:yPct,w:wPct,h:hPct};
-            const left = r.x * width;
-            const bottom = (1 - r.y - r.h) * height;
-            page.setCropBox(left, bottom, r.w * width, r.h * height);
-          }
+          const rect = cropAll ? activeRect : (state.cropPdfRects[index + 1] || activeRect);
+          page.setCropBox(rect.x * width, (1 - rect.y - rect.h) * height, rect.w * width, rect.h * height);
           outPdf.addPage(page);
         });
       }
       const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
       finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, cropAll ? 'Area crop diterapkan pada seluruh halaman PDF.' : 'Area crop diterapkan pada halaman ' + selectedPage + '.');
     }
-
     // --- ENGINE 8: WATERMARK PDF ---    // --- ENGINE 8: WATERMARK PDF ---
     async function runWatermarkPdf(baseName) {
       const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
@@ -4799,11 +4792,42 @@
       const count=item?.pageCount||1;
       state.cropPdfPage=Math.max(1,Math.min(count,current+delta));
       state.cropPdfRect={...(state.cropPdfRects[state.cropPdfPage]||{x:.06,y:.06,w:.88,h:.88})};
-      const vals={optPdfCropX:state.cropPdfRect.x*100,optPdfCropY:state.cropPdfRect.y*100,optPdfCropW:state.cropPdfRect.w*100,optPdfCropH:state.cropPdfRect.h*100};
-      Object.entries(vals).forEach(([id,value])=>{const el=document.getElementById(id);if(el)el.value=Math.round(value);});
       drawToolLivePreview();
     }
 
+    function resetCropImageRect(){
+      state.cropImageRect={x:0.05,y:0.05,w:0.9,h:0.9};
+      const item=state.items.find(i=>i.id===state.selectedEditItemId&&i.isImage);
+      state.cropImageItemId=item?.id||null;
+      syncCropImageHidden(item);
+      drawToolLivePreview();
+    }
+
+    function syncCropImageHidden(item){
+      const rect=state.cropImageRect||{x:0,y:0,w:1,h:1};
+      const width=item?.width||1,height=item?.height||1;
+      const values={optCropX:Math.round(rect.x*width),optCropY:Math.round(rect.y*height),optCropW:Math.max(1,Math.round(rect.w*width)),optCropH:Math.max(1,Math.round(rect.h*height))};
+      Object.entries(values).forEach(([id,value])=>{const el=document.getElementById(id);if(el)el.value=value;});
+      const info=document.getElementById('cropPixelInfo');
+      if(info&&item)info.textContent='Area crop '+values.optCropW+' × '+values.optCropH+' px · posisi X '+values.optCropX+', Y '+values.optCropY;
+    }
+
+    function setImageTextPosition(position){
+      const allowed=['tl','tc','tr','ml','mc','mr','bl','bc','br'];
+      if(!allowed.includes(position))return;
+      const input=document.getElementById('optImgWatermarkPosition');
+      if(input)input.value=position;
+      document.querySelectorAll('[data-img-text-position]').forEach(button=>{
+        const active=button.dataset.imgTextPosition===position;
+        button.classList.toggle('border-accent',active);
+        button.classList.toggle('bg-accent/10',active);
+        button.classList.toggle('text-accent',active);
+        button.classList.toggle('border-zinc-300',!active);
+      });
+      drawToolLivePreview();
+    }
+
+    function syncPdfCropRect(){ drawToolLivePreview(); }
     async function previewCompressImage(){
       const item=state.items.find(x=>x.id===state.selectedEditItemId&&x.isImage)||state.items.find(x=>x.isImage&&x.thumbUrl);
       if(!item)throw new Error('Pilih satu gambar terlebih dahulu.');
