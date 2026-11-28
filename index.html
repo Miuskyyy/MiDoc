@@ -348,98 +348,6 @@
       <!-- LEFT COLUMN (8 Cols): Precision Dropzone, Reorderable Grid & Live Splitter Canvas -->
       <div id="toolFileColumn" class="xl:col-span-8 min-w-0 space-y-4">
 
-        <!-- File Staging Toolbar -->
-        <div class="p-3 rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine flex flex-wrap items-center justify-between gap-3">
-          <div class="flex flex-wrap items-center gap-2">
-            <label class="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-2 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold">
-              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-              <span>Tambah File</span>
-              <input id="fileInput" type="file" multiple class="hidden" />
-            </label>
-
-            <button id="loadDemoFilesBtn" onclick="loadDemoFiles()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas hover:border-accent text-zinc-700 dark:text-zinc-200 text-xs font-medium">
-              <i data-lucide="file-check" class="w-3.5 h-3.5 text-accent"></i>
-              <span>Muat Contoh File</span>
-            </button>
-
-            </button>
-          </div>
-
-          <!-- Precision Order & View Controls -->
-          <div class="flex flex-wrap items-center gap-2">
-            <div class="flex items-center gap-1.5 pl-2.5 py-0.5 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine">
-              <span class="text-xs text-zinc-500">Urutan:</span>
-              <select id="sortOrderSelect" onchange="applySortOrder(this.value)" class="bg-transparent py-1 pl-1 text-xs font-semibold text-ink dark:text-zinc-100 focus:outline-none cursor-pointer">
-                <option value="drop" class="dark:bg-darkSurface">Urutan Drop Asli (Terkunci)</option>
-                <option value="natural-az" class="dark:bg-darkSurface">Nama A - Z (1, 2, 10)</option>
-                <option value="natural-za" class="dark:bg-darkSurface">Nama Z - A</option>
-                <option value="size-asc" class="dark:bg-darkSurface">Ukuran Terkecil</option>
-                <option value="size-desc" class="dark:bg-darkSurface">Ukuran Terbesar</option>
-                <option value="reverse" class="dark:bg-darkSurface">Balik Urutan Saat Ini</option>
-              </select>
-            </div>
-
-            <div class="flex items-center rounded-sm border border-zinc-300 dark:border-darkLine overflow-hidden">
-              <button id="viewGridBtn" onclick="setViewMode('grid')" class="p-1.5 bg-accent text-white" title="Tampilan Grid">
-                <i data-lucide="grid" class="w-3.5 h-3.5"></i>
-              </button>
-              <button id="viewListBtn" onclick="setViewMode('list')" class="p-1.5 bg-white dark:bg-darkCanvas text-zinc-500" title="Tampilan Daftar">
-                <i data-lucide="list" class="w-3.5 h-3.5"></i>
-              </button>
-            </div>
-
-            <button onclick="clearAllFiles()" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-600 dark:text-zinc-300 hover:border-red-600 hover:text-red-600" title="Kosongkan Workspace">
-              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- Dropzone & Reorderable File Cards Container -->
-        <div
-          id="dropZoneContainer"
-          class="relative min-h-[360px] rounded-sm border border-dashed border-zinc-400 dark:border-zinc-700 bg-zinc-50/60 dark:bg-darkSurface p-4 sm:p-5"
-        >
-          <!-- External Drag Overlay -->
-          <div id="externalDragOverlay" class="hidden absolute inset-2 rounded-sm bg-accent/10 border-2 border-accent z-30 flex flex-col items-center justify-center pointer-events-none">
-            <p class="font-display text-base font-bold text-accent">Lepaskan File di Sini</p>
-            <p class="text-xs text-zinc-600 dark:text-zinc-300 mt-1">Urutan file akan dikunci persis sesuai urutan seret Anda</p>
-          </div>
-
-          <!-- Empty State -->
-          <div id="emptyStateBox" class="h-[310px] flex flex-col items-center justify-center text-center px-4">
-            <div class="w-12 h-12 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-accent flex items-center justify-center mb-3">
-              <i data-lucide="upload" class="w-5 h-5"></i>
-            </div>
-            <h3 class="font-display text-base font-bold text-ink dark:text-white">
-              Seret & Lepas File ke Area Ini
-            </h3>
-            <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-md mt-1">
-              Urutan file mengikuti persis urutan saat Anda menyeret atau memilihnya (<span class="font-mono text-accent">#1, #2, #3</span>) dan dapat digeser-geser kapan saja.
-            </p>
-            <div class="mt-4 flex flex-wrap items-center justify-center gap-2.5">
-              <label class="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold">
-                <i data-lucide="folder-open" class="w-3.5 h-3.5"></i>
-                <span>Pilih File dari Perangkat</span>
-                <input id="emptyFileInput" type="file" multiple class="hidden" />
-              </label>
-              <button id="loadDemoFilesEmptyBtn" onclick="loadDemoFiles()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas hover:border-accent text-xs font-medium">
-                <span>Muat Contoh Gambar & PDF</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Reorderable Cards Grid -->
-          <div id="fileItemsGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5"></div>
-          <section id="zipContentsCenter" class="hidden mt-4 space-y-2"></section>
-
-          <!-- Bottom Status Strip -->
-          <div id="bottomAddStrip" class="hidden mt-4 pt-3 border-t border-zinc-200 dark:border-darkLine flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-            <span>Geser kartu untuk menukar urutan posisi, atau gunakan tombol <strong>Kiri / Kanan</strong> di tiap kartu.</span>
-            <span id="totalSummaryText" class="font-mono font-semibold text-ink dark:text-zinc-200">0 item • 0 B</span>
-          </div>
-        </div>
-
-
 
         <!-- File Staging Toolbar -->
         <div class="p-3 rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine flex flex-wrap items-center justify-between gap-3">
@@ -532,8 +440,11 @@
           </div>
         </div>
 
+      </div>
 
-        <!-- Area kerja visual untuk alat yang membutuhkan interaksi langsung; tidak memakai kolom tengah -->
+      <!-- CENTER COLUMN: Live output / page preview -->
+
+        <!-- Area visual editor untuk alat yang memang membutuhkan interaksi langsung -->
         <div id="toolVisualWorkspace" class="hidden mt-4 space-y-4">
 
         <!-- LIVE IMAGE SPLITTER VISUAL GRID CANVAS (Shown specifically when Image Splitter is active and an image is loaded) -->
@@ -637,7 +548,7 @@
         </div>
       </div>
 
-      <!-- Kolom pratinjau tengah dihapus; hasil akhir tampil di panel pengaturan setelah proses -->
+      <!-- Kolom tengah dihapus; hasil proses tampil pada panel hasil di kanan -->
       <div id="toolPreviewColumn" class="hidden" aria-hidden="true"></div>
 
             <!-- RIGHT COLUMN (4 Cols): Tool Configuration & Execution Panel -->
