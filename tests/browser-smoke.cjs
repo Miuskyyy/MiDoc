@@ -275,7 +275,7 @@ const fs = require('node:fs');
     ]);
     await page.waitForFunction(() => !document.getElementById('toolLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
     assert.equal(await page.locator('#optOverlayBase option').count(), 2);
-    assert.equal(await page.locator('#optOverlayFront option').count(), 1, 'Foreground selector excludes the selected background image.');
+    assert.equal(await page.locator('#optOverlayFront option').count(), 2, 'Either uploaded image can be selected as the foreground layer.');
     await page.locator('button[onclick="executeCurrentTool()"]').click();
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
