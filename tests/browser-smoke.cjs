@@ -176,6 +176,7 @@ const fs = require('node:fs');
       const cards = [...document.querySelectorAll('#fileItemsGrid .file-card')];
       return cards.length === 2 && cards.some(card => card.innerText.includes('PDF HAL 1')) && cards.some(card => card.innerText.includes('PDF HAL 2'));
     }, { timeout: 15000 });
+    assert.match(await page.locator('#fileItemsGrid').getAttribute('class'), /xl:grid-cols-4/, 'PDF page cards should use four compact columns.');
     assert.equal(await page.locator('#expandPdfPagesBtn').count(), 0, 'The manual split-per-page button must remain removed.');
     await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => {
@@ -271,6 +272,7 @@ const fs = require('node:fs');
     // Pixel Crop uses a draggable crop grid instead of numeric coordinate fields.
     await openTool('crop-image');
     await page.locator('#fileInput').setInputFiles({ name: 'crop-source.png', mimeType: 'image/png', buffer: redPng });
+    await page.waitForFunction(() => document.querySelector('#fileItemsGrid .file-card-preview')?.classList.contains('h-[430px]'), { timeout: 10000 });
     await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 10000 });
     await page.locator('#toolLivePreviewContent canvas').scrollIntoViewIfNeeded();
     const cropCanvasBox = await page.locator('#toolLivePreviewContent canvas').boundingBox();
@@ -304,6 +306,7 @@ const fs = require('node:fs');
       { name: 'filter-red.png', mimeType: 'image/png', buffer: redPng },
       { name: 'filter-blue.png', mimeType: 'image/png', buffer: bluePng }
     ]);
+    assert.match(await page.locator('#fileItemsGrid').getAttribute('class'), /grid-cols-2/, 'Filter Warna should show two image cards per row.');
     await page.locator('#fileItemsGrid .file-card').nth(1).click();
     await page.locator('#optColorFilter').selectOption('grayscale(100%)');
     await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 10000 });
