@@ -126,7 +126,7 @@
       #fileItemsGrid { min-width: 0; }
       #toolWorkspaceView .flex, #toolWorkspaceView .min-w-0 { min-width: 0; }
     }
-    .nav-trigger:hover { color: #2563EB !important; border-bottom-color: #2563EB !important; }
+    .nav-trigger { border-bottom: 2px solid transparent; transition: color .12s ease, border-color .12s ease; }\n    .nav-trigger:hover, .nav-trigger:focus-visible { color: #2563EB !important; border-bottom-color: #2563EB !important; }
     .tool-edit-vertical { display: flex !important; flex-direction: column !important; gap: 12px !important; }
     .tool-edit-vertical > .file-card { width: 100%; }
 
@@ -1407,8 +1407,8 @@
 
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             ${category.tools.map(tool => `
-              <button
-                onclick="openToolWorkspace('${tool.id}')"
+              <a
+                href="${window.location.pathname}?tool=${encodeURIComponent(tool.id)}"
                 class="group p-4 rounded-sm bg-zinc-50/70 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine hover:border-accent dark:hover:border-accent text-left flex items-start gap-3.5 transition-colors"
               >
                 <div class="w-8 h-8 rounded-sm bg-accent text-white flex items-center justify-center shrink-0 mt-0.5">
@@ -1422,7 +1422,7 @@
                     ${tool.desc}
                   </p>
                 </div>
-              </button>
+              </a>
             `).join('')}
           </div>
         </section>
@@ -1454,7 +1454,7 @@
         navDropdown.innerHTML = matches.length === 0
           ? `<div class="p-2.5 text-xs text-zinc-500">Tidak ditemukan alat.</div>`
           : matches.map(m => `
-              <button onclick="openToolWorkspace('${m.id}'); document.getElementById('navSearchDropdown').classList.add('hidden');" class="w-full p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2.5">
+              <a href="${window.location.pathname}?tool=${encodeURIComponent(m.id)}" onclick="document.getElementById('navSearchDropdown').classList.add('hidden');" class="w-full p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2.5">
                 <span class="w-6 h-6 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
                   <i data-lucide="${m.icon}" class="w-3.5 h-3.5"></i>
                 </span>
@@ -1462,13 +1462,19 @@
                   <div class="text-xs font-bold truncate">${m.name}</div>
                   <div class="text-[11px] text-zinc-500 truncate">${m.groupTitle}</div>
                 </div>
-              </button>
+              </a>
             `).join('');
         navDropdown.classList.remove('hidden');
         lucide.createIcons();
       });
 
       document.querySelectorAll('.nav-trigger').forEach(btn => {
+        btn.addEventListener('mouseenter', () => {
+          if (window.matchMedia('(min-width: 1024px)').matches) openMegaMenu(btn.getAttribute('data-menu'), btn);
+        });
+        btn.addEventListener('focus', () => {
+          if (window.matchMedia('(min-width: 1024px)').matches) openMegaMenu(btn.getAttribute('data-menu'), btn);
+        });
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const menuCat = btn.getAttribute('data-menu');
@@ -1508,7 +1514,7 @@
                   <div class="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mb-1.5">${category.label}</div>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
                     ${categoryTools.map(tool => `
-                      <button onclick="openToolWorkspace('${tool.id}')" class="p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2 text-xs font-medium">
+                      <a href="${window.location.pathname}?tool=${encodeURIComponent(tool.id)}" class="p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2 text-xs font-medium">
                         <span class="w-6 h-6 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
                           <i data-lucide="${tool.icon}" class="w-3.5 h-3.5"></i>
                         </span>
@@ -1516,7 +1522,7 @@
                           <span class="block truncate font-semibold">${tool.name}</span>
                           <span class="block truncate text-[10px] text-zinc-500">${tool.desc}</span>
                         </span>
-                      </button>
+                      </a>
                     `).join('')}
                   </div>
                 </div>
@@ -1573,14 +1579,14 @@
                 </div>
                 <div class="space-y-1">
                   ${categoryTools.map(tool => `
-                    <button onclick="openToolWorkspace('${tool.id}')" class="group w-full p-1.5 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2">
+                    <a href="${window.location.pathname}?tool=${encodeURIComponent(tool.id)}" class="group w-full p-1.5 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2">
                       <span class="w-6 h-6 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
                         <i data-lucide="${tool.icon}" class="w-3.5 h-3.5"></i>
                       </span>
                       <span class="min-w-0 flex-1">
                         <span class="block text-[11px] font-semibold leading-snug text-ink dark:text-zinc-100 group-hover:text-accent">${tool.name}</span>
                       </span>
-                    </button>
+                    </a>
                   `).join('')}
                 </div>
               </section>
@@ -4388,7 +4394,7 @@
       updateFilenamePreviewHint();
     }
 
-    function getZipEntryUncompressedSize(entry) {    function getZipEntryUncompressedSize(entry) {
+    function getZipEntryUncompressedSize(entry) {
       return Number(entry?._data?.uncompressedSize || 0);
     }
 
@@ -4418,7 +4424,7 @@
       showToast('ZIP dibaca: '+entries.length+' file ditemukan.','success');
     }
 
-    async function readZipArchiveForAction(mode) {    async function readZipArchiveForAction(mode) {
+    async function readZipArchiveForAction(mode) {
       const zipItem = state.items.find(item =>
         item.name.toLowerCase().endsWith('.zip') ||
         item.type === 'application/zip' ||
@@ -4454,7 +4460,7 @@
       }
       state.zipArchiveFiles = entries;
       state.zipArchiveSourceName = zipItem.name;
-      showZipArchiveContents(entries, zipItem.name, mode);
+      showZipArchiveContents(entries, zipItem.name);
     }
 
     async function downloadZipEntry(index) {
