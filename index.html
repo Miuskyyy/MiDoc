@@ -2326,16 +2326,6 @@
       }
     }
 
-    function updateSplitPdfMode(mode) {
-      const rangeMode = mode === 'range';
-      document.getElementById('splitRangeBox')?.classList.toggle('hidden', !rangeMode);
-      const ext = document.getElementById('outputExtBadge');
-      const label = document.getElementById('executeBtnLabel');
-      if (ext) ext.textContent = rangeMode ? '.pdf' : '.zip';
-      if (label) label.textContent = rangeMode ? 'Ekstrak Halaman Terpilih ke PDF' : 'Pisahkan Semua Halaman ke ZIP';
-      updateFilenamePreviewHint();
-    }
-
     function updateResizeMode(mode) {
       const percentMode = mode === 'percent';
       document.getElementById('resizeDimensionsGroup')?.classList.toggle('hidden', percentMode);
@@ -4621,102 +4611,6 @@
     }
 
 
-    async function runZipMaker(baseName) {
-      const mode = document.getElementById('optZipMode')?.value || 'create';
-      if (mode === 'view' || mode === 'extract') {
-        await readZipArchiveForAction(mode);
-        return;
-      }
-
-      if (!state.items.length) {
-        showToast('Tambahkan file yang ingin dimasukkan ke arsip ZIP.', 'error');
-        return;
-      }
-
-      const zip = new JSZip();
-      const firstClean = getFirstFileBaseName();
-      const usedNames = new Set();
-      for (let index = 0; index < state.items.length; index++) {
-        const item = state.items[index];
-        const relativeName = (item.file?.webkitRelativePath || item.name || ('File_' + (index + 1))).replace(/\\/g, '/');
-        const safeParts = relativeName.split('/').filter(part => part && part !== '.' && part !== '..');
-        let entryName = safeParts.join('/') || ('File_' + (index + 1));
-        const slash = entryName.lastIndexOf('/');
-        const directory = slash >= 0 ? entryName.slice(0, slash + 1) : '';
-        const leaf = slash >= 0 ? entryName.slice(slash + 1) : entryName;
-        const dot = leaf.lastIndexOf('.');
-        const stem = dot > 0 ? leaf.slice(0, dot) : leaf;
-        const extension = dot > 0 ? leaf.slice(dot) : '';
-        let uniqueName = entryName;
-        let duplicate = 2;
-        while (usedNames.has(uniqueName.toLowerCase())) {
-          uniqueName = directory + stem + '_' + duplicate + extension;
-          duplicate++;
-        }
-        usedNames.add(uniqueName.toLowerCase());
-        const fileData = item.arrayBuffer || await item.file.arrayBuffer();
-        zip.file(uniqueName, fileData);
-        updateProgress(((index + 1) / state.items.length) * 70, 'Menambahkan ' + uniqueName + ' (' + (index + 1) + '/' + state.items.length + ')');
-      }
-
-      const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
-      const blob = await zip.generateAsync(
-        { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
-        metadata => updateProgress(70 + metadata.percent * 0.3, 'Menyusun arsip ZIP...')
-      );
-      finishWithBlob(blob, finalZipName, state.items.length + ' file berhasil dikemas. Nama asli dan struktur folder dipertahankan; nama duplikat diberi nomor tambahan.');
-    }
-
-    // --- ENGINE 14: COLOR PICKER, QR GENERATOR, PASSWORD ---
-    async function runColorPicker() {
-      const img = state.items.find(i => i.isImage && i.thumbUrl);
-      if (!img) { showToast('Tambahkan minimal 1 gambar.', 'error'); return; }
-      const c = resizeCanvas(await renderItemToCanvas(img), 36, 36, 'stretch');
-      const data = c.getContext('2d').getImageData(0, 0, 36, 36).data;
-      const map = {};
-      for (let i = 0; i < data.length; i += 16) {
-        const hex = '#' + [data[i], data[i + 1], data[i + 2]].map(v => (Math.round(v / 24) * 24).toString(16).padStart(2, '0')).join('').toUpperCase();
-        map[hex] = (map[hex] || 0) + 1;
-      }
-      const top = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 8).map(e => e[0]);
-      document.getElementById('extractedPaletteSwatches').innerHTML = top.map(hex => `
-        <button onclick="copyTextFallback('${hex}'); showToast('Disalin: ${hex}', 'info')" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-center">
-          <div class="w-full h-6 mb-1" style="background:${hex}"></div>
-          <div class="text-[10px] font-mono font-bold">${hex}</div>
-        </button>
-      `).join('');
-    }
-
-    async function runQrGenerator(baseName) {
-      const text = (document.getElementById('optQrText')?.value || '').trim();
-      if (!text) throw new Error('Masukkan teks atau tautan terlebih dahulu.');
-      if (typeof window.QRCode !== 'function') throw new Error('Library QR Code belum berhasil dimuat. Periksa koneksi internet lalu muat ulang halaman.');
-      const host = document.createElement('div');
-      host.style.cssText = 'position:fixed;left:-10000px;top:0;width:1024px;height:1024px;background:#fff;';
-      document.body.appendChild(host);
-      try {
-        new QRCode(host, { text, width: 1024, height: 1024, correctLevel: QRCode.CorrectLevel.M });
-        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 80)));
-        let sourceCanvas = host.querySelector('canvas');
-        if (!sourceCanvas) {
-          const image = host.querySelector('img');
-          if (!image) throw new Error('QR Code gagal dirender.');
-          if (!image.complete) await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
-          if (!image.naturalWidth || !image.naturalHeight) throw new Error('Gambar QR gagal dimuat untuk diekspor.');
-          sourceCanvas = document.createElement('canvas');
-          sourceCanvas.width = 1024;
-          sourceCanvas.height = 1024;
-          sourceCanvas.getContext('2d').drawImage(image, 0, 0, 1024, 1024);
-        }
-        const blob = await new Promise((resolve, reject) => sourceCanvas.toBlob(result => result ? resolve(result) : reject(new Error('Gagal membuat PNG QR Code.')), 'image/png'));
-        const finalName = formatDownloadFilename({ baseName, ext: 'png', isBulkOrZip: false });
-        finishWithBlob(blob, finalName, 'QR Code standar berhasil dibuat untuk teks atau tautan yang dimasukkan.', { isImageResult: true });
-      } finally {
-        host.remove();
-      }
-    }
-
-
     function updateCodeGeneratorUI() {
       const barcode=document.getElementById('optCodeType')?.value==='barcode';
       document.getElementById('barcodeCodeOptions')?.classList.toggle('hidden',!barcode);
@@ -5275,35 +5169,6 @@
       }).join('');
       const target=document.getElementById('extractedPaletteSwatches');
       target.innerHTML=swatches;target.className='grid grid-cols-2 sm:grid-cols-4 gap-2';
-    }
-
-    async function runQrGenerator(baseName) {
-      const text = (document.getElementById('optQrText')?.value || '').trim();
-      if (!text) throw new Error('Masukkan teks atau tautan terlebih dahulu.');
-      if (typeof window.QRCode !== 'function') throw new Error('Library QR Code belum berhasil dimuat. Periksa koneksi internet lalu muat ulang halaman.');
-      const host = document.createElement('div');
-      host.style.cssText = 'position:fixed;left:-10000px;top:0;width:1024px;height:1024px;background:#fff;';
-      document.body.appendChild(host);
-      try {
-        new QRCode(host, { text, width: 1024, height: 1024, correctLevel: QRCode.CorrectLevel.M });
-        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 80)));
-        let sourceCanvas = host.querySelector('canvas');
-        if (!sourceCanvas) {
-          const image = host.querySelector('img');
-          if (!image) throw new Error('QR Code gagal dirender.');
-          if (!image.complete) await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
-          if (!image.naturalWidth || !image.naturalHeight) throw new Error('Gambar QR gagal dimuat untuk diekspor.');
-          sourceCanvas = document.createElement('canvas');
-          sourceCanvas.width = 1024;
-          sourceCanvas.height = 1024;
-          sourceCanvas.getContext('2d').drawImage(image, 0, 0, 1024, 1024);
-        }
-        const blob = await new Promise((resolve, reject) => sourceCanvas.toBlob(result => result ? resolve(result) : reject(new Error('Gagal membuat PNG QR Code.')), 'image/png'));
-        const finalName = formatDownloadFilename({ baseName, ext: 'png', isBulkOrZip: false });
-        finishWithBlob(blob, finalName, 'QR Code standar berhasil dibuat untuk teks atau tautan yang dimasukkan.', { isImageResult: true });
-      } finally {
-        host.remove();
-      }
     }
 
     function runPasswordGenerator() {
