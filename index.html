@@ -380,6 +380,55 @@
           </div>
         </div>
 
+        <!-- Dropzone & Reorderable File Cards Container -->
+        <div
+          id="dropZoneContainer"
+          class="relative min-h-[360px] rounded-sm border border-dashed border-zinc-400 dark:border-zinc-700 bg-zinc-50/60 dark:bg-darkSurface p-4 sm:p-5"
+        >
+          <!-- External Drag Overlay -->
+          <div id="externalDragOverlay" class="hidden absolute inset-2 rounded-sm bg-accent/10 border-2 border-accent z-30 flex flex-col items-center justify-center pointer-events-none">
+            <p class="font-display text-base font-bold text-accent">Lepaskan File di Sini</p>
+            <p class="text-xs text-zinc-600 dark:text-zinc-300 mt-1">Urutan file akan dikunci persis sesuai urutan seret Anda</p>
+          </div>
+
+          <!-- Empty State -->
+          <div id="emptyStateBox" class="h-[310px] flex flex-col items-center justify-center text-center px-4">
+            <div class="w-12 h-12 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-accent flex items-center justify-center mb-3">
+              <i data-lucide="upload" class="w-5 h-5"></i>
+            </div>
+            <h3 class="font-display text-base font-bold text-ink dark:text-white">
+              Seret & Lepas File ke Area Ini
+            </h3>
+            <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-md mt-1">
+              Urutan file mengikuti persis urutan saat Anda menyeret atau memilihnya (<span class="font-mono text-accent">#1, #2, #3</span>) dan dapat digeser-geser kapan saja.
+            </p>
+            <div class="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+              <label class="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold">
+                <i data-lucide="folder-open" class="w-3.5 h-3.5"></i>
+                <span>Pilih File dari Perangkat</span>
+                <input id="emptyFileInput" type="file" multiple class="hidden" />
+              </label>
+              <button id="loadDemoFilesEmptyBtn" onclick="loadDemoFiles()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas hover:border-accent text-xs font-medium">
+                <span>Muat Contoh Gambar & PDF</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Reorderable Cards Grid -->
+          <div id="fileItemsGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5"></div>
+          <section id="zipContentsCenter" class="hidden mt-4 space-y-2"></section>
+
+          <!-- Bottom Status Strip -->
+          <div id="bottomAddStrip" class="hidden mt-4 pt-3 border-t border-zinc-200 dark:border-darkLine flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+            <span>Geser kartu untuk menukar urutan posisi, atau gunakan tombol <strong>Kiri / Kanan</strong> di tiap kartu.</span>
+            <span id="totalSummaryText" class="font-mono font-semibold text-ink dark:text-zinc-200">0 item • 0 B</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- CENTER COLUMN: Live output / page preview -->
+      <div id="toolPreviewColumn" class="hidden xl:col-span-4 min-w-0 space-y-4">
         <!-- LIVE IMAGE SPLITTER VISUAL GRID CANVAS (Shown specifically when Image Splitter is active and an image is loaded) -->
         <div id="splitterLivePreviewPanel" class="hidden rounded-sm border border-zinc-300 dark:border-darkLine bg-zinc-50 dark:bg-darkSurface p-4 space-y-3">
           <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-zinc-200 dark:border-darkLine">
@@ -474,55 +523,6 @@
           </div>
         </div>
 
-        <!-- Dropzone & Reorderable File Cards Container -->
-        <div
-          id="dropZoneContainer"
-          class="relative min-h-[360px] rounded-sm border border-dashed border-zinc-400 dark:border-zinc-700 bg-zinc-50/60 dark:bg-darkSurface p-4 sm:p-5"
-        >
-          <!-- External Drag Overlay -->
-          <div id="externalDragOverlay" class="hidden absolute inset-2 rounded-sm bg-accent/10 border-2 border-accent z-30 flex flex-col items-center justify-center pointer-events-none">
-            <p class="font-display text-base font-bold text-accent">Lepaskan File di Sini</p>
-            <p class="text-xs text-zinc-600 dark:text-zinc-300 mt-1">Urutan file akan dikunci persis sesuai urutan seret Anda</p>
-          </div>
-
-          <!-- Empty State -->
-          <div id="emptyStateBox" class="h-[310px] flex flex-col items-center justify-center text-center px-4">
-            <div class="w-12 h-12 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-accent flex items-center justify-center mb-3">
-              <i data-lucide="upload" class="w-5 h-5"></i>
-            </div>
-            <h3 class="font-display text-base font-bold text-ink dark:text-white">
-              Seret & Lepas File ke Area Ini
-            </h3>
-            <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-md mt-1">
-              Urutan file mengikuti persis urutan saat Anda menyeret atau memilihnya (<span class="font-mono text-accent">#1, #2, #3</span>) dan dapat digeser-geser kapan saja.
-            </p>
-            <div class="mt-4 flex flex-wrap items-center justify-center gap-2.5">
-              <label class="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold">
-                <i data-lucide="folder-open" class="w-3.5 h-3.5"></i>
-                <span>Pilih File dari Perangkat</span>
-                <input id="emptyFileInput" type="file" multiple class="hidden" />
-              </label>
-              <button id="loadDemoFilesEmptyBtn" onclick="loadDemoFiles()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas hover:border-accent text-xs font-medium">
-                <span>Muat Contoh Gambar & PDF</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Reorderable Cards Grid -->
-          <div id="fileItemsGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5"></div>
-          <section id="zipContentsCenter" class="hidden mt-4 space-y-2"></section>
-
-          <!-- Bottom Status Strip -->
-          <div id="bottomAddStrip" class="hidden mt-4 pt-3 border-t border-zinc-200 dark:border-darkLine flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-            <span>Geser kartu untuk menukar urutan posisi, atau gunakan tombol <strong>Kiri / Kanan</strong> di tiap kartu.</span>
-            <span id="totalSummaryText" class="font-mono font-semibold text-ink dark:text-zinc-200">0 item • 0 B</span>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- CENTER COLUMN: Live output / page preview -->
-      <div id="toolPreviewColumn" class="hidden xl:col-span-4 min-w-0 space-y-4">
         <section id="toolLivePreviewPanel" class="hidden mt-4 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkSurface p-3 sm:p-4 space-y-3">
           <div class="flex items-center justify-between gap-2 border-b border-zinc-200 dark:border-darkLine pb-2"><h3 id="toolLivePreviewTitle" class="font-display text-sm font-bold">Pratinjau Langsung</h3><span id="toolLivePreviewMeta" class="text-[11px] font-mono text-zinc-500"></span></div>
           <div id="toolLivePreviewContent" class="w-full min-w-0 flex flex-col items-center gap-3"></div>
@@ -1239,7 +1239,7 @@
 
       document.getElementById('resultOutputBox').classList.add('hidden');
       document.getElementById('progressContainer').classList.add('hidden');
-      const previewEngines = ['resize-image','filters-image','shape-crop','crop-image','overlay-images','compress-image','crop-pdf','qr-generator','color-picker','split-pdf','watermark-image'];
+      const previewEngines = ['resize-image','filters-image','shape-crop','crop-image','overlay-images','compress-image','crop-pdf','qr-generator','color-picker','split-pdf','watermark-image','image-splitter','join-images'];
       const showToolPreview = previewEngines.includes(found.engine);
       const fileColumn = document.getElementById('toolFileColumn');
       const previewColumn = document.getElementById('toolPreviewColumn');
