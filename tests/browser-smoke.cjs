@@ -210,8 +210,12 @@ const fs = require('node:fs');
     await page.locator('button[onclick="executeCurrentTool()"]').click();
     await page.waitForFunction(() => {
       const box = document.getElementById('resultOutputBox');
-      return box && !box.classList.contains('hidden');
+      const toast = document.getElementById('toastContainer');
+      return (box && !box.classList.contains('hidden')) || (toast && toast.innerText.includes('Gagal membuat kode'));
     }, { timeout: 20000 });
+    if (await page.locator('#resultOutputBox').evaluate(el => el.classList.contains('hidden'))) {
+      throw new Error('QR/barcode save failed: ' + await page.locator('#toastContainer').innerText());
+    }
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
     // Resize Image preserves aspect ratio and updates the original/result pixel dimensions live.
