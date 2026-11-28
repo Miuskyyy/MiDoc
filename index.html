@@ -3173,7 +3173,12 @@
     async function executeCurrentTool() {
       const engine = state.activeEngine;
       const baseName = (document.getElementById('outputFilenameInput')?.value || 'MiDoc_Hasil').trim();
-      if (!(await validateCurrentToolFiles())) return;
+      window.__midocActionTrace = { phase: 'started', engine, toolId: state.activeToolObj?.id || null, fileCount: state.items.length };
+      if (!(await validateCurrentToolFiles())) {
+        window.__midocActionTrace = { ...window.__midocActionTrace, phase: 'validation-rejected', toast: document.getElementById('toastContainer')?.innerText || '' };
+        return;
+      }
+      window.__midocActionTrace = { ...window.__midocActionTrace, phase: 'validated' };
 
       if (engine === 'text-to-pdf' || engine === 'doc-to-pdf') {
         await runDocOrTextToPdf(baseName);
@@ -3182,9 +3187,12 @@
       if (engine === 'qr-generator') {
         const button = document.getElementById('executeActionBtn');
         if (button) button.disabled = true;
+        window.__midocActionTrace = { ...window.__midocActionTrace, phase: 'rendering-code' };
         try {
           await runQrGenerator(baseName);
+          window.__midocActionTrace = { ...window.__midocActionTrace, phase: 'completed', filename: state.lastDownloadName || null };
         } catch (error) {
+          window.__midocActionTrace = { ...window.__midocActionTrace, phase: 'error', message: error?.message || String(error) };
           console.error(error);
           showToast('Gagal membuat kode: ' + error.message, 'error');
         } finally {
