@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - test/midoc-preview-final-v6-20261128
   workflow_dispatch:
 
 permissions:
@@ -22,16 +23,36 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout production site
         uses: actions/checkout@v6
+        with:
+          ref: main
+          path: site-main
+
+      - name: Checkout preview revision
+        uses: actions/checkout@v6
+        with:
+          ref: test/midoc-preview-final-v6-20261128
+          path: site-preview
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
+      - name: Assemble production site and isolated preview
+        shell: bash
+        run: |
+          mkdir -p _site/preview-v6
+          cp -a site-main/. _site/
+          rm -rf _site/preview-v6
+          mkdir -p _site/preview-v6
+          cp site-preview/index.html _site/preview-v6/index.html
+          cp site-preview/midoc-icon.svg _site/preview-v6/midoc-icon.svg
+          cp site-preview/manifest.webmanifest _site/preview-v6/manifest.webmanifest
+
       - name: Upload website files
         uses: actions/upload-pages-artifact@v4
         with:
-          path: .
+          path: _site
 
       - name: Deploy website
         id: deployment
