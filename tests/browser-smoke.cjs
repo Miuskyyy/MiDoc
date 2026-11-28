@@ -214,8 +214,74 @@ const fs = require('node:fs');
     }, { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
+    // Resize Image preserves aspect ratio and updates the original/result pixel dimensions live.
+    await openTool('resize-pixel');
+    await page.locator('#fileInput').setInputFiles({ name: 'resize-source.png', mimeType: 'image/png', buffer: redPng });
+    await page.waitForFunction(() => !document.getElementById('toolLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optResizePercent').evaluate(el => { el.value = '200'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    await page.waitForFunction(() => document.getElementById('resizeDimensionPreview').innerText.includes('8 × 8 px'), { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
+
+    // Pixel Crop is separate from resize and shows the selected pixel area before export.
+    await openTool('crop-image');
+    await page.locator('#fileInput').setInputFiles({ name: 'crop-source.png', mimeType: 'image/png', buffer: redPng });
+    await page.locator('#optCropX').fill('1');
+    await page.locator('#optCropY').fill('1');
+    await page.locator('#optCropW').fill('2');
+    await page.locator('#optCropH').fill('2');
+    await page.waitForFunction(() => document.getElementById('cropPixelInfo').innerText.includes('2×2 px'), { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
+
+    // Shape Crop provides a live circle/rounded crop; Filter Warna previews color changes on one selected image.
+    await openTool('shape-crop');
+    await page.locator('#fileInput').setInputFiles({ name: 'shape-source.png', mimeType: 'image/png', buffer: redPng });
+    await page.locator('#optShapeMode').selectOption('circle');
+    await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
+
+    await openTool('color-filters');
+    await page.locator('#fileInput').setInputFiles([
+      { name: 'filter-red.png', mimeType: 'image/png', buffer: redPng },
+      { name: 'filter-blue.png', mimeType: 'image/png', buffer: bluePng }
+    ]);
+    await page.locator('#fileItemsGrid .file-card').nth(1).click();
+    await page.locator('#optColorFilter').selectOption('grayscale(100%)');
+    await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 10000 });
+    assert.match(await page.locator('#toolLivePreviewMeta').innerText(), /filter-blue\.png/);
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
+
+    // Compression requires a separate preview action and reports source/result sizes before saving.
+    await openTool('compress-image');
+    await page.locator('#fileInput').setInputFiles({ name: 'compress-source.png', mimeType: 'image/png', buffer: redPng });
+    await page.locator('button[onclick="previewCompressImage()"]').click();
+    await page.waitForFunction(() => document.getElementById('compressPreviewInfo').innerText.includes('→'), { timeout: 15000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.jpg$/i);
+
+    // Layer composition selects background/foreground independently and exposes a draggable live preview.
+    await openTool('overlay-images');
+    await page.locator('#fileInput').setInputFiles([
+      { name: 'background-red.png', mimeType: 'image/png', buffer: redPng },
+      { name: 'foreground-blue.png', mimeType: 'image/png', buffer: bluePng }
+    ]);
+    await page.waitForFunction(() => !document.getElementById('toolLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
+    assert.equal(await page.locator('#optOverlayBase option').count(), 2);
+    assert.equal(await page.locator('#optOverlayFront option').count(), 2);
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
+
     assert.deepEqual(errors, [], 'No uncaught browser exceptions should occur');
-    console.log('Browser smoke tests passed: GIF create/extract, strict PDF input guard, Image-to-PDF defaults/export, valid PDF-to-image export, automatic PDF page cards, ZIP create/view/download, and live QR/barcode output.');
+    console.log('Browser smoke tests passed: GIF, PDF, automatic page cards, ZIP view/download, QR/barcode preview, resize/crop/shape/filter/compression, and image layer composition.');
   } finally {
     await browser.close();
   }
