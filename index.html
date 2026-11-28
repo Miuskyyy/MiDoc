@@ -490,7 +490,7 @@
           <!-- Reorderable Cards Grid -->
           <div id="fileItemsGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5"></div>
           <div id="editorLivePreviewPanel" class="hidden mt-4 rounded-sm border border-zinc-300 dark:border-darkLine bg-zinc-50 dark:bg-darkSurface p-3 sm:p-4 space-y-3">
-            <div class="flex flex-wrap items-center justify-between gap-2"><div><h3 id="editorPreviewTitle" class="font-display text-sm font-bold">Pratinjau langsung</h3><p id="editorPreviewHint" class="text-[11px] text-zinc-500">Perubahan terlihat sebelum disimpan.</p></div><span id="editorPreviewDimensions" class="text-[11px] font-mono text-accent"></span></div>
+            <div class="flex flex-wrap items-center justify-between gap-2"><div><h3 id="editorPreviewTitle" class="font-display text-sm font-bold">Pratinjau langsung</h3><p id="editorPreviewHint" class="text-[11px] text-zinc-500">Perubahan terlihat sebelum disimpan.</p></div><div class="flex items-center gap-2 min-w-0"><select id="editorPreviewTarget" onchange="state.editorSelectedItemId=this.value; renderActiveEditorPreview()" class="hidden max-w-[180px] min-w-0 text-xs px-2 py-2 border rounded-sm bg-white dark:bg-darkCanvas"></select><span id="editorPreviewDimensions" class="text-[11px] font-mono text-accent"></span></div></div>
             <div id="editorPreviewCanvasWrap" class="w-full min-w-0 checkerboard border border-zinc-200 dark:border-darkLine rounded-sm p-2 flex items-center justify-center overflow-auto"><canvas id="editorPreviewCanvas" class="max-w-full h-auto block"></canvas></div>
           </div>
           <div id="zipContentsPanel" class="hidden mt-4 space-y-2"></div>
@@ -1226,6 +1226,8 @@
       renderEngineSettings(found);
       renderWorkspaceItems();
       updateFilenamePreviewHint();
+      refreshActiveToolPreview();
+      if (found.id === 'crop-pdf') drawPdfCropPreview();
       window.scrollTo({ top: 0, behavior: 'auto' });
       lucide.createIcons();
     }
@@ -3306,8 +3308,8 @@
         await runDocOrTextToPdf(baseName);
         return;
       }
-      if (engine === 'qr-generator') {
-        await runQrGenerator(baseName);
+      if (engine === 'code-generator') {
+        await runCodeGenerator(baseName);
         return;
       }
       if (engine === 'password-gen') {
@@ -3375,6 +3377,8 @@
           case 'pdf-to-text':
             await runPdfToText(baseName);
             break;
+          case 'shape-crop':
+          case 'crop-pixel':
           case 'compress-image':
           case 'convert-image':
           case 'resize-image':
@@ -4826,34 +4830,24 @@
     }
 
     function updateZipToolMode() {
-      const mode = document.getElementById('optZipMode')?.value || 'create';
-      if (state.activeZipMode && state.activeZipMode !== mode) clearAllFiles();
-      state.activeZipMode = mode;
-      const description = document.getElementById('zipModeDescription');
-      const buttonLabel = document.getElementById('executeBtnLabel');
-      const filenameGroup = document.getElementById('outputFilenameGroup');
-      const panel = document.getElementById('zipContentsPanel');
-
-      state.zipArchiveFiles = [];
-      state.zipArchiveSourceName = null;
-      if (panel) {
-        panel.innerHTML = '';
-        panel.classList.add('hidden');
-      }
+      const mode=document.getElementById('optZipMode')?.value||'create';
+      if(state.activeZipMode&&state.activeZipMode!==mode)clearAllFiles();
+      state.activeZipMode=mode;
+      const description=document.getElementById('zipModeDescription');
+      const buttonLabel=document.getElementById('executeBtnLabel');
+      const filenameGroup=document.getElementById('outputFilenameGroup');
+      const panel=document.getElementById('zipContentsPanel');
+      state.zipArchiveFiles=[];state.zipArchiveSourceName=null;
+      if(panel){panel.innerHTML='';panel.classList.add('hidden');}
       document.getElementById('resultOutputBox')?.classList.add('hidden');
-
-      if (mode === 'create') {
+      if(mode==='create'){
         filenameGroup?.classList.remove('hidden');
-        if (description) description.textContent = 'Kemas semua file di workspace sesuai urutan kartu menjadi satu arsip ZIP.';
-        if (buttonLabel) buttonLabel.textContent = 'Buat Arsip ZIP';
-      } else if (mode === 'extract') {
+        if(description)description.textContent='Kemas semua file di workspace sesuai urutan kartu menjadi satu arsip ZIP.';
+        if(buttonLabel)buttonLabel.textContent='Buat Arsip ZIP';
+      }else{
         filenameGroup?.classList.add('hidden');
-        if (description) description.textContent = 'Pilih satu file .ZIP. MiDoc akan membaca isi arsip, lalu Anda bisa memilih folder tujuan untuk mengekstrak file dan struktur foldernya.';
-        if (buttonLabel) buttonLabel.textContent = 'Baca ZIP & Siapkan Ekstraksi';
-      } else {
-        filenameGroup?.classList.add('hidden');
-        if (description) description.textContent = 'Pilih satu file .ZIP untuk melihat daftar nama, struktur folder, dan ukuran file tanpa mengekstrak.';
-        if (buttonLabel) buttonLabel.textContent = 'Tampilkan Isi ZIP';
+        if(description)description.textContent='Pilih satu file ZIP. Daftar isi dan ukuran file akan langsung tampil di area utama; setiap file dapat diunduh satu per satu.';
+        if(buttonLabel)buttonLabel.textContent='Lihat Isi ZIP';
       }
       applyToolInputConfig();
       updateFilenamePreviewHint();
@@ -4863,57 +4857,22 @@
       return Number(entry?._data?.uncompressedSize || 0);
     }
 
-    function showZipArchiveContents(entries, sourceName, mode) {
-      const panel = document.getElementById('zipContentsPanel');
-      if (!panel) return;
-
-      const totalBytes = entries.reduce((sum, entry) => sum + getZipEntryUncompressedSize(entry), 0);
-      const supportsFolderPicker = typeof window.showDirectoryPicker === 'function';
-      const extractActions = mode === 'extract'
-        ? `
-          <div class="flex flex-wrap gap-2">
-            ${supportsFolderPicker ? `
-              <button type="button" id="zipExtractToFolderBtn" class="px-3 py-2 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold">
-                Pilih Folder & Ekstrak
-              </button>
-            ` : `
-              <p class="text-[11px] text-amber-600 dark:text-amber-400">Browser ini belum mendukung pemilihan folder langsung. Ekstrak file satu per satu melalui tombol Unduh di daftar ini.</p>
-            `}
-          </div>
-        `
-        : '';
-
-      panel.innerHTML = `
-        <div class="p-3 border border-zinc-300 dark:border-darkLine rounded-sm bg-white dark:bg-darkCanvas space-y-2">
-          <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-              <h3 class="font-display font-bold text-xs text-ink dark:text-white">Isi Arsip: ${escapeHtml(sourceName)}</h3>
-              <p class="text-[11px] text-zinc-500 mt-0.5">${entries.length} file · ${formatBytes(totalBytes)} total ukuran setelah diekstrak</p>
-            </div>
-            <span class="text-[10px] font-mono text-accent shrink-0">${mode === 'extract' ? 'EXTRACT' : 'VIEW'}</span>
-          </div>
-          ${extractActions}
-          <div class="max-h-72 overflow-y-auto border-t border-zinc-200 dark:border-darkLine pt-2 space-y-1">
-            ${entries.map((entry, index) => `
-              <div class="flex items-center justify-between gap-2 py-1.5 text-[11px]">
-                <span class="min-w-0 flex-1 break-all text-zinc-700 dark:text-zinc-200">${escapeHtml(entry.name)}</span>
-                <span class="text-[10px] font-mono text-zinc-500 shrink-0">${formatBytes(getZipEntryUncompressedSize(entry))}</span>
-                <button type="button" data-zip-entry-download="${index}" class="text-accent font-semibold hover:underline shrink-0">Unduh</button>
-              </div>
-            `).join('')}
-          </div>
-          <p id="zipExtractStatus" class="text-[11px] text-zinc-500 dark:text-zinc-400">File belum diekstrak atau diunduh.</p>
-        </div>
-      `;
+    function showZipArchiveContents(entries, sourceName) {
+      const panel=document.getElementById('zipContentsPanel');if(!panel)return;
+      const totalBytes=entries.reduce((sum,entry)=>sum+getZipEntryUncompressedSize(entry),0);
+      const rows=entries.map((entry,index)=>{
+        return '<div class="flex flex-wrap sm:flex-nowrap items-center gap-2 py-2 border-b border-zinc-100 dark:border-darkLine text-xs min-w-0">'+
+          '<span class="min-w-0 flex-1 break-all text-zinc-700 dark:text-zinc-200">'+escapeHtml(entry.name)+'</span>'+
+          '<span class="text-[11px] font-mono text-zinc-500 shrink-0">'+formatBytes(getZipEntryUncompressedSize(entry))+'</span>'+
+          '<button type="button" data-zip-entry-download="'+index+'" class="px-3 py-2 min-h-10 border border-accent text-accent rounded-sm font-semibold shrink-0">Unduh</button></div>';
+      }).join('');
+      panel.innerHTML='<div class="p-3 sm:p-4 border border-zinc-300 dark:border-darkLine rounded-sm bg-white dark:bg-darkCanvas space-y-3 w-full min-w-0">'+
+        '<div class="flex flex-wrap items-start justify-between gap-2"><div class="min-w-0"><h3 class="font-display font-bold text-sm text-ink dark:text-white break-all">Isi ZIP: '+escapeHtml(sourceName)+'</h3><p class="text-xs text-zinc-500 mt-1">'+entries.length+' file · '+formatBytes(totalBytes)+' total ukuran setelah dibaca</p></div><span class="text-[10px] font-mono text-accent shrink-0">ZIP VIEWER</span></div>'+
+        '<div class="max-h-[60vh] overflow-y-auto overscroll-contain border-t border-zinc-200 dark:border-darkLine pt-2 space-y-1">'+rows+'</div>'+
+        '<p id="zipExtractStatus" class="text-[11px] text-zinc-500">Pilih Unduh pada file yang ingin diambil dari arsip.</p></div>';
       panel.classList.remove('hidden');
-
-      panel.querySelectorAll('[data-zip-entry-download]').forEach(button => {
-        button.addEventListener('click', () => downloadZipEntry(Number(button.dataset.zipEntryDownload)));
-      });
-      document.getElementById('zipExtractToFolderBtn')?.addEventListener('click', extractZipToFolder);
-      updateProgress(100, 'Daftar isi ZIP berhasil dibaca.');
-      setTimeout(() => document.getElementById('progressContainer').classList.add('hidden'), 450);
-      showToast(`ZIP dibaca: ${entries.length} file ditemukan.`, 'success');
+      panel.querySelectorAll('[data-zip-entry-download]').forEach(button=>button.addEventListener('click',()=>downloadZipEntry(Number(button.dataset.zipEntryDownload))));
+      showToast('Isi ZIP berhasil dibaca: '+entries.length+' file.','success');
     }
 
     async function readZipArchiveForAction(mode) {
@@ -4952,7 +4911,7 @@
       }
       state.zipArchiveFiles = entries;
       state.zipArchiveSourceName = zipItem.name;
-      showZipArchiveContents(entries, zipItem.name, mode);
+      showZipArchiveContents(entries, zipItem.name);
     }
 
     async function downloadZipEntry(index) {
@@ -4975,221 +4934,9 @@
       }
     }
 
-    async function extractZipToFolder() {
-      if (typeof window.showDirectoryPicker !== 'function') {
-        showToast('Browser ini belum mendukung ekstraksi ke folder. Gunakan unduh per file.', 'error');
-        return;
-      }
-      let rootHandle;
-      try {
-        // Call the picker directly from the user's button interaction.
-        rootHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-      } catch (error) {
-        if (error.name !== 'AbortError') showToast('Folder tujuan tidak dapat dibuka: ' + error.message, 'error');
-        return;
-      }
-
-      const entries = state.zipArchiveFiles;
-      let written = 0;
-      const skipped = [];
-      for (let index = 0; index < entries.length; index++) {
-        const entry = entries[index];
-        const normalized = entry.name.replace(/\\/g, '/');
-        const originalParts = normalized.split('/');
-        if (normalized.startsWith('/') || /^[A-Za-z]:/.test(normalized) || originalParts.includes('..') || originalParts.some(part => /[\x00-\x1F]/.test(part))) {
-          skipped.push(entry.name + ' — jalur tidak aman');
-          continue;
-        }
-        const invalidChars = new RegExp('[<>:' + String.fromCharCode(34) + '|?*]', 'g');
-        const parts = originalParts.filter(part => part && part !== '.').map(part => part.replace(invalidChars, '_').replace(/[. ]+$/g, '').slice(0, 120));
-        if (!parts.length || parts.length > 20 || parts.some(part => !part || /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(part))) {
-          skipped.push(entry.name + ' — nama atau kedalaman jalur tidak valid');
-          continue;
-        }
-
-        try {
-          let directory = rootHandle;
-          for (const folderName of parts.slice(0, -1)) {
-            directory = await directory.getDirectoryHandle(folderName, { create: true });
-          }
-          const fileHandle = await directory.getFileHandle(parts[parts.length - 1], { create: true });
-          const writable = await fileHandle.createWritable();
-          const data = await entry.async('uint8array');
-          await writable.write(data);
-          await writable.close();
-          written++;
-          updateProgress(((index + 1) / entries.length) * 100, `Mengekstrak ${written}/${entries.length}: ${parts[parts.length - 1]}`);
-        } catch (error) {
-          skipped.push(entry.name + ' — ' + error.message);
-        }
-      }
-
-      const status = document.getElementById('zipExtractStatus');
-      if (status) status.textContent = `${written} file berhasil diekstrak ke folder yang dipilih.${skipped.length ? ' ' + skipped.length + ' file dilewati.' : ''}`;
-      setTimeout(() => document.getElementById('progressContainer').classList.add('hidden'), 500);
-      showToast(`${written} file berhasil diekstrak.`, written ? 'success' : 'error');
-    }
-
-
-    async function runGifTools(baseName) {
-      const mode = document.getElementById('optGifMode')?.value || 'create';
-      if (mode === 'extract') {
-        await extractGifFrames(baseName);
-        return;
-      }
-      await createAnimatedGif(baseName);
-    }
-
-    async function createAnimatedGif(baseName) {
-      const images = state.items.filter(item => item.isImage && item.thumbUrl);
-      if (images.length < 2) throw new Error('GIF Maker memerlukan minimal dua gambar statis.');
-      if (images.length > 150) throw new Error('GIF Maker menerima maksimal 150 frame dalam satu animasi.');
-      if (typeof window.GIF !== 'function') throw new Error('GIF encoder belum berhasil dimuat. Periksa koneksi internet lalu muat ulang halaman.');
-
-      const first = await renderItemToCanvas(images[0]);
-      const maxWidth = parseInt(document.getElementById('optGifMaxWidth')?.value || '0', 10);
-      const requestedWidth = maxWidth > 0 ? Math.min(first.width, maxWidth) : Math.min(first.width, 1080);
-      const outputWidth = Math.max(1, requestedWidth);
-      const outputHeight = Math.max(1, Math.round(first.height * outputWidth / first.width));
-      const totalPixels = outputWidth * outputHeight * images.length;
-      if (outputWidth > 2400 || outputHeight > 4000 || outputWidth * outputHeight > 6000000 || totalPixels > 40000000) {
-        throw new Error('Total frame GIF terlalu besar untuk diproses dengan aman. Pilih lebar 480 atau 720 px, atau kurangi jumlah gambar.');
-      }
-      const delayInput = Number(document.getElementById('optGifDelay')?.value || '250');
-      if (!Number.isFinite(delayInput) || delayInput < 20 || delayInput > 10000) throw new Error('Durasi frame harus antara 20 dan 10.000 ms.');
-      const delay = Math.round(delayInput);
-      const repeat = parseInt(document.getElementById('optGifRepeat')?.value || '0', 10);
-      const prepared = [];
-
-      for (let i = 0; i < images.length; i++) {
-        const src = i === 0 ? first : await renderItemToCanvas(images[i]);
-        const frame = document.createElement('canvas');
-        frame.width = outputWidth;
-        frame.height = outputHeight;
-        const ctx = frame.getContext('2d');
-        if (!ctx) throw new Error('Browser tidak dapat membuat kanvas untuk frame GIF.');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, frame.width, frame.height);
-        const scale = Math.min(frame.width / src.width, frame.height / src.height);
-        const drawW = Math.max(1, Math.round(src.width * scale));
-        const drawH = Math.max(1, Math.round(src.height * scale));
-        ctx.drawImage(src, (frame.width - drawW) / 2, (frame.height - drawH) / 2, drawW, drawH);
-        prepared.push(frame);
-        updateProgress(10 + ((i + 1) / images.length) * 15, 'Menyiapkan frame ' + (i + 1) + ' dari ' + images.length + '...');
-      }
-
-      const blob = await new Promise((resolve, reject) => {
-        let settled = false;
-        const encoder = new GIF({
-          workers: 2,
-          quality: 10,
-          repeat,
-          width: outputWidth,
-          height: outputHeight,
-          workerScript: new URL('./gif.worker.js', window.location.href).href
-        });
-        encoder.on('progress', progress => updateProgress(25 + Math.round(progress * 70), 'Menyusun frame GIF...'));
-        encoder.on('finished', result => {
-          settled = true;
-          resolve(result);
-        });
-        encoder.on('abort', () => {
-          if (!settled) reject(new Error('Pembuatan GIF dibatalkan oleh encoder.'));
-        });
-        encoder.on('error', error => {
-          if (!settled) reject(error instanceof Error ? error : new Error('GIF encoder gagal memproses frame.'));
-        });
-        prepared.forEach(canvas => encoder.addFrame(canvas, { delay, copy: true }));
-        try {
-          encoder.render();
-        } catch (error) {
-          reject(error);
-        }
-      });
-      if (!blob || blob.type !== 'image/gif') throw new Error('Encoder tidak menghasilkan file GIF yang valid.');
-      const finalName = formatDownloadFilename({ baseName, ext: 'gif', isBulkOrZip: false });
-      finishWithBlob(blob, finalName, 'Animasi GIF berhasil dibuat dari ' + images.length + ' gambar, ukuran ' + outputWidth + '×' + outputHeight + ' px, durasi tiap frame ' + delay + ' ms.', { isImageResult: true });
-    }
-
-
-    async function extractGifFrames(baseName) {
-      const item = state.items[0];
-      if (!item) throw new Error('Pilih satu file GIF animasi.');
-      const module = await import('https://esm.sh/gifuct-js@2.1.2');
-      const parsed = module.parseGIF(await item.file.arrayBuffer());
-      const frames = module.decompressFrames(parsed, true);
-      if (!frames || !frames.length) throw new Error('Tidak ada frame animasi yang dapat diekstrak dari GIF ini.');
-      if (frames.length > 500) throw new Error('GIF ini memiliki lebih dari 500 frame. File terlalu besar untuk diekstrak dengan aman di browser.');
-      const width = parsed.lsd.width;
-      const height = parsed.lsd.height;
-      if (!width || !height || width > 6000 || height > 6000 || width * height > 18000000) {
-        throw new Error('Dimensi GIF terlalu besar untuk diproses dengan aman di browser (maksimal 6.000 px per sisi dan 18 megapiksel).');
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) throw new Error('Browser tidak dapat membuat kanvas untuk ekstraksi GIF.');
-      const backgroundIndex = parsed.lsd.backgroundColorIndex;
-      const backgroundColor = parsed.gct && parsed.gct[backgroundIndex];
-      const initialTransparent = frames[0] && frames[0].transparentIndex === backgroundIndex;
-      const paintBackground = (left, top, frameWidth, frameHeight, transparent) => {
-        if (transparent || !backgroundColor) {
-          ctx.clearRect(left, top, frameWidth, frameHeight);
-          return;
-        }
-        ctx.save();
-        ctx.fillStyle = 'rgb(' + backgroundColor[0] + ',' + backgroundColor[1] + ',' + backgroundColor[2] + ')';
-        ctx.fillRect(left, top, frameWidth, frameHeight);
-        ctx.restore();
-      };
-      paintBackground(0, 0, width, height, initialTransparent);
-      const zip = new JSZip();
-      let previousFrame = null;
-      let previousRestore = null;
-      const sourceBase = item.name.replace(/\.gif$/i, '') || 'GIF';
-      for (let i = 0; i < frames.length; i++) {
-        const frame = frames[i];
-        if (previousFrame) {
-          const rect = previousFrame.dims;
-          if (previousFrame.disposalType === 2) {
-            paintBackground(rect.left, rect.top, rect.width, rect.height, previousFrame.transparentIndex === backgroundIndex);
-          } else if (previousFrame.disposalType === 3 && previousRestore) {
-            ctx.putImageData(previousRestore, 0, 0);
-          }
-        }
-        const restoreBeforeFrame = frame.disposalType === 3 ? ctx.getImageData(0, 0, width, height) : null;
-        const patch = frame.patch;
-        const patchWidth = frame.dims.width;
-        const patchHeight = frame.dims.height;
-        if (!patch || patch.length !== patchWidth * patchHeight * 4) {
-          throw new Error('Data frame GIF ke-' + (i + 1) + ' tidak lengkap.');
-        }
-        const composed = ctx.getImageData(frame.dims.left, frame.dims.top, patchWidth, patchHeight);
-        for (let pixel = 0; pixel < patchWidth * patchHeight; pixel++) {
-          const offset = pixel * 4;
-          if (patch[offset + 3] === 0) continue;
-          composed.data[offset] = patch[offset];
-          composed.data[offset + 1] = patch[offset + 1];
-          composed.data[offset + 2] = patch[offset + 2];
-          composed.data[offset + 3] = patch[offset + 3];
-        }
-        ctx.putImageData(composed, frame.dims.left, frame.dims.top);
-        const png = await new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Gagal membuat PNG frame ' + (i + 1) + '.')), 'image/png'));
-        zip.file(sourceBase + '_frame_' + String(i + 1).padStart(4, '0') + '.png', png);
-        previousFrame = frame;
-        previousRestore = restoreBeforeFrame;
-        updateProgress(((i + 1) / frames.length) * 90, 'Mengekstrak frame ' + (i + 1) + ' dari ' + frames.length + '...');
-      }
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const finalName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: sourceBase });
-      finishWithBlob(zipBlob, finalName, frames.length + ' frame GIF berhasil dikomposisikan menjadi PNG dalam satu arsip ZIP.');
-    }
-
-
     async function runZipMaker(baseName) {
       const mode = document.getElementById('optZipMode')?.value || 'create';
-      if (mode === 'view' || mode === 'extract') {
+      if (mode === 'view') {
         await readZipArchiveForAction(mode);
         return;
       }
@@ -5235,22 +4982,25 @@
 
     // --- ENGINE 14: COLOR PICKER, QR GENERATOR, PASSWORD ---
     async function runColorPicker() {
-      const img = state.items.find(i => i.isImage && i.thumbUrl);
-      if (!img) { showToast('Tambahkan minimal 1 gambar.', 'error'); return; }
-      const c = resizeCanvas(await renderItemToCanvas(img), 36, 36, 'stretch');
-      const data = c.getContext('2d').getImageData(0, 0, 36, 36).data;
-      const map = {};
-      for (let i = 0; i < data.length; i += 16) {
-        const hex = '#' + [data[i], data[i + 1], data[i + 2]].map(v => (Math.round(v / 24) * 24).toString(16).padStart(2, '0')).join('').toUpperCase();
-        map[hex] = (map[hex] || 0) + 1;
+      const img=state.items.find(item=>item.isImage&&item.thumbUrl);
+      if(!img)throw new Error('Tambahkan minimal satu gambar.');
+      const source=await renderItemToCanvas(img),sample=resizeCanvas(source,160,160,'stretch');
+      const pixels=sample.getContext('2d',{willReadFrequently:true}).getImageData(0,0,sample.width,sample.height).data;
+      const histogram=new Map();
+      for(let i=0;i<pixels.length;i+=4){
+        if(pixels[i+3]<96)continue;
+        const r=pixels[i]>>3,g=pixels[i+1]>>3,b=pixels[i+2]>>3,key=(r<<10)|(g<<5)|b;
+        const current=histogram.get(key)||{count:0,r:0,g:0,b:0};
+        current.count++;current.r+=pixels[i];current.g+=pixels[i+1];current.b+=pixels[i+2];histogram.set(key,current);
       }
-      const top = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 8).map(e => e[0]);
-      document.getElementById('extractedPaletteSwatches').innerHTML = top.map(hex => `
-        <button onclick="copyTextFallback('${hex}'); showToast('Disalin: ${hex}', 'info')" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-center">
-          <div class="w-full h-6 mb-1" style="background:${hex}"></div>
-          <div class="text-[10px] font-mono font-bold">${hex}</div>
-        </button>
-      `).join('');
+      const top=[...histogram.values()].sort((a,b)=>b.count-a.count).slice(0,16);
+      if(!top.length)throw new Error('Tidak ditemukan warna yang dapat dibaca pada gambar.');
+      const swatches=top.map(item=>{
+        const hex='#'+[item.r/item.count,item.g/item.count,item.b/item.count].map(value=>Math.round(value).toString(16).padStart(2,'0')).join('').toUpperCase();
+        return '<button type="button" onclick="copyTextFallback(\\''+hex+'\\'); showToast(\\'Disalin: '+hex+'\\', \\'info\\')" class="p-2 rounded-sm border border-zinc-300 dark:border-darkLine text-center min-w-0"><div class="w-full h-8 mb-1 rounded-sm" style="background:'+hex+'"></div><div class="text-[11px] font-mono font-bold">'+hex+'</div><div class="text-[10px] text-zinc-500">'+item.count+' sampel</div></button>';
+      }).join('');
+      const target=document.getElementById('extractedPaletteSwatches');
+      target.innerHTML=swatches;target.className='grid grid-cols-2 sm:grid-cols-4 gap-2';
     }
 
     async function runQrGenerator(baseName) {
