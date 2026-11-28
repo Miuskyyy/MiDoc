@@ -2032,8 +2032,9 @@
             <div>
               <label class="block text-xs font-semibold mb-1">Jumlah Digit</label>
               <select id="optRenameDigits" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+                <option value="1" selected>1 Digit (1)</option>
                 <option value="2">2 Digit (01)</option>
-                <option value="3" selected>3 Digit (001)</option>
+                <option value="3">3 Digit (001)</option>
                 <option value="4">4 Digit (0001)</option>
               </select>
             </div>
@@ -4361,90 +4362,54 @@
       const buttonLabel = document.getElementById('executeBtnLabel');
       const filenameGroup = document.getElementById('outputFilenameGroup');
       const panel = document.getElementById('zipContentsCenter');
-
       state.zipArchiveFiles = [];
       state.zipArchiveSourceName = null;
-      if (panel) {
-        panel.innerHTML = '';
-        panel.classList.add('hidden');
-      }
+      if (panel) { panel.innerHTML=''; panel.classList.add('hidden'); }
       document.getElementById('resultOutputBox')?.classList.add('hidden');
-
-      if (mode === 'create') {
-        filenameGroup?.classList.remove('hidden');
-        if (description) description.textContent = 'Kemas semua file di workspace sesuai urutan kartu menjadi satu arsip ZIP.';
-        if (buttonLabel) buttonLabel.textContent = 'Buat Arsip ZIP';
-      } else if (mode === 'extract') {
-        filenameGroup?.classList.add('hidden');
-        if (description) description.textContent = 'Pilih satu file .ZIP. MiDoc akan membaca isi arsip, lalu Anda bisa memilih folder tujuan untuk mengekstrak file dan struktur foldernya.';
-        if (buttonLabel) buttonLabel.textContent = 'Baca ZIP & Siapkan Ekstraksi';
-      } else {
-        filenameGroup?.classList.add('hidden');
-        if (description) description.textContent = 'Pilih satu file .ZIP untuk melihat daftar nama, struktur folder, dan ukuran file tanpa mengekstrak.';
-        if (buttonLabel) buttonLabel.textContent = 'Tampilkan Isi ZIP';
+      filenameGroup?.classList.toggle('hidden',mode==='view');
+      document.getElementById('executeActionBtn')?.classList.toggle('hidden',mode==='view');
+      if(mode==='create'){
+        if(description)description.textContent='Kemas semua file di workspace sesuai urutan kartu menjadi satu arsip ZIP.';
+        if(buttonLabel)buttonLabel.textContent='Buat Arsip ZIP';
+      }else{
+        if(description)description.textContent='Pilih satu file ZIP. Isi arsip akan langsung ditampilkan di area tengah dan setiap file dapat diunduh satu per satu.';
+        if(buttonLabel)buttonLabel.textContent='Lihat Isi ZIP';
       }
       applyToolInputConfig();
       updateFilenamePreviewHint();
     }
 
-    function getZipEntryUncompressedSize(entry) {
+    function getZipEntryUncompressedSize(entry) {    function getZipEntryUncompressedSize(entry) {
       return Number(entry?._data?.uncompressedSize || 0);
     }
 
-    function showZipArchiveContents(entries, sourceName, mode) {
-      const panel = document.getElementById('zipContentsCenter');
-      if (!panel) return;
-
-      const totalBytes = entries.reduce((sum, entry) => sum + getZipEntryUncompressedSize(entry), 0);
-      const supportsFolderPicker = typeof window.showDirectoryPicker === 'function';
-      const extractActions = mode === 'extract'
-        ? `
-          <div class="flex flex-wrap gap-2">
-            ${supportsFolderPicker ? `
-              <button type="button" id="zipExtractToFolderBtn" class="px-3 py-2 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold">
-                Pilih Folder & Ekstrak
-              </button>
-            ` : `
-              <p class="text-[11px] text-amber-600 dark:text-amber-400">Browser ini belum mendukung pemilihan folder langsung. Ekstrak file satu per satu melalui tombol Unduh di daftar ini.</p>
-            `}
+    function showZipArchiveContents(entries, sourceName) {
+      const panel=document.getElementById('zipContentsCenter');
+      if(!panel)return;
+      const totalBytes=entries.reduce((sum,entry)=>sum+getZipEntryUncompressedSize(entry),0);
+      panel.innerHTML=`
+        <div class="p-3 sm:p-4 border border-zinc-300 dark:border-darkLine rounded-sm bg-white dark:bg-darkCanvas space-y-3">
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div class="min-w-0"><h3 class="font-display font-bold text-sm text-ink dark:text-white">Isi Arsip: ${escapeHtml(sourceName)}</h3><p class="text-xs text-zinc-500 mt-0.5">${entries.length} file · ${formatBytes(totalBytes)} total ukuran setelah diekstrak</p></div>
+            <span class="text-[10px] font-mono text-accent shrink-0">ZIP CONTENTS</span>
           </div>
-        `
-        : '';
-
-      panel.innerHTML = `
-        <div class="p-3 border border-zinc-300 dark:border-darkLine rounded-sm bg-white dark:bg-darkCanvas space-y-2">
-          <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-              <h3 class="font-display font-bold text-xs text-ink dark:text-white">Isi Arsip: ${escapeHtml(sourceName)}</h3>
-              <p class="text-[11px] text-zinc-500 mt-0.5">${entries.length} file · ${formatBytes(totalBytes)} total ukuran setelah diekstrak</p>
-            </div>
-            <span class="text-[10px] font-mono text-accent shrink-0">${mode === 'extract' ? 'EXTRACT' : 'VIEW'}</span>
-          </div>
-          ${extractActions}
-          <div class="max-h-72 overflow-y-auto border-t border-zinc-200 dark:border-darkLine pt-2 space-y-1">
-            ${entries.map((entry, index) => `
-              <div class="flex items-center justify-between gap-2 py-1.5 text-[11px]">
+          <div class="max-h-[65vh] overflow-y-auto border-t border-zinc-200 dark:border-darkLine pt-2">
+            ${entries.map((entry,index)=>`
+              <div class="flex items-center justify-between gap-3 py-2.5 border-b border-zinc-100 dark:border-darkLine last:border-0 text-xs">
                 <span class="min-w-0 flex-1 break-all text-zinc-700 dark:text-zinc-200">${escapeHtml(entry.name)}</span>
-                <span class="text-[10px] font-mono text-zinc-500 shrink-0">${formatBytes(getZipEntryUncompressedSize(entry))}</span>
-                <button type="button" data-zip-entry-download="${index}" class="text-accent font-semibold hover:underline shrink-0">Unduh</button>
+                <span class="text-[11px] font-mono text-zinc-500 shrink-0">${formatBytes(getZipEntryUncompressedSize(entry))}</span>
+                <button type="button" data-zip-entry-download="${index}" class="px-3 py-2 min-h-10 rounded-sm border border-zinc-300 dark:border-darkLine text-accent font-semibold hover:border-accent shrink-0">Unduh</button>
               </div>
             `).join('')}
           </div>
-          <p id="zipExtractStatus" class="text-[11px] text-zinc-500 dark:text-zinc-400">File belum diekstrak atau diunduh.</p>
-        </div>
-      `;
+          <p id="zipExtractStatus" class="text-[11px] text-zinc-500 dark:text-zinc-400">Pilih Unduh pada file yang ingin disimpan.</p>
+        </div>`;
       panel.classList.remove('hidden');
-
-      panel.querySelectorAll('[data-zip-entry-download]').forEach(button => {
-        button.addEventListener('click', () => downloadZipEntry(Number(button.dataset.zipEntryDownload)));
-      });
-      document.getElementById('zipExtractToFolderBtn')?.addEventListener('click', extractZipToFolder);
-      updateProgress(100, 'Daftar isi ZIP berhasil dibaca.');
-      setTimeout(() => document.getElementById('progressContainer').classList.add('hidden'), 450);
-      showToast(`ZIP dibaca: ${entries.length} file ditemukan.`, 'success');
+      panel.querySelectorAll('[data-zip-entry-download]').forEach(button=>button.addEventListener('click',()=>downloadZipEntry(Number(button.dataset.zipEntryDownload))));
+      showToast('ZIP dibaca: '+entries.length+' file ditemukan.','success');
     }
 
-    async function readZipArchiveForAction(mode) {
+    async function readZipArchiveForAction(mode) {    async function readZipArchiveForAction(mode) {
       const zipItem = state.items.find(item =>
         item.name.toLowerCase().endsWith('.zip') ||
         item.type === 'application/zip' ||
@@ -4503,63 +4468,7 @@
       }
     }
 
-    async function extractZipToFolder() {
-      if (typeof window.showDirectoryPicker !== 'function') {
-        showToast('Browser ini belum mendukung ekstraksi ke folder. Gunakan unduh per file.', 'error');
-        return;
-      }
-      let rootHandle;
-      try {
-        // Call the picker directly from the user's button interaction.
-        rootHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-      } catch (error) {
-        if (error.name !== 'AbortError') showToast('Folder tujuan tidak dapat dibuka: ' + error.message, 'error');
-        return;
-      }
-
-      const entries = state.zipArchiveFiles;
-      let written = 0;
-      const skipped = [];
-      for (let index = 0; index < entries.length; index++) {
-        const entry = entries[index];
-        const normalized = entry.name.replace(/\\/g, '/');
-        const originalParts = normalized.split('/');
-        if (normalized.startsWith('/') || /^[A-Za-z]:/.test(normalized) || originalParts.includes('..') || originalParts.some(part => /[\x00-\x1F]/.test(part))) {
-          skipped.push(entry.name + ' — jalur tidak aman');
-          continue;
-        }
-        const invalidChars = new RegExp('[<>:' + String.fromCharCode(34) + '|?*]', 'g');
-        const parts = originalParts.filter(part => part && part !== '.').map(part => part.replace(invalidChars, '_').replace(/[. ]+$/g, '').slice(0, 120));
-        if (!parts.length || parts.length > 20 || parts.some(part => !part || /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(part))) {
-          skipped.push(entry.name + ' — nama atau kedalaman jalur tidak valid');
-          continue;
-        }
-
-        try {
-          let directory = rootHandle;
-          for (const folderName of parts.slice(0, -1)) {
-            directory = await directory.getDirectoryHandle(folderName, { create: true });
-          }
-          const fileHandle = await directory.getFileHandle(parts[parts.length - 1], { create: true });
-          const writable = await fileHandle.createWritable();
-          const data = await entry.async('uint8array');
-          await writable.write(data);
-          await writable.close();
-          written++;
-          updateProgress(((index + 1) / entries.length) * 100, `Mengekstrak ${written}/${entries.length}: ${parts[parts.length - 1]}`);
-        } catch (error) {
-          skipped.push(entry.name + ' — ' + error.message);
-        }
-      }
-
-      const status = document.getElementById('zipExtractStatus');
-      if (status) status.textContent = `${written} file berhasil diekstrak ke folder yang dipilih.${skipped.length ? ' ' + skipped.length + ' file dilewati.' : ''}`;
-      setTimeout(() => document.getElementById('progressContainer').classList.add('hidden'), 500);
-      showToast(`${written} file berhasil diekstrak.`, written ? 'success' : 'error');
-    }
-
-
-    async function runGifTools(baseName) {
+    async function runGifTools(baseName) {    async function runGifTools(baseName) {
       const mode = document.getElementById('optGifMode')?.value || 'create';
       if (mode === 'extract') {
         await extractGifFrames(baseName);
@@ -4717,7 +4626,7 @@
 
     async function runZipMaker(baseName) {
       const mode = document.getElementById('optZipMode')?.value || 'create';
-      if (mode === 'view' || mode === 'extract') {
+      if (mode === 'view') {
         await readZipArchiveForAction(mode);
         return;
       }
@@ -4781,36 +4690,83 @@
       `).join('');
     }
 
-    async function runQrGenerator(baseName) {
-      const text = (document.getElementById('optQrText')?.value || '').trim();
-      if (!text) throw new Error('Masukkan teks atau tautan terlebih dahulu.');
-      if (typeof window.QRCode !== 'function') throw new Error('Library QR Code belum berhasil dimuat. Periksa koneksi internet lalu muat ulang halaman.');
-      const host = document.createElement('div');
-      host.style.cssText = 'position:fixed;left:-10000px;top:0;width:1024px;height:1024px;background:#fff;';
-      document.body.appendChild(host);
-      try {
-        new QRCode(host, { text, width: 1024, height: 1024, correctLevel: QRCode.CorrectLevel.M });
-        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 80)));
-        let sourceCanvas = host.querySelector('canvas');
-        if (!sourceCanvas) {
-          const image = host.querySelector('img');
-          if (!image) throw new Error('QR Code gagal dirender.');
-          if (!image.complete) await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
-          if (!image.naturalWidth || !image.naturalHeight) throw new Error('Gambar QR gagal dimuat untuk diekspor.');
-          sourceCanvas = document.createElement('canvas');
-          sourceCanvas.width = 1024;
-          sourceCanvas.height = 1024;
-          sourceCanvas.getContext('2d').drawImage(image, 0, 0, 1024, 1024);
-        }
-        const blob = await new Promise((resolve, reject) => sourceCanvas.toBlob(result => result ? resolve(result) : reject(new Error('Gagal membuat PNG QR Code.')), 'image/png'));
-        const finalName = formatDownloadFilename({ baseName, ext: 'png', isBulkOrZip: false });
-        finishWithBlob(blob, finalName, 'QR Code standar berhasil dibuat untuk teks atau tautan yang dimasukkan.', { isImageResult: true });
-      } finally {
-        host.remove();
+    async function makeCodeCanvas() {
+      const text=(document.getElementById('optQrText')?.value||'').trim();
+      if(!text)throw new Error('Masukkan teks, URL, atau nomor barcode terlebih dahulu.');
+      const type=document.getElementById('optCodeType')?.value||'qr';
+      if(type==='qr'){
+        if(typeof window.QRCode!=='function')throw new Error('Library QR Code belum berhasil dimuat.');
+        const size=Math.max(128,Math.min(2048,Number(document.getElementById('optQrSize')?.value||512)));
+        const bg=document.getElementById('optQrBg')?.value||'#ffffff';
+        const fg=document.getElementById('optQrFg')?.value||'#000000';
+        const levelMap={L:QRCode.CorrectLevel.L,M:QRCode.CorrectLevel.M,Q:QRCode.CorrectLevel.Q,H:QRCode.CorrectLevel.H};
+        const host=document.createElement('div');
+        host.style.cssText='position:fixed;left:-10000px;top:0;width:'+size+'px;height:'+size+'px;';
+        document.body.appendChild(host);
+        try{
+          new QRCode(host,{text,width:size,height:size,colorDark:fg,colorLight:bg,correctLevel:levelMap[document.getElementById('optQrCorrection')?.value||'M']});
+          await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,80)));
+          let source=host.querySelector('canvas');
+          if(!source){
+            const img=host.querySelector('img');
+            if(!img)throw new Error('QR Code gagal dirender.');
+            if(!img.complete)await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;});
+            source=document.createElement('canvas');source.width=size;source.height=size;source.getContext('2d').drawImage(img,0,0,size,size);
+          }
+          const out=document.createElement('canvas');out.width=size;out.height=size;
+          out.getContext('2d').drawImage(source,0,0,size,size);
+          return out;
+        }finally{host.remove();}
       }
+      if(typeof window.JsBarcode!=='function')throw new Error('Library Barcode belum berhasil dimuat. Muat ulang halaman dan coba lagi.');
+      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+      const format=document.getElementById('optBarcodeFormat')?.value||'CODE128';
+      const showText=Boolean(document.getElementById('optBarcodeShowText')?.checked);
+      const bold=Boolean(document.getElementById('optBarcodeBold')?.checked);
+      const italic=Boolean(document.getElementById('optBarcodeItalic')?.checked);
+      try{
+        JsBarcode(svg,text,{
+          format,width:Math.max(1,Math.min(5,Number(document.getElementById('optBarcodeWidth')?.value||2))),
+          height:Math.max(20,Math.min(300,Number(document.getElementById('optBarcodeHeight')?.value||100))),
+          margin:Math.max(0,Math.min(100,Number(document.getElementById('optBarcodeMargin')?.value||10))),
+          displayValue:showText,fontSize:Math.max(8,Math.min(64,Number(document.getElementById('optBarcodeFontSize')?.value||20))),
+          textMargin:Math.max(0,Math.min(40,Number(document.getElementById('optBarcodeTextMargin')?.value||0))),
+          textAlign:document.getElementById('optBarcodeAlign')?.value||'center',
+          background:document.getElementById('optBarcodeBg')?.value||'#ffffff',
+          lineColor:document.getElementById('optBarcodeFg')?.value||'#000000',
+          font:document.getElementById('optBarcodeFont')?.value||'Sans-serif',
+          fontOptions:[bold?'bold':'',italic?'italic':''].filter(Boolean).join(' ')
+        });
+      }catch(error){throw new Error('Barcode tidak valid untuk format '+format+': '+error.message);}
+      const serialized=new XMLSerializer().serializeToString(svg);
+      const svgBlob=new Blob([serialized],{type:'image/svg+xml;charset=utf-8'});
+      const url=URL.createObjectURL(svgBlob);
+      try{
+        const img=new Image();
+        await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('SVG barcode gagal dirender.'));img.src=url;});
+        const out=document.createElement('canvas');out.width=Math.max(1,img.naturalWidth);out.height=Math.max(1,img.naturalHeight);
+        const ctx=out.getContext('2d');ctx.fillStyle=document.getElementById('optBarcodeBg')?.value||'#ffffff';ctx.fillRect(0,0,out.width,out.height);ctx.drawImage(img,0,0);
+        return out;
+      }finally{URL.revokeObjectURL(url);}
     }
 
-    function runPasswordGenerator() {
+    function updateCodeType(){
+      const type=document.getElementById('optCodeType')?.value||'qr';
+      document.getElementById('qrOptions')?.classList.toggle('hidden',type!=='qr');
+      document.getElementById('barcodeOptions')?.classList.toggle('hidden',type!=='barcode');
+      const ext=document.getElementById('outputExtBadge');if(ext)ext.textContent='.png';
+      const label=document.getElementById('executeBtnLabel');if(label)label.textContent=type==='qr'?'Simpan QR Code':'Simpan Barcode';
+      drawToolLivePreview();
+    }
+
+    async function runQrGenerator(baseName) {
+      const canvas=await makeCodeCanvas();
+      const blob=await new Promise((resolve,reject)=>canvas.toBlob(result=>result?resolve(result):reject(new Error('Gagal membuat file PNG.')),'image/png'));
+      const finalName=formatDownloadFilename({baseName,ext:'png',isBulkOrZip:false});
+      finishWithBlob(blob,finalName,(document.getElementById('optCodeType')?.value||'qr')==='qr'?'QR Code berhasil dibuat.':'Barcode berhasil dibuat.',{isImageResult:true});
+    }
+
+    function runPasswordGenerator() {    function runPasswordGenerator() {
       const len = Number(document.getElementById('optPassLen')?.value || '16');
       if (!Number.isInteger(len) || len < 8 || len > 128) throw new Error('Panjang kata sandi harus antara 8 dan 128 karakter.');
       if (!window.crypto || !crypto.getRandomValues) throw new Error('Browser tidak menyediakan generator acak kriptografis yang aman.');
