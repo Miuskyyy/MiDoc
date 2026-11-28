@@ -278,7 +278,7 @@ const fs = require('node:fs');
     // Pixel Crop uses a draggable crop grid instead of numeric coordinate fields.
     await openTool('crop-image');
     await page.locator('#fileInput').setInputFiles({ name: 'crop-source.png', mimeType: 'image/png', buffer: redPng });
-    await page.waitForFunction(() => document.querySelector('#fileItemsGrid .file-card-preview')?.classList.contains('h-[430px]'), { timeout: 10000 });
+    await page.waitForFunction(() => document.querySelector('#fileItemsGrid .file-card-preview')?.classList.contains('h-[520px]'), { timeout: 10000 });
     await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 10000 });
     await page.locator('#toolLivePreviewContent canvas').scrollIntoViewIfNeeded();
     const cropCanvasBox = await page.locator('#toolLivePreviewContent canvas').boundingBox();
