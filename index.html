@@ -490,7 +490,7 @@
           <!-- Reorderable Cards Grid -->
           <div id="fileItemsGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5"></div>
           <div id="editorLivePreviewPanel" class="hidden mt-4 rounded-sm border border-zinc-300 dark:border-darkLine bg-zinc-50 dark:bg-darkSurface p-3 sm:p-4 space-y-3">
-            <div class="flex flex-wrap items-center justify-between gap-2"><div><h3 id="editorPreviewTitle" class="font-display text-sm font-bold">Pratinjau langsung</h3><p id="editorPreviewHint" class="text-[11px] text-zinc-500">Perubahan terlihat sebelum disimpan.</p></div><div class="flex items-center gap-2 min-w-0"><select id="editorPreviewTarget" onchange="state.editorSelectedItemId=this.value; renderActiveEditorPreview()" class="hidden max-w-[180px] min-w-0 text-xs px-2 py-2 border rounded-sm bg-white dark:bg-darkCanvas"></select><span id="editorPreviewDimensions" class="text-[11px] font-mono text-accent"></span></div></div>
+            <div class="flex flex-wrap items-center justify-between gap-2"><div><h3 id="editorPreviewTitle" class="font-display text-sm font-bold">Pratinjau langsung</h3><p id="editorPreviewHint" class="text-[11px] text-zinc-500">Perubahan terlihat sebelum disimpan.</p></div><div class="flex items-center gap-2 min-w-0"><select id="editorPreviewTarget" onchange="state.editorSelectedItemId=this.value; renderActiveEditorPreview()" class="hidden max-w-[180px] min-w-0 text-xs px-2 py-2 border rounded-sm bg-white dark:bg-darkCanvas"></select><div class="flex items-center gap-2 min-w-0"><select id="editorPreviewTarget" onchange="state.editorSelectedItemId=this.value; renderActiveEditorPreview()" class="hidden max-w-[180px] min-w-0 text-xs px-2 py-2 border rounded-sm bg-white dark:bg-darkCanvas"></select><span id="editorPreviewDimensions" class="text-[11px] font-mono text-accent"></span></div></div></div>
             <div id="editorPreviewCanvasWrap" class="w-full min-w-0 checkerboard border border-zinc-200 dark:border-darkLine rounded-sm p-2 flex items-center justify-center overflow-auto"><canvas id="editorPreviewCanvas" class="max-w-full h-auto block"></canvas></div>
           </div>
           <div id="zipContentsPanel" class="hidden mt-4 space-y-2"></div>
@@ -2994,8 +2994,9 @@
               <div class="flex items-center gap-1 shrink-0">
                 <button onclick="event.stopPropagation(); moveItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="px-2 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-mono disabled:opacity-30">▲</button>
                 <button onclick="event.stopPropagation(); moveItem(${idx}, 1)" ${idx === state.items.length - 1 ? 'disabled' : ''} class="px-2 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-mono disabled:opacity-30">▼</button>
-                <button onclick="event.stopPropagation(); rotateItem('${item.id}', 90)" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine"><i data-lucide="rotate-cw" class="w-3 h-3"></i></button>
-                <button onclick="event.stopPropagation(); removeItem('${item.id}')" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-red-600"><i data-lucide="x" class="w-3 h-3"></i></button>
+                <button onclick="event.stopPropagation(); inspectItem('${item.id}')" class="p-2 min-w-10 min-h-10 flex items-center justify-center rounded-sm border border-zinc-300 dark:border-darkLine text-accent" title="Perbesar pratinjau"><i data-lucide="zoom-in" class="w-5 h-5"></i></button>
+                <button onclick="event.stopPropagation(); rotateItem('${item.id}', 90)" class="p-2 min-w-10 min-h-10 rounded-sm border border-zinc-300 dark:border-darkLine"><i data-lucide="rotate-cw" class="w-5 h-5"></i></button>
+                <button onclick="event.stopPropagation(); removeItem('${item.id}')" class="p-2 min-w-10 min-h-10 flex items-center justify-center rounded-sm border border-zinc-300 dark:border-darkLine text-red-600" title="Hapus"><i data-lucide="x" class="w-5 h-5"></i></button>
               </div>
             </div>
           `;
@@ -3014,10 +3015,10 @@
                 <span class="text-[10px] font-mono font-semibold text-zinc-500 dark:text-zinc-400">${typeLabel}</span>
               </div>
               <div class="flex items-center gap-1">
-                <button onclick="event.stopPropagation(); inspectItem('${item.id}')" class="p-1 text-zinc-500 hover:text-accent" title="Detail File">
+                <button onclick="event.stopPropagation(); inspectItem('${item.id}')" class="p-2 min-w-10 min-h-10 flex items-center justify-center text-zinc-500 hover:text-accent" title="Perbesar pratinjau">
                   <i data-lucide="zoom-in" class="w-5 h-5"></i>
                 </button>
-                <button onclick="event.stopPropagation(); removeItem('${item.id}')" class="p-1 text-zinc-500 hover:text-red-600" title="Hapus">
+                <button onclick="event.stopPropagation(); removeItem('${item.id}')" class="p-2 min-w-10 min-h-10 flex items-center justify-center text-zinc-500 hover:text-red-600" title="Hapus">
                   <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
               </div>
@@ -4124,8 +4125,9 @@
       if (mask === 'circle') {
         const side = Math.min(output.width, output.height);
         output.width = side; output.height = side;
-        ctx.beginPath(); ctx.arc(side/2,side/2,side/2,0,Math.PI*2); ctx.clip();
-        ctx.drawImage(fitted,(side-fitted.width)/2,(side-fitted.height)/2);
+        const shapeContext = output.getContext('2d');
+        shapeContext.beginPath(); shapeContext.arc(side/2,side/2,side/2,0,Math.PI*2); shapeContext.clip();
+        shapeContext.drawImage(fitted,(side-fitted.width)/2,(side-fitted.height)/2);
       } else if (mask === 'rounded') {
         const radius = Math.min(output.width,output.height)*0.08;
         ctx.beginPath(); ctx.roundRect(0,0,output.width,output.height,radius); ctx.clip();
