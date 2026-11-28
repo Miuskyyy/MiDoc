@@ -869,8 +869,6 @@
       'pdf-copy': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'pdf-to-word': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
       'dpi-checker': { formats: ['none'], accept: '', min: 0, label: 'tidak membutuhkan file' },
-      'extract-pdf-pages': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
-      'extract-pdf-images': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
       'image-to-pdf': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar JPG, PNG, WebP, AVIF, atau BMP' },
       'pdf-to-image': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
       'pdf-to-text': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
@@ -880,26 +878,20 @@
       'ebook-to-pdf': { formats: ['epub'], accept: '.epub', min: 0, max: 1, label: 'satu file EPUB' },
       'txt-to-pdf': { formats: ['txt', 'md'], accept: '.txt,.md', min: 0, max: 1, label: 'satu file TXT atau Markdown' },
       'doc-to-pdf': { formats: ['docx', 'rtf', 'txt', 'md', 'html', 'csv', 'tsv', 'xlsx', 'pptx', 'epub'], accept: '.docx,.rtf,.txt,.md,.html,.htm,.csv,.tsv,.xlsx,.pptx,.epub', min: 0, max: 1, label: 'DOCX, RTF, TXT, Markdown, HTML, CSV, TSV, XLSX, PPTX, atau EPUB' },
-      
-      'photo-collage': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
-      'stitch-screenshot': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar screenshot' },
       'image-splitter': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
-      'photo-signature': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, max: 2, label: 'tepat dua gambar: foto dan tanda tangan/stempel' },
       'resize-pixel': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
-      'resize-official': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
-      'bulk-resize': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar raster statis' },
-      'crop-circle': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
-      'rounded-corners': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'crop-image': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
+      'shape-crop': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
       'color-filters': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'remove-exif': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'join-images': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar raster statis' },
       'compress-image': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'convert-image': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'resize-image': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
-      'filters-image': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'filters-image': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
       'rotate-flip': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'watermark-image': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
-      'overlay-images': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, max: 2, label: 'tepat dua gambar raster statis' },
+      'overlay-images': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar raster statis' },
       'color-picker': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
       'batch-rename': { formats: ['any'], accept: '*/*', min: 1, label: 'file apa pun' },
       'zip-tools': { formats: ['any'], accept: '*/*', min: 1, label: 'file apa pun' },
@@ -916,7 +908,7 @@
       if (toolObj.id === 'gif-tools' && document.getElementById('optGifMode')?.value === 'extract') {
         return { formats: ['gif'], accept: '.gif,image/gif', min: 1, max: 1, label: 'tepat satu file GIF animasi' };
       }
-      if (toolObj.id === 'zip-tools' && document.getElementById('optZipMode')?.value !== 'create') {
+      if (toolObj.id === 'zip-tools' && document.getElementById('optZipMode')?.value === 'view') {
         return { formats: ['zip'], accept: '.zip,application/zip,application/x-zip-compressed', min: 1, max: 1, label: 'tepat satu file ZIP' };
       }
       return rule;
@@ -1036,6 +1028,14 @@
       lastDownloadName: null,
       lastProcessedImageFile: null, // Used for seamless Joiner -> Splitter pipeline
       splitterSelectedItemId: null,
+      selectedEditItemId: null,
+      overlayX: 0.66,
+      overlayY: 0.66,
+      overlayScale: 0.28,
+      overlayPointerActive: false,
+      cropPdfPage: 1,
+      cropPdfRect: { x: 0.06, y: 0.06, w: 0.88, h: 0.88 },
+      compressPreviewBlob: null,
       activeMenu: null,
       previewDisplayMode: 'full', // 'full' | 'fit'
       previewZoom: 100,
@@ -1054,6 +1054,9 @@
       renderHomeDirectory('all', '');
       setupNavAndSearch();
       setupWorkspaceDragAndDrop();
+      const liveSettings = document.getElementById('toolSettingsContainer');
+      liveSettings?.addEventListener('input', () => drawToolLivePreview());
+      liveSettings?.addEventListener('change', () => { refreshLayerSelectors(); drawToolLivePreview(); });
       window.addEventListener('popstate', restoreRouteFromLocation);
       restoreRouteFromLocation();
       document.addEventListener('keydown', (e) => {
@@ -2114,7 +2117,6 @@
           <div id="zipModeDescription" class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-200 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">
             Kemas semua file di workspace sesuai urutan kartu menjadi satu arsip ZIP.
           </div>
-          <div id="zipContentsPanel" class="hidden space-y-2"></div>
         `;
         updateZipToolMode();
       } else if (engine === 'color-picker') {
@@ -2614,6 +2616,8 @@
 
       renderWorkspaceItems();
       updateFilenamePreviewHint();
+      if (state.activeToolObj?.id === 'organize-pdf' && state.items.some(item => item.isPdf && item.singlePageIndex === null && item.pageCount > 1)) await explodeAllPdfsToPages({ silent: true });
+      if (state.activeToolObj?.id === 'zip-tools' && document.getElementById('optZipMode')?.value === 'view') { try { await readZipArchiveForAction('view'); } catch (error) { showToast('ZIP gagal dibaca: ' + error.message, 'error'); } }
       showToast(`${filesArray.length} file ditambahkan sesuai urutan.`, 'success');
     }
 
@@ -2626,7 +2630,7 @@
       });
     }
 
-    async function explodeAllPdfsToPages() {
+    async function explodeAllPdfsToPages(options = {}) {
       const totalPagesToExpand = state.items.reduce((sum, item) => sum + (item.isPdf && item.singlePageIndex === null ? (item.pageCount || 0) : 0), 0);
       if (!totalPagesToExpand) {
         showToast('Tidak ada PDF multip halaman yang perlu dipecah.', 'error');
@@ -2665,7 +2669,7 @@
       }
       state.items = updated;
       renderWorkspaceItems();
-      showToast('Halaman PDF berhasil dipecah menjadi kartu terpisah.', 'success');
+      if (!options.silent) showToast('Halaman PDF berhasil dimuat sebagai kartu yang dapat dihapus.', 'success');
     }
 
     async function loadDemoFiles() {
@@ -2772,13 +2776,11 @@
       const emptyBox = document.getElementById('emptyStateBox');
       const grid = document.getElementById('fileItemsGrid');
       const bottomStrip = document.getElementById('bottomAddStrip');
-      const expandBtn = document.getElementById('expandPdfPagesBtn');
 
       if (state.items.length === 0) {
         emptyBox.classList.remove('hidden');
         grid.classList.add('hidden');
         bottomStrip.classList.add('hidden');
-        expandBtn.classList.add('hidden');
         document.getElementById('splitterLivePreviewPanel').classList.add('hidden');
         document.getElementById('joinerLivePreviewPanel').classList.add('hidden');
         updateFilenamePreviewHint();
@@ -2789,15 +2791,14 @@
       grid.classList.remove('hidden');
       bottomStrip.classList.remove('hidden');
 
-      const hasMultiPagePdf = state.items.some(i => i.isPdf && i.singlePageIndex === null && i.pageCount > 1);
-      expandBtn.classList.toggle('hidden', !hasMultiPagePdf);
-
       const totalBytes = state.items.reduce((s, it) => s + (it.size || 0), 0);
       document.getElementById('totalSummaryText').textContent = `${state.items.length} item • ${formatBytes(totalBytes)}`;
 
-      grid.className = state.viewMode === 'grid'
-        ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5'
-        : 'flex flex-col gap-2';
+      const verticalEditors = ['organize-pdf','crop-pdf','compress-image','resize-image','filters-image','shape-crop','crop-image','overlay-images'].includes(state.activeEngine);
+      grid.className = verticalEditors
+        ? 'tool-edit-vertical'
+        : (state.viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5' : 'flex flex-col gap-2');
+      if (verticalEditors && !state.selectedEditItemId) state.selectedEditItemId = state.items.find(item => item.isImage)?.id || state.items[0]?.id || null;
 
       const isPdfPageSimMode = (state.activeEngine === 'image-to-pdf' || state.activeEngine === 'merge-pdf-image');
 
@@ -2807,7 +2808,7 @@
           ? (item.singlePageIndex !== null ? `PDF HAL ${item.singlePageIndex + 1}` : `PDF ${item.pageCount} HAL`)
           : (item.name.split('.').pop() || 'FILE').toUpperCase();
 
-        const isSelectedForSplit = state.activeEngine === 'image-splitter' && state.splitterSelectedItemId === item.id;
+        const isSelectedForSplit = (state.activeEngine === 'image-splitter' && state.splitterSelectedItemId === item.id) || (verticalEditors && state.selectedEditItemId === item.id);
 
         let pdfSim = null;
         if (isPdfPageSimMode && item.isImage && item.thumbUrl) {
@@ -2916,15 +2917,16 @@
       attachCardDragListeners();
       drawSplitterLivePreview();
       drawJoinerLivePreview();
+      refreshLayerSelectors();
+      drawToolLivePreview();
       updateFilenamePreviewHint();
       lucide.createIcons();
     }
 
     function selectCardForSplitter(id) {
-      if (state.activeEngine === 'image-splitter') {
-        state.splitterSelectedItemId = id;
-        renderWorkspaceItems();
-      }
+      if (state.activeEngine === 'image-splitter') state.splitterSelectedItemId = id;
+      if (['organize-pdf','crop-pdf','compress-image','resize-image','filters-image','shape-crop','crop-image','overlay-images'].includes(state.activeEngine)) state.selectedEditItemId = id;
+      renderWorkspaceItems();
     }
 
     function attachCardDragListeners() {
@@ -4336,7 +4338,7 @@
       const description = document.getElementById('zipModeDescription');
       const buttonLabel = document.getElementById('executeBtnLabel');
       const filenameGroup = document.getElementById('outputFilenameGroup');
-      const panel = document.getElementById('zipContentsPanel');
+      const panel = document.getElementById('zipContentsCenter');
 
       state.zipArchiveFiles = [];
       state.zipArchiveSourceName = null;
@@ -4368,7 +4370,7 @@
     }
 
     function showZipArchiveContents(entries, sourceName, mode) {
-      const panel = document.getElementById('zipContentsPanel');
+      const panel = document.getElementById('zipContentsCenter');
       if (!panel) return;
 
       const totalBytes = entries.reduce((sum, entry) => sum + getZipEntryUncompressedSize(entry), 0);
