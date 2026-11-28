@@ -29,18 +29,19 @@ jobs:
 
           html = pathlib.Path("index.html").read_text(encoding="utf-8")
           scripts = []
-          for match in re.finditer(r"<script\\b([^>]*)>([\\s\\S]*?)</script\\s*>", html, re.IGNORECASE):
+          pattern = r"<script\b([^>]*)>([\s\S]*?)</script\s*>"
+          for match in re.finditer(pattern, html, re.IGNORECASE):
               attrs, body = match.groups()
-              if re.search(r"\\bsrc\\s*=", attrs, re.IGNORECASE):
+              if re.search(r"\bsrc\s*=", attrs, re.IGNORECASE):
                   continue
-              if re.search(r"type\\s*=\\s*['\"]application/(?:ld\\+)?json", attrs, re.IGNORECASE):
+              if re.search(r"type\s*=\s*['\"]application/(?:ld\+)?json", attrs, re.IGNORECASE):
                   continue
               scripts.append(body)
 
           if not scripts:
               raise SystemExit("No inline JavaScript blocks found.")
 
-          pathlib.Path("/tmp/midoc-inline.js").write_text("\\n;\\n".join(scripts), encoding="utf-8")
+          pathlib.Path("/tmp/midoc-inline.js").write_text("\n;\n".join(scripts), encoding="utf-8")
           print(f"Checking {len(scripts)} inline script block(s).")
           PY
           node --check /tmp/midoc-inline.js
