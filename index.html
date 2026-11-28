@@ -3669,37 +3669,42 @@
 
     // --- ENGINE 4: SPLIT PDF ---
     async function runSplitPdf(baseName) {
-      const pdfItem = state.items.find(i => i.isPdf && i.arrayBuffer);
-      if (!pdfItem) { showToast('Tambahkan minimal 1 file PDF.', 'error'); return; }
-
-      const mode = document.getElementById('optSplitMode').value;
-      const srcPdf = await PDFLib.PDFDocument.load(pdfItem.arrayBuffer.slice(0));
-      const total = srcPdf.getPageCount();
-      const firstPdfClean = pdfItem.name.replace(/\.pdf$/i, '').trim();
-
-      if (mode === 'range') {
-        const indices = [...new Set(parsePageRange(document.getElementById('optPageRange').value || '1', total))];
-        if (!indices.length || indices.some(index => index < 0 || index >= total)) throw new Error('Rentang halaman kosong atau di luar jumlah halaman PDF.');
-        const newPdf = await PDFLib.PDFDocument.create();
-        const pages = await newPdf.copyPages(srcPdf, indices);
-        pages.forEach(p => newPdf.addPage(p));
-        const bytes = await newPdf.save();
-        const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
-        finishWithBlob(new Blob([bytes], { type: 'application/pdf' }), finalName, `${indices.length} halaman diekstrak.`);
-      } else {
-        const zip = new JSZip();
-        for (let i = 0; i < total; i++) {
-          const single = await PDFLib.PDFDocument.create();
-          const [p] = await single.copyPages(srcPdf, [i]);
-          single.addPage(p);
-          zip.file(`${firstPdfClean}_${String(i + 1).padStart(2, '0')}.pdf`, await single.save());
-        }
-        const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstPdfClean });
-        finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${total} halaman PDF dipecah menjadi file satuan.`);
+      const pdfItem=state.items.find(item=>item.isPdf&&item.arrayBuffer);
+      if(!pdfItem)throw new Error('Tambahkan satu file PDF terlebih dahulu.');
+      const source=await PDFLib.PDFDocument.load(pdfItem.arrayBuffer.slice(0));
+      const total=source.getPageCount(),outputBase=pdfItem.name.replace(/\.pdf$/i,'').trim()||'Dokumen';
+      if(state.activeToolObj?.id==='extract-pdf-pages'){
+        const indices=[...new Set(parsePageRange(document.getElementById('optPageRange')?.value||'',total))];
+        if(!indices.length)throw new Error('Rentang halaman tidak valid atau kosong.');
+        const out=await PDFLib.PDFDocument.create();(await out.copyPages(source,indices)).forEach(page=>out.addPage(page));
+        finishWithBlob(new Blob([await out.save()],{type:'application/pdf'}),formatDownloadFilename({baseName,ext:'pdf',isBulkOrZip:false}),indices.length+' halaman berhasil diekstrak.');return;
       }
+      const mode=document.getElementById('optSplitMode')?.value||'parts',zip=new JSZip();
+      if(mode==='all'){
+        for(let pageIndex=0;pageIndex<total;pageIndex++){
+          const out=await PDFLib.PDFDocument.create(),[page]=await out.copyPages(source,[pageIndex]);out.addPage(page);
+          zip.file(outputBase+'_Hal_'+String(pageIndex+1).padStart(2,'0')+'.pdf',await out.save());
+          updateProgress(((pageIndex+1)/total)*90,'Membuat PDF halaman '+(pageIndex+1)+'/'+total);
+        }
+      }else{
+        const raw=(document.getElementById('optSplitParts')?.value||'').split(';').map(value=>value.trim()).filter(Boolean);
+        if(!raw.length)throw new Error('Masukkan minimal satu rentang, misalnya 1-10; 11-20.');
+        const used=new Set();
+        for(let index=0;index<raw.length;index++){
+          const selected=[...new Set(parsePageRange(raw[index],total))].sort((a,b)=>a-b);
+          if(!selected.length)throw new Error('Rentang bagian '+(index+1)+' tidak valid: '+raw[index]);
+          const overlap=selected.find(page=>used.has(page));
+          if(overlap!==undefined)throw new Error('Halaman '+(overlap+1)+' tercantum di lebih dari satu bagian.');
+          selected.forEach(page=>used.add(page));
+          const out=await PDFLib.PDFDocument.create();(await out.copyPages(source,selected)).forEach(page=>out.addPage(page));
+          zip.file(outputBase+'_Bagian_'+String(index+1).padStart(2,'0')+'_Hal_'+(selected[0]+1)+'-'+(selected[selected.length-1]+1)+'.pdf',await out.save());
+          updateProgress(((index+1)/raw.length)*90,'Membuat bagian PDF '+(index+1)+'/'+raw.length);
+        }
+      }
+      const pieces=mode==='all'?total:(document.getElementById('optSplitParts')?.value||'').split(';').filter(value=>value.trim()).length;
+      finishWithBlob(await zip.generateAsync({type:'blob'}),formatDownloadFilename({baseName,ext:'zip',isBulkOrZip:true,firstFileName:outputBase}),mode==='all'?total+' PDF satu halaman berhasil dibuat.':pieces+' bagian PDF berhasil dibuat dalam ZIP.');
     }
 
-    // --- ENGINE 5: PDF TO IMAGES ---
     async function runPdfToImages(baseName) {
       const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
       if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
@@ -4621,158 +4626,63 @@
 
     // --- ENGINE 11: BATCH IMAGE OPERATIONS ---
     async function runBatchImageProcess(baseName, mode) {
-      const imgItems = state.items.filter(i => i.isImage && i.thumbUrl);
-      if (!imgItems.length) { showToast('Tambahkan minimal 1 file gambar.', 'error'); return; }
-
-      const zip = new JSZip();
-      let singleBlob = null;
-      let singleExt = 'png';
-      const firstClean = imgItems[0].name.replace(/\.[^.]+$/, '').trim();
-
-      for (let i = 0; i < imgItems.length; i++) {
-        const item = imgItems[i];
-        const baseCanvas = await renderItemToCanvas(item);
-        let outCanvas = baseCanvas;
-        let mime = 'image/jpeg';
-        let quality = 0.88;
-
-        if (mode === 'compress-image') {
-          quality = (parseInt(document.getElementById('optImgQuality').value, 10) || 72) / 100;
-          mime = document.getElementById('optCompressFormat').value;
-          const maxW = parseInt(document.getElementById('optMaxWidth').value, 10) || 0;
-          if (maxW > 0 && baseCanvas.width > maxW) {
-            outCanvas = resizeCanvas(baseCanvas, maxW, Math.round(baseCanvas.height * (maxW / baseCanvas.width)), 'stretch');
+      const images=state.items.filter(item=>item.isImage&&item.thumbUrl);
+      if(!images.length)throw new Error('Tambahkan minimal satu gambar.');
+      const zip=new JSZip(),first=images[0].name.replace(/\.[^.]+$/,'');
+      let singleBlob=null,singleExt='png';
+      for(let i=0;i<images.length;i++){
+        const item=images[i],source=await renderItemToCanvas(item);
+        let output=source,mime='image/png',quality=0.92;
+        if(mode==='compress-image'){
+          quality=Number(document.getElementById('optImgQuality')?.value||72)/100;
+          mime=document.getElementById('optCompressFormat')?.value||'image/jpeg';
+          if(mime==='image/jpeg'){
+            output=document.createElement('canvas');output.width=source.width;output.height=source.height;
+            const ctx=output.getContext('2d');ctx.fillStyle=document.getElementById('optCompressBgFill')?.value||'#ffffff';ctx.fillRect(0,0,output.width,output.height);ctx.drawImage(source,0,0);
           }
-          if (mime === 'image/jpeg') {
-            const background = document.createElement('canvas');
-            background.width = outCanvas.width;
-            background.height = outCanvas.height;
-            const bgCtx = background.getContext('2d');
-            bgCtx.fillStyle = document.getElementById('optCompressBgFill')?.value || '#ffffff';
-            bgCtx.fillRect(0, 0, background.width, background.height);
-            bgCtx.drawImage(outCanvas, 0, 0);
-            outCanvas = background;
+        }else if(mode==='convert-image'){
+          mime=document.getElementById('optTargetFormat')?.value||'image/png';quality=Number(document.getElementById('optConvertQuality')?.value||85)/100;
+          if(mime==='image/jpeg'){
+            output=document.createElement('canvas');output.width=source.width;output.height=source.height;
+            const ctx=output.getContext('2d');ctx.fillStyle=document.getElementById('optBgFill')?.value||'#fff';ctx.fillRect(0,0,output.width,output.height);ctx.drawImage(source,0,0);
           }
-        } else if (mode === 'convert-image') {
-          mime = document.getElementById('optTargetFormat').value;
-          quality = (parseInt(document.getElementById('optConvertQuality')?.value || '85', 10)) / 100;
-          if (mime === 'image/jpeg') {
-            const bg = document.getElementById('optBgFill').value;
-            const c = document.createElement('canvas');
-            c.width = baseCanvas.width;
-            c.height = baseCanvas.height;
-            const ctx = c.getContext('2d');
-            ctx.fillStyle = bg;
-            ctx.fillRect(0, 0, c.width, c.height);
-            ctx.drawImage(baseCanvas, 0, 0);
-            outCanvas = c;
+        }else if(mode==='resize-image'){
+          const widthInput=Number(document.getElementById('optResizeWidth')?.value),percent=Number(document.getElementById('optResizePercent')?.value||100)/100;
+          const width=Number.isFinite(widthInput)&&widthInput>0&&state.activeToolObj?.id==='resize-pixel'?Math.round(widthInput):Math.round(source.width*percent);
+          const height=Math.round(source.height*(width/source.width));
+          if(width>12000||height>12000)throw new Error('Dimensi hasil maksimal 12.000 px. Turunkan persentase ukuran.');
+          output=resizeCanvas(source,Math.max(1,width),Math.max(1,height),'stretch');mime=document.getElementById('optResizeOutputFormat')?.value||'image/png';
+          if(mime==='image/jpeg'){
+            const bg=document.createElement('canvas');bg.width=output.width;bg.height=output.height;const ctx=bg.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,bg.width,bg.height);ctx.drawImage(output,0,0);output=bg;
           }
-        } else if (mode === 'resize-image') {
-          if (state.activeToolObj?.id === 'resize-pixel' && document.getElementById('optResizeMode')?.value === 'percent') {
-            const percent = Number(document.getElementById('optResizePercent')?.value);
-            if (!Number.isFinite(percent) || percent < 1 || percent > 500) throw new Error('Persentase resize harus antara 1% dan 500%.');
-            const scale = percent / 100;
-            const w = Math.max(1, Math.round(baseCanvas.width * scale));
-            const h = Math.max(1, Math.round(baseCanvas.height * scale));
-            if (w > 12000 || h > 12000) throw new Error('Ukuran hasil terlalu besar. Kurangi persentase resize hingga dimensi maksimal 12.000 px.');
-            outCanvas = resizeCanvas(baseCanvas, w, h, 'stretch');
-          } else {
-            const w = Number(document.getElementById('optResizeW').value);
-            const h = Number(document.getElementById('optResizeH').value);
-            if (!Number.isInteger(w) || !Number.isInteger(h) || w < 1 || h < 1 || w > 12000 || h > 12000) throw new Error('Lebar dan tinggi harus berupa piksel 1–12.000.');
-            const fit = document.getElementById('optResizeFit').value;
-            outCanvas = resizeCanvas(baseCanvas, w, h, fit);
-          }
-          mime = document.getElementById('optResizeOutputFormat')?.value || 'image/png';
-          quality = 0.92;
-          if (mime === 'image/jpeg') {
-            const background = document.createElement('canvas');
-            background.width = outCanvas.width;
-            background.height = outCanvas.height;
-            const bgCtx = background.getContext('2d');
-            bgCtx.fillStyle = document.getElementById('optResizeBgFill')?.value || '#ffffff';
-            bgCtx.fillRect(0, 0, background.width, background.height);
-            bgCtx.drawImage(outCanvas, 0, 0);
-            outCanvas = background;
-          }
-        } else if (mode === 'filters-image') {
-          const shape = document.getElementById('optShapeCrop').value;
-          const filter = document.getElementById('optColorFilter').value;
-          const c = document.createElement('canvas');
-          c.width = baseCanvas.width;
-          c.height = baseCanvas.height;
-          const ctx = c.getContext('2d');
-          if (shape === 'circle') {
-            const sz = Math.min(c.width, c.height);
-            c.width = sz;
-            c.height = sz;
-            ctx.beginPath();
-            ctx.arc(sz / 2, sz / 2, sz / 2, 0, Math.PI * 2);
-            ctx.clip();
-            ctx.filter = filter;
-            ctx.drawImage(baseCanvas, (sz - baseCanvas.width) / 2, (sz - baseCanvas.height) / 2);
-          } else if (shape === 'rounded') {
-            ctx.beginPath();
-            ctx.roundRect(0, 0, c.width, c.height, 40);
-            ctx.clip();
-            ctx.filter = filter;
-            ctx.drawImage(baseCanvas, 0, 0);
-          } else {
-            ctx.filter = filter;
-            ctx.drawImage(baseCanvas, 0, 0);
-          }
-          outCanvas = c;
-          mime = 'image/png';
-        } else if (mode === 'rotate-flip') {
-          const flip = document.getElementById('optFlipMode').value;
-          const c = document.createElement('canvas');
-          c.width = baseCanvas.width;
-          c.height = baseCanvas.height;
-          const ctx = c.getContext('2d');
-          if (flip === 'h') { ctx.translate(c.width, 0); ctx.scale(-1, 1); }
-          if (flip === 'v') { ctx.translate(0, c.height); ctx.scale(1, -1); }
-          ctx.drawImage(baseCanvas, 0, 0);
-          outCanvas = c;
-          mime = 'image/png';
-        } else if (mode === 'watermark-image') {
-          const txt = document.getElementById('optImgWatermarkText').value || 'MiDoc';
-          const pos = document.getElementById('optImgWatermarkPos').value;
-          const ctx = outCanvas.getContext('2d');
-          const fs = Math.max(18, Math.round(outCanvas.width * 0.035));
-          ctx.font = `bold ${fs}px "Plus Jakarta Sans", sans-serif`;
-          ctx.fillStyle = '#FFFFFF';
-          ctx.strokeStyle = '#111827';
-          ctx.lineWidth = Math.max(2, Math.round(fs * 0.12));
-          let x = outCanvas.width - 20;
-          let y = outCanvas.height - 20;
-          ctx.textAlign = 'right';
-          if (pos === 'center') { x = outCanvas.width / 2; y = outCanvas.height / 2; ctx.textAlign = 'center'; }
-          if (pos === 'bottom-left') { x = 20; ctx.textAlign = 'left'; }
-          ctx.strokeText(txt, x, y);
-          ctx.fillText(txt, x, y);
-          mime = 'image/png';
+        }else if(mode==='filters-image'){
+          output=document.createElement('canvas');output.width=source.width;output.height=source.height;
+          const ctx=output.getContext('2d');ctx.filter=document.getElementById('optColorFilter')?.value||'none';ctx.drawImage(source,0,0);mime='image/png';
+        }else if(mode==='shape-crop'){
+          output=applyShapeCanvas(source,document.getElementById('optShapeMask')?.value||'circle',document.getElementById('optShapePreset')?.value||'free');mime='image/png';
+        }else if(mode==='crop-pixel'){
+          const x=Math.max(0,Number(document.getElementById('optCropX')?.value||0)),y=Math.max(0,Number(document.getElementById('optCropY')?.value||0));
+          const w=Math.max(1,Number(document.getElementById('optCropW')?.value||1)),h=Math.max(1,Number(document.getElementById('optCropH')?.value||1));
+          if(x>=source.width||y>=source.height)throw new Error('Koordinat X/Y berada di luar gambar '+item.name);
+          const cw=Math.min(w,source.width-x),ch=Math.min(h,source.height-y);
+          output=document.createElement('canvas');output.width=cw;output.height=ch;output.getContext('2d').drawImage(source,x,y,cw,ch,0,0,cw,ch);mime='image/png';
+        }else if(mode==='rotate-flip'){
+          const flip=document.getElementById('optFlipMode')?.value||'none';output=document.createElement('canvas');output.width=source.width;output.height=source.height;const ctx=output.getContext('2d');
+          if(flip==='h'){ctx.translate(output.width,0);ctx.scale(-1,1);}if(flip==='v'){ctx.translate(0,output.height);ctx.scale(1,-1);}ctx.drawImage(source,0,0);mime='image/png';
+        }else if(mode==='watermark-image'){
+          output=document.createElement('canvas');output.width=source.width;output.height=source.height;const ctx=output.getContext('2d');ctx.drawImage(source,0,0);
+          const text=document.getElementById('optImgWatermarkText')?.value||'MiDoc',position=document.getElementById('optImgWatermarkPos')?.value||'bottom-right',size=Math.max(18,Math.round(output.width*0.035));
+          ctx.font='bold '+size+'px sans-serif';ctx.fillStyle='#fff';ctx.strokeStyle='#111827';ctx.lineWidth=Math.max(2,Math.round(size*0.12));
+          let x=output.width-20,y=output.height-20;ctx.textAlign='right';if(position==='center'){x=output.width/2;y=output.height/2;ctx.textAlign='center';}if(position==='bottom-left'){x=20;ctx.textAlign='left';}
+          ctx.strokeText(text,x,y);ctx.fillText(text,x,y);mime='image/png';
         }
-
-        const blob = mime === 'image/bmp'
-          ? canvasToBmpBlob(outCanvas)
-          : await canvasToBlobStrict(outCanvas, mime, quality);
-        const outputMime = blob.type || mime;
-        const ext = imageMimeToExtension(outputMime);
-        const innerName = `${firstClean}_${String(i + 1).padStart(2, '0')}.${ext}`;
-        zip.file(innerName, blob);
-        if (imgItems.length === 1) {
-          singleBlob = blob;
-          singleExt = ext;
-        }
+        const blob=mime==='image/bmp'?canvasToBmpBlob(output):await canvasToBlobStrict(output,mime,quality);
+        const ext=imageMimeToExtension(blob.type||mime);zip.file(item.name.replace(/\.[^.]+$/,'')+'_hasil.'+ext,blob);
+        if(images.length===1){singleBlob=blob;singleExt=ext;}
+        updateProgress(((i+1)/images.length)*88,'Memproses gambar '+(i+1)+'/'+images.length);
       }
-
-      if (imgItems.length === 1 && singleBlob) {
-        const finalSingleName = formatDownloadFilename({ baseName, ext: singleExt, isBulkOrZip: false });
-        finishWithBlob(singleBlob, finalSingleName, `Gambar berhasil diproses.`, { isImageResult: true });
-      } else {
-        const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
-        finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${imgItems.length} gambar selesai diproses.`);
-      }
+      if(images.length===1&&singleBlob)finishWithBlob(singleBlob,formatDownloadFilename({baseName,ext:singleExt,isBulkOrZip:false}),'Gambar berhasil diproses.',{isImageResult:true});
+      else finishWithBlob(await zip.generateAsync({type:'blob'}),formatDownloadFilename({baseName,ext:'zip',isBulkOrZip:true,firstFileName:first}),images.length+' gambar berhasil diproses.');
     }
 
     // --- ENGINE 12: OVERLAY IMAGES ---
@@ -4822,24 +4732,16 @@
     }
 
     async function runOverlayImages(baseName) {
-      const imgs = state.items.filter(i => i.isImage && i.thumbUrl);
-      if (imgs.length < 2) { showToast('Tambahkan minimal 2 gambar (#1 utama, #2 overlay/tanda tangan).', 'error'); return; }
-      const baseC = await renderItemToCanvas(imgs[0]);
-      const overC = await renderItemToCanvas(imgs[1]);
-      const pos = document.getElementById('optOverlayPos').value;
-      const ctx = baseC.getContext('2d');
-
-      const targetW = Math.round(baseC.width * 0.28);
-      const targetH = Math.round(overC.height * (targetW / overC.width));
-      let x = baseC.width - targetW - 20;
-      let y = baseC.height - targetH - 20;
-      if (pos === 'center') { x = (baseC.width - targetW) / 2; y = (baseC.height - targetH) / 2; }
-      if (pos === 'bottom-left') { x = 20; }
-
-      ctx.drawImage(overC, x, y, targetW, targetH);
-      const blob = await new Promise(r => baseC.toBlob(r, 'image/png'));
-      const finalName = formatDownloadFilename({ baseName, ext: 'png', isBulkOrZip: false });
-      finishWithBlob(blob, finalName, `Gambar #2 berhasil ditempelkan di atas gambar #1.`, { isImageResult: true });
+      const images=state.items.filter(item=>item.isImage&&item.thumbUrl);
+      if(images.length<2)throw new Error('Tambahkan dua gambar: #1 sebagai latar dan #2 sebagai lapisan depan.');
+      const base=await renderItemToCanvas(images[0]),over=await renderItemToCanvas(images[1]);
+      const width=Math.max(1,Math.min(base.width,state.overlayLayout?.w||Math.round(base.width*(Number(document.getElementById('optOverlayScale')?.value||28)/100))));
+      const height=Math.max(1,Math.round(over.height*(width/over.width)));
+      const x=Math.max(0,Math.min(base.width-width,state.overlayLayout?.x??(base.width-width-20)));
+      const y=Math.max(0,Math.min(base.height-height,state.overlayLayout?.y??(base.height-height-20)));
+      const ctx=base.getContext('2d');ctx.globalAlpha=Number(document.getElementById('optOverlayOpacity')?.value||100)/100;ctx.drawImage(over,x,y,width,height);ctx.globalAlpha=1;
+      const blob=await handleImageCanvasExport(base,'image/png',1);
+      finishWithBlob(blob,formatDownloadFilename({baseName,ext:'png',isBulkOrZip:false}),'Overlay berhasil disimpan pada posisi '+Math.round(x)+'×'+Math.round(y)+' px.',{isImageResult:true});
     }
 
     // --- ENGINE 13: BATCH RENAME & ZIP ---
