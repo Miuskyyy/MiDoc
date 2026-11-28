@@ -14,16 +14,16 @@ const fs = require('node:fs');
     await page.waitForSelector('#toolWorkspaceView:not(.hidden)', { timeout: 20000 });
     await page.waitForTimeout(250);
   };
-  const makePng = async color => {
-    const dataUrl = await page.evaluate(colorValue => {
+  const makePng = async (color, width = 4, height = 4) => {
+    const dataUrl = await page.evaluate(({ colorValue, widthValue, heightValue }) => {
       const canvas = document.createElement('canvas');
-      canvas.width = 4;
-      canvas.height = 4;
+      canvas.width = widthValue;
+      canvas.height = heightValue;
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = colorValue;
-      ctx.fillRect(0, 0, 4, 4);
+      ctx.fillRect(0, 0, widthValue, heightValue);
       return canvas.toDataURL('image/png').split(',')[1];
-    }, color);
+    }, { colorValue: color, widthValue: width, heightValue: height });
     return Buffer.from(dataUrl, 'base64');
   };
   const redPng = await makePng('#ff0000');
@@ -226,8 +226,70 @@ const fs = require('node:fs');
     }, { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
+    // The unified result preview must render an Image-to-PDF result in an embedded PDF viewer.
+    await openTool('image-to-pdf');
+    await page.locator('#fileInput').setInputFiles([
+      { name: 'preview-red.png', mimeType: 'image/png', buffer: redPng }
+    ]);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => {
+      const box = document.getElementById('resultOutputBox');
+      return box && !box.classList.contains('hidden');
+    }, { timeout: 30000 });
+    assert.equal(await page.locator('#inspectResultPreviewBtn').isVisible(), true, 'PDF result preview must be available.');
+    await page.locator('#inspectResultPreviewBtn').click();
+    await page.waitForSelector('#fullLightboxContent iframe', { timeout: 10000 });
+    await page.locator('button[onclick="closeFullPreviewModal()"]').click();
+
+    // Pixel crop must open the shared editor, expose draggable selection, and export the exact pixel dimensions.
+    const cropPng = await makePng('#22aa66', 64, 48);
+    await openTool('image-crop-pixel');
+    await page.locator('#fileInput').setInputFiles([
+      { name: 'crop-source.png', mimeType: 'image/png', buffer: cropPng }
+    ]);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#fileItemsGrid .file-card').first().click();
+    await page.waitForSelector('#inspectorModal:not(.hidden)', { timeout: 10000 });
+    await page.waitForSelector('#inspectorCropSelection', { timeout: 10000 });
+    await page.locator('#optCropPxW').fill('32');
+    await page.locator('#optCropPxH').fill('20');
+    await page.locator('#inspectorModal button').filter({ hasText: 'Selesai Mengedit' }).click();
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => {
+      const box = document.getElementById('resultOutputBox');
+      return box && !box.classList.contains('hidden');
+    }, { timeout: 20000 });
+    const cropDownloadPromise = page.waitForEvent('download', { timeout: 10000 });
+    await page.locator('#reDownloadBtn').click();
+    const cropDownload = await cropDownloadPromise;
+    const cropPath = '/tmp/midoc-pixel-crop-test.png';
+    await cropDownload.saveAs(cropPath);
+    const cropBytes = fs.readFileSync(cropPath);
+    assert.deepEqual(Array.from(cropBytes.subarray(0, 8)), [137, 80, 78, 71, 13, 10, 26, 10], 'Pixel crop must export a valid PNG.');
+    assert.equal(cropBytes.readUInt32BE(16), 32, 'Pixel crop must honour the requested width.');
+    assert.equal(cropBytes.readUInt32BE(20), 20, 'Pixel crop must honour the requested height.');
+
+    // The added QR & Barcode Generator must expose live CODE128 preview and produce a valid PNG.
+    await openTool('qr-barcode-gen');
+    await page.waitForFunction(() => typeof window.JsBarcode === 'function', { timeout: 20000 });
+    await page.locator('#optCodeType').selectOption('CODE128');
+    await page.locator('#optCodeValue').fill('MIDOC-CODE128-2026');
+    await page.waitForSelector('#qrBarcodePreviewArea canvas', { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => {
+      const box = document.getElementById('resultOutputBox');
+      return box && !box.classList.contains('hidden');
+    }, { timeout: 20000 });
+    const barcodeDownloadPromise = page.waitForEvent('download', { timeout: 10000 });
+    await page.locator('#reDownloadBtn').click();
+    const barcodeDownload = await barcodeDownloadPromise;
+    const barcodePath = '/tmp/midoc-barcode-test.png';
+    await barcodeDownload.saveAs(barcodePath);
+    assert.deepEqual(Array.from(fs.readFileSync(barcodePath).subarray(0, 8)), [137, 80, 78, 71, 13, 10, 26, 10], 'Barcode generator must export a valid PNG.');
+
     assert.deepEqual(errors, [], 'No uncaught browser exceptions should occur');
-    console.log('Browser smoke tests passed: GIF create/extract, strict PDF input guard, Image-to-PDF defaults/export, valid PDF-to-image export, ZIP create/view/extract/download, QR output.');
+    console.log('Browser smoke tests passed: GIF create/extract, PDF input validation, image/PDF conversion and result preview, ZIP create/view/extract, QR output, interactive pixel crop, and barcode output.');
   } finally {
     await browser.close();
   }
