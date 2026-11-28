@@ -3706,31 +3706,24 @@
     }
 
     async function runPdfToImages(baseName) {
-      const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
-      if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
-      const fmt = document.getElementById('optImgFormat').value;
-      const scale = parseFloat(document.getElementById('optRenderScale').value) || 2.0;
-      const ext = fmt === 'image/png' ? 'png' : (fmt === 'image/webp' ? 'webp' : 'jpg');
-      const zip = new JSZip();
-      let count = 0;
-      const firstClean = pdfItems[0].name.replace(/\.pdf$/i, '').trim();
-
-      for (const item of pdfItems) {
-        const doc = await pdfjsLib.getDocument({ data: item.arrayBuffer.slice(0) }).promise;
-        for (let p = 1; p <= doc.numPages; p++) {
-          count++;
-          const page = await doc.getPage(p);
-          const vp = page.getViewport({ scale, rotation: item.rotation });
-          const c = document.createElement('canvas');
-          c.width = vp.width;
-          c.height = vp.height;
-          await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
-          const blob = await new Promise(r => c.toBlob(r, fmt, 0.92));
-          zip.file(`${firstClean}_${String(count).padStart(2, '0')}.${ext}`, blob);
+      if(document.getElementById('optPdfExportMode')?.value==='embedded')return runPdfEmbeddedImages(baseName);
+      const pdfItems=state.items.filter(item=>item.isPdf&&item.arrayBuffer);if(!pdfItems.length)throw new Error('Tambahkan file PDF terlebih dahulu.');
+      const fmt=document.getElementById('optImgFormat')?.value||'image/png',quality=document.getElementById('optPdfImageQuality')?.value||'high';
+      const scale=quality==='low'?1:(quality==='medium'?1.8:2.6),jpegQuality=quality==='low'?0.58:(quality==='medium'?0.78:0.94);
+      const ext=fmt==='image/png'?'png':(fmt==='image/webp'?'webp':'jpg'),zip=new JSZip();let count=0;
+      for(const item of pdfItems){
+        const doc=await pdfjsLib.getDocument({data:item.arrayBuffer.slice(0)}).promise,base=item.name.replace(/\.pdf$/i,'');
+        for(let pageNumber=1;pageNumber<=doc.numPages;pageNumber++){
+          count++;const page=await doc.getPage(pageNumber),viewport=page.getViewport({scale,rotation:item.rotation}),canvas=document.createElement('canvas');
+          canvas.width=viewport.width;canvas.height=viewport.height;
+          await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+          const blob=await handleImageCanvasExport(canvas,fmt,jpegQuality);
+          zip.file(base+'_Hal_'+String(pageNumber).padStart(3,'0')+'.'+ext,blob);
+          updateProgress((count/(pdfItems.reduce((sum,current)=>sum+(current.pageCount||1),0)||count))*90,'Mengekspor halaman '+pageNumber);
         }
       }
-      const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
-      finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${count} halaman PDF dirender menjadi ${ext.toUpperCase()}.`);
+      const first=pdfItems[0].name.replace(/\.pdf$/i,'');
+      finishWithBlob(await zip.generateAsync({type:'blob'}),formatDownloadFilename({baseName,ext:'zip',isBulkOrZip:true,firstFileName:first}),count+' halaman PDF diekspor ke gambar '+ext.toUpperCase()+'.');
     }
 
     // --- ENGINE 6: COMPRESS PDF ---
@@ -3759,57 +3752,83 @@
     }
 
     // --- ENGINE 7: CROP PDF ---
+    async function drawPdfCropPreview() {
+      const item=state.items.find(value=>value.isPdf&&value.arrayBuffer),panel=document.getElementById('pdfCropPreviewPanel'),canvas=document.getElementById('pdfCropCanvas');
+      if(!item||!canvas){panel?.classList.add('hidden');return;}
+      panel?.classList.remove('hidden');
+      const doc=await pdfjsLib.getDocument({data:item.arrayBuffer.slice(0)}).promise;
+      state.pdfCropPage=Math.max(1,Math.min(doc.numPages,state.pdfCropPage||1));
+      const page=await doc.getPage(state.pdfCropPage),viewport=page.getViewport({scale:1.2});
+      const base=document.createElement('canvas');base.width=viewport.width;base.height=viewport.height;
+      await page.render({canvasContext:base.getContext('2d'),viewport}).promise;state.pdfCropBaseImage=base;
+      const label=document.getElementById('pdfCropPageLabel');if(label)label.textContent='Halaman '+state.pdfCropPage+' / '+doc.numPages;
+      drawPdfCropSelection();
+    }
+    function drawPdfCropSelection() {
+      const canvas=document.getElementById('pdfCropCanvas'),base=state.pdfCropBaseImage;if(!canvas||!base)return;
+      canvas.width=base.width;canvas.height=base.height;const ctx=canvas.getContext('2d');ctx.drawImage(base,0,0);
+      const selection=state.pdfCropSelections[state.pdfCropPage]||{x:0.05,y:0.05,w:0.9,h:0.9};
+      const x=selection.x*canvas.width,y=selection.y*canvas.height,w=selection.w*canvas.width,h=selection.h*canvas.height;
+      ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.clearRect(x,y,w,h);ctx.drawImage(base,x,y,w,h,x,y,w,h);
+      ctx.strokeStyle='#2563EB';ctx.lineWidth=Math.max(2,canvas.width/400);ctx.setLineDash([8,5]);ctx.strokeRect(x,y,w,h);ctx.setLineDash([]);
+      const info=document.getElementById('pdfCropInfo');if(info)info.textContent='Area terpilih '+Math.round(selection.w*100)+'% × '+Math.round(selection.h*100)+'% pada halaman '+state.pdfCropPage+'.';
+    }
+    async function changePdfCropPage(delta) {
+      const item=state.items.find(value=>value.isPdf&&value.arrayBuffer);if(!item)return;
+      const doc=await pdfjsLib.getDocument({data:item.arrayBuffer.slice(0)}).promise;
+      state.pdfCropPage=Math.max(1,Math.min(doc.numPages,state.pdfCropPage+delta));await drawPdfCropPreview();
+    }
+    function getPdfCropPoint(event) {
+      const canvas=document.getElementById('pdfCropCanvas'),rect=canvas.getBoundingClientRect();
+      return {x:Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width)),y:Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height))};
+    }
+    function startPdfCropDrag(event) {
+      if(!state.pdfCropBaseImage)return;const point=getPdfCropPoint(event);state.pdfCropDrag={start:point,current:point};
+      document.getElementById('pdfCropCanvas')?.setPointerCapture?.(event.pointerId);event.preventDefault();
+    }
+    function movePdfCropDrag(event) {
+      if(!state.pdfCropDrag)return;const point=getPdfCropPoint(event),start=state.pdfCropDrag.start;state.pdfCropDrag.current=point;
+      const left=Math.min(start.x,point.x),top=Math.min(start.y,point.y);
+      state.pdfCropSelections[state.pdfCropPage]={x:left,y:top,w:Math.max(0.02,Math.abs(point.x-start.x)),h:Math.max(0.02,Math.abs(point.y-start.y))};
+      drawPdfCropSelection();event.preventDefault();
+    }
+    function finishPdfCropDrag(event) {if(state.pdfCropDrag){movePdfCropDrag(event);state.pdfCropDrag=null;}}
     async function runCropPdf(baseName) {
-      const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
-      if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
-      const margin = Number(document.getElementById('optPdfCropMargin').value);
-      if (!Number.isFinite(margin) || margin < 0) throw new Error('Margin crop harus berupa angka nol atau lebih.');
-      const outPdf = await PDFLib.PDFDocument.create();
-      for (const item of pdfItems) {
-        const src = await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0));
-        const pages = await outPdf.copyPages(src, src.getPageIndices());
-        pages.forEach(p => {
-          const { width, height } = p.getSize();
-          if (margin * 2 >= width || margin * 2 >= height) throw new Error('Margin ' + margin + ' pt terlalu besar untuk halaman PDF berukuran ' + width.toFixed(1) + ' × ' + height.toFixed(1) + ' pt.');
-          p.setCropBox(margin, margin, width - margin * 2, height - margin * 2);
-          outPdf.addPage(p);
-        });
-      }
-      const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
-      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, `Margin PDF dipotong sebesar ${margin} pt.`);
+      const item=state.items.find(value=>value.isPdf&&value.arrayBuffer);if(!item)throw new Error('Tambahkan PDF terlebih dahulu.');
+      const source=await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0)),out=await PDFLib.PDFDocument.create();
+      const allPages=document.getElementById('optCropPdfAllPages')?.checked!==false;
+      const activeSelection=state.pdfCropSelections[state.pdfCropPage]||{x:0.05,y:0.05,w:0.9,h:0.9};
+      const copied=await out.copyPages(source,source.getPageIndices());
+      copied.forEach((page,index)=>{
+        const selection=allPages?activeSelection:(state.pdfCropSelections[index+1]||{x:0.05,y:0.05,w:0.9,h:0.9});
+        const width=page.getWidth(),height=page.getHeight(),x=selection.x*width,y=(1-selection.y-selection.h)*height,w=selection.w*width,h=selection.h*height;
+        if(w<=0||h<=0)throw new Error('Area crop tidak valid pada halaman '+(index+1)+'.');
+        page.setCropBox(x,y,w,h);out.addPage(page);
+      });
+      finishWithBlob(new Blob([await out.save()],{type:'application/pdf'}),formatDownloadFilename({baseName,ext:'pdf',isBulkOrZip:false}),'Crop diterapkan pada '+copied.length+' halaman PDF.');
     }
 
     // --- ENGINE 8: WATERMARK PDF ---
     async function runWatermarkPdf(baseName) {
-      const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
-      if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
-      const pageNumberOnly = state.activeToolObj?.id === 'page-number-pdf';
-      const wm = pageNumberOnly ? '' : (document.getElementById('optPdfWatermarkText')?.value || '').trim();
-      const addNum = pageNumberOnly || Boolean(document.getElementById('optPdfPageNumbers')?.checked);
-      if (!wm && !addNum) throw new Error('Masukkan teks watermark atau aktifkan nomor halaman sebelum memproses.');
-      const outPdf = await PDFLib.PDFDocument.create();
-      const font = await outPdf.embedFont(PDFLib.StandardFonts.HelveticaBold);
-
-      for (const item of pdfItems) {
-        const src = await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0));
-        const pages = await outPdf.copyPages(src, src.getPageIndices());
-        pages.forEach(p => outPdf.addPage(p));
+      const pdfItems=state.items.filter(item=>item.isPdf&&item.arrayBuffer);if(!pdfItems.length)throw new Error('Tambahkan file PDF terlebih dahulu.');
+      const pageNumberOnly=state.activeToolObj?.id==='page-number-pdf',out=await PDFLib.PDFDocument.create();
+      const fontName=pageNumberOnly?(document.getElementById('optPdfFont')?.value||'Helvetica'):(document.getElementById('optWmFont')?.value||'Helvetica');
+      const font=await out.embedFont(getPdfFont(fontName));
+      for(const item of pdfItems){const source=await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0));const pages=await out.copyPages(source,source.getPageIndices());pages.forEach(page=>out.addPage(page));}
+      const pages=out.getPages(),from=pageNumberOnly?Math.max(1,Number(document.getElementById('optPdfFrom')?.value||1)):Math.max(1,Number(document.getElementById('optWmFrom')?.value||1));
+      const to=pageNumberOnly?Math.max(from,Number(document.getElementById('optPdfTo')?.value||pages.length)):Math.max(from,Number(document.getElementById('optWmTo')?.value||pages.length));
+      const position=document.getElementById('optPdfPosition')?.value||(pageNumberOnly?'bottom-center':'center');
+      if(pageNumberOnly){
+        const startFrom=Math.max(1,Number(document.getElementById('optPdfStartFrom')?.value||1)),size=Math.max(6,Math.min(72,Number(document.getElementById('optPdfSize')?.value||12))),color=getPdfColor(document.getElementById('optPdfColor')?.value||'#222222');
+        pages.forEach((page,index)=>{const number=index+1;if(number<from||number>to)return;const text=String(startFrom+(number-from)),coords=getPdfTextPosition(page,text,font,size,position);page.drawText(text,{x:coords.x,y:coords.y,size,font,color:PDFLib.rgb(color.r,color.g,color.b)});});
+      }else{
+        const text=(document.getElementById('optPdfWatermarkText')?.value||'').trim();if(!text)throw new Error('Masukkan teks watermark.');
+        const size=Math.max(6,Math.min(144,Number(document.getElementById('optWmSize')?.value||14))),color=getPdfColor(document.getElementById('optWmColor')?.value||'#222222'),opacity=Math.max(0.05,Math.min(1,Number(document.getElementById('optWmOpacity')?.value||60)/100)),rotate=document.getElementById('optWmFormat')?.value==='diagonal';
+        pages.forEach((page,index)=>{const number=index+1;if(number<from||number>to)return;const coords=getPdfTextPosition(page,text,font,size,position);page.drawText(text,{x:coords.x,y:coords.y,size,font,color:PDFLib.rgb(color.r,color.g,color.b),opacity,rotate:PDFLib.degrees(rotate?45:0)});});
       }
-
-      const pages = outPdf.getPages();
-      pages.forEach((p, idx) => {
-        const { width, height } = p.getSize();
-        if (wm) {
-          p.drawText(wm, { x: width * 0.2, y: height * 0.5, size: 26, font, color: PDFLib.rgb(0.15, 0.39, 0.92), opacity: 0.25, rotate: PDFLib.degrees(30) });
-        }
-        if (addNum) {
-          p.drawText(`Halaman ${idx + 1} / ${pages.length}`, { x: width / 2 - 40, y: 18, size: 10, font, color: PDFLib.rgb(0.2, 0.2, 0.2) });
-        }
-      });
-      const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
-      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, `Watermark & nomor halaman diterapkan.`);
+      finishWithBlob(new Blob([await out.save()],{type:'application/pdf'}),formatDownloadFilename({baseName,ext:'pdf',isBulkOrZip:false}),pageNumberOnly?'Nomor halaman diterapkan pada halaman '+from+'–'+Math.min(to,pages.length)+'.':'Watermark diterapkan pada halaman '+from+'–'+Math.min(to,pages.length)+'.');
     }
-
 
     function parseXmlDocument(xmlText, label) {
       const parsed = new DOMParser().parseFromString(xmlText, 'application/xml');
