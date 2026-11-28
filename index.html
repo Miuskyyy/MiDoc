@@ -2091,7 +2091,7 @@
         `;
         box.querySelector('#optCodeType')?.addEventListener('change', updateCodeType);
         updateCodeType();
-      } else if (engine === 'password-gen') {      } else if (engine === 'password-gen') {
+      } else if (engine === 'password-gen') {
         filenameGroup.classList.add('hidden');
         btnLabel.textContent = 'Buat Kata Sandi Baru';
         box.innerHTML = `
@@ -4185,7 +4185,7 @@
           else if(shape==='rounded'){const radius=Math.min(outCanvas.width,outCanvas.height)*(Number(document.getElementById('optShapeRadius')?.value||12)/100);ctx.beginPath();ctx.roundRect(0,0,outCanvas.width,outCanvas.height,radius);ctx.clip();ctx.drawImage(baseCanvas,sx,sy,sw,sh,0,0,outCanvas.width,outCanvas.height);}
           else ctx.drawImage(baseCanvas,sx,sy,sw,sh,0,0,outCanvas.width,outCanvas.height);
           mime='image/png';
-        } else if (mode === 'rotate-flip') {        } else if (mode === 'rotate-flip') {
+        } else if (mode === 'rotate-flip') {  
           const flip = document.getElementById('optFlipMode').value;
           const c = document.createElement('canvas');
           c.width = baseCanvas.width;
