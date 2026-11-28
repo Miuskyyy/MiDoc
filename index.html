@@ -3077,9 +3077,10 @@
       if (engine === 'zip-maker') return (document.getElementById('optZipMode')?.value || 'create') === 'create';
       if (['image-splitter', 'pdf-to-image', 'batch-rename'].includes(engine)) return true;
       if (engine === 'split-pdf') {
-        return (document.getElementById('optSplitMode')?.value || 'all') === 'all';
+        return (document.getElementById('optSplitMode')?.value || 'parts') !== 'range';
       }
-      if (['compress-image', 'convert-image', 'resize-image', 'filters-image', 'rotate-flip', 'watermark-image', 'remove-exif'].includes(engine)) {
+      if (['compress-image', 'convert-image', 'resize-image', 'filters-image', 'shape-crop', 'crop-image', 'rotate-flip', 'watermark-image', 'remove-exif'].includes(engine)) {
+        if (['filters-image', 'shape-crop'].includes(engine) && state.selectedEditItemId) return false;
         const imgCount = state.items.filter(i => i.isImage).length;
         return imgCount > 1;
       }
