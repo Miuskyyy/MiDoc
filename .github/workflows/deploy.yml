@@ -6,7 +6,7 @@ on:
   push:
     branches:
       - main
-      # Preview is published by a safe deploy from main; feature branch commits never replace production.
+      - feature/preview-edit-tools-20261128
   workflow_dispatch:
 
 permissions:
@@ -34,7 +34,7 @@ jobs:
       - name: Checkout preview revision
         uses: actions/checkout@v6
         with:
-          ref: test/midoc-preview-final-v6-20261128
+          ref: ${{ github.ref == 'refs/heads/main' && 'test/midoc-preview-final-v6-20261128' || github.ref_name }}
           path: site-preview
 
       - name: Configure GitHub Pages
