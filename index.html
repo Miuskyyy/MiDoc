@@ -1845,10 +1845,12 @@
             <div><label class="block text-xs font-semibold mb-1">Pages From</label><input id="optPdfFrom" type="number" min="1" value="1" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
             <div><label class="block text-xs font-semibold mb-1">To</label><input id="optPdfTo" type="number" min="1" value="99999" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
           </div>
-          <div><label class="block text-xs font-semibold mb-1">Position</label>
-            <select id="optPdfTextPosition" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
-              <option value="tl">Top Left</option><option value="tc">Top Center</option><option value="tr">Top Right</option><option value="ml">Middle Left</option><option value="mc">Middle Center</option><option value="mr">Middle Right</option><option value="bl" selected>Bottom Left</option><option value="bc">Bottom Center</option><option value="br">Bottom Right</option>
-            </select>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Position · Pilih salah satu dari 9 titik</label>
+            <input id="optPdfTextPosition" type="hidden" value="bl">
+            <div id="pdfTextPositionGrid" class="grid grid-cols-3 gap-1.5 w-36" role="group" aria-label="Posisi nomor atau watermark PDF">
+              <button type="button" data-pdf-text-position="tl" aria-label="Top Left" aria-pressed="false" title="Top Left" onclick="setPdfTextPosition('tl')" class="min-w-10 min-h-10 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-zinc-500 flex items-center justify-center hover:border-accent"><span class="w-2.5 h-2.5 rounded-full bg-current"></span></button><button type="button" data-pdf-text-position="tc" aria-label="Top Center" aria-pressed="false" title="Top Center" onclick="setPdfTextPosition('tc')" class="min-w-10 min-h-10 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-zinc-500 flex items-center justify-center hover:border-accent"><span class="w-2.5 h-2.5 rounded-full bg-current"></span></button><button type="button" data-pdf-text-position="tr" aria-label="Top Right" aria-pressed="false" title="Top Right" onclick="setPdfTextPosition('tr')" class="min-w-10 min-h-10 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-zinc-500 flex items-center justify-center hover:border-accent"><span class="w-2.5 h-2.5 rounded-full bg-current"></span></button><button type="button" data-pdf-text-position="ml" aria-label="Middle Left" aria-pressed="false" title="Middle Left" onclick="setPdfTextPosition('ml')" class="min-w-10 min-h-10 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-zinc-500 flex items-center justify-center hover:border-accent"><span class="w-2.5 h-2.5 rounded-full bg-current"></span></button><button type="button" data-pdf-text-position="mc" aria-label="Middle Center" aria-pressed="false" title="Middle Center" onclick="setPdfTextPosition('mc')" class="min-w-10 min-h-10 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-zinc-500 flex items-center justify-center hover:border-accent"><span class="w-2.5 h-2.5 rounded-full bg-current"></span></button><button type="button" data-pdf-text-position="mr" aria-label="Middle Right" aria-pressed="false" title="Middle Right" onclick="setPdfTextPosition('mr')" class="min-w-10 min-h-10 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-zinc-500 flex items-center justify-center hover:border-accent"><span class="w-2.5 h-2.5 rounded-full bg-current"></span></button><button type="button" data-pdf-text-position="bl" aria-label="Bottom Left" aria-pressed="true" title="Bottom Left" onclick="setPdfTextPosition('bl')" class="min-w-10 min-h-10 rounded-sm border border-accent bg-accent/10 text-accent flex items-center justify-center hover:border-accent"><span class="w-2.5 h-2.5 rounded-full bg-current"></span></button><button type="button" data-pdf-text-position="bc" aria-label="Bottom Center" aria-pressed="false" title="Bottom Center" onclick="setPdfTextPosition('bc')" class="min-w-10 min-h-10 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-zinc-500 flex items-center justify-center hover:border-accent"><span class="w-2.5 h-2.5 rounded-full bg-current"></span></button><button type="button" data-pdf-text-position="br" aria-label="Bottom Right" aria-pressed="false" title="Bottom Right" onclick="setPdfTextPosition('br')" class="min-w-10 min-h-10 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-zinc-500 flex items-center justify-center hover:border-accent"><span class="w-2.5 h-2.5 rounded-full bg-current"></span></button>
+            </div>
           </div>
           <div><label class="block text-xs font-semibold mb-1">Font</label><select id="optPdfFont" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="Helvetica" selected>Arial</option><option value="TimesRoman">Times New Roman</option><option value="Courier">Courier New</option></select></div>
           <div class="grid grid-cols-2 gap-2">
@@ -4712,6 +4714,25 @@
       state.overlayX=Math.max(0,Math.min(100,Number(document.getElementById('optOverlayX')?.value||0)))/100;
       state.overlayY=Math.max(0,Math.min(100,Number(document.getElementById('optOverlayY')?.value||0)))/100;
       drawToolLivePreview();
+    }
+
+    function setPdfTextPosition(position){
+      const allowed=['tl','tc','tr','ml','mc','mr','bl','bc','br'];
+      if(!allowed.includes(position))return;
+      const input=document.getElementById('optPdfTextPosition');
+      if(input)input.value=position;
+      document.querySelectorAll('[data-pdf-text-position]').forEach(button=>{
+        const active=button.dataset.pdfTextPosition===position;
+        button.setAttribute('aria-pressed',String(active));
+        button.classList.toggle('border-accent',active);
+        button.classList.toggle('bg-accent/10',active);
+        button.classList.toggle('text-accent',active);
+        button.classList.toggle('border-zinc-300',!active);
+        button.classList.toggle('dark:border-darkLine',!active);
+        button.classList.toggle('bg-white',!active);
+        button.classList.toggle('dark:bg-darkCanvas',!active);
+        button.classList.toggle('text-zinc-500',!active);
+      });
     }
 
     function syncPdfCropRect(){
