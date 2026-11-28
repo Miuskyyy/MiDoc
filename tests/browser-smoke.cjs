@@ -144,7 +144,7 @@ const fs = require('node:fs');
     await page.locator('#fileInput').setInputFiles(pdfPath);
     await page.waitForFunction(() => {
       const cards = [...document.querySelectorAll('#fileItemsGrid .file-card')];
-      return cards.length === 2 && cards.some(card => card.innerText.includes('PDF 1 HAL')) && cards.some(card => card.innerText.includes('PDF 2 HAL'));
+      return cards.length === 2 && cards.some(card => card.innerText.includes('PDF HAL 1')) && cards.some(card => card.innerText.includes('PDF HAL 2'));
     }, { timeout: 15000 });
     assert.equal(await page.locator('#expandPdfPagesBtn').count(), 0, 'The manual split-per-page button must remain removed.');
     await page.locator('button[onclick="executeCurrentTool()"]').click();
@@ -275,7 +275,7 @@ const fs = require('node:fs');
     ]);
     await page.waitForFunction(() => !document.getElementById('toolLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
     assert.equal(await page.locator('#optOverlayBase option').count(), 2);
-    assert.equal(await page.locator('#optOverlayFront option').count(), 2);
+    assert.equal(await page.locator('#optOverlayFront option').count(), 1, 'Foreground selector excludes the selected background image.');
     await page.locator('button[onclick="executeCurrentTool()"]').click();
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
