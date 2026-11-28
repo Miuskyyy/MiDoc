@@ -2562,20 +2562,18 @@
       const overlay = document.getElementById('externalDragOverlay');
       const fileInput = document.getElementById('fileInput');
       const emptyFileInput = document.getElementById('emptyFileInput');
+      const circleAddFileInput = document.getElementById('circleAddFileInput');
 
-      fileInput.addEventListener('change', (e) => {
-        if (e.target.files?.length) {
-          ingestFilesInExactOrder(Array.from(e.target.files));
-          e.target.value = '';
+      const handleFilePickerChange = event => {
+        if (event.target.files?.length) {
+          ingestFilesInExactOrder(Array.from(event.target.files));
+          event.target.value = '';
         }
-      });
+      };
 
-      emptyFileInput.addEventListener('change', (e) => {
-        if (e.target.files?.length) {
-          ingestFilesInExactOrder(Array.from(e.target.files));
-          e.target.value = '';
-        }
-      });
+      fileInput.addEventListener('change', handleFilePickerChange);
+      emptyFileInput.addEventListener('change', handleFilePickerChange);
+      circleAddFileInput?.addEventListener('change', handleFilePickerChange);
 
       let dragDepth = 0;
       dropZone.addEventListener('dragenter', (e) => {
