@@ -141,6 +141,18 @@ const fs = require('node:fs');
     }, { timeout: 45000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
 
+    // Split PDF previews the actual first and last page for every configured range.
+    await openTool('split-pdf');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => {
+      const end = document.querySelector('#splitRangeRows [data-page-to]');
+      return end && end.value === '2' && document.querySelectorAll('#toolLivePreviewContent canvas').length === 2;
+    }, { timeout: 20000 });
+    assert.match(await page.locator('#splitPdfRangePreview').innerText(), /halaman 1–2/i);
+    await page.locator('#executeActionBtn').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
+
     // Organize PDF automatically expands every page into an editable card as soon as a PDF is added.
     await openTool('organize-pdf');
     await page.locator('#fileInput').setInputFiles(pdfPath);
