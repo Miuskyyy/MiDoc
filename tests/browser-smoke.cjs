@@ -153,6 +153,22 @@ const fs = require('node:fs');
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
 
+    // PDF Crop uses a draggable grid, with no percentage-position inputs.
+    await openTool('crop-pdf');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 15000 });
+    await page.locator('#toolLivePreviewContent canvas').scrollIntoViewIfNeeded();
+    assert.equal(await page.locator('#optPdfCropX').count(), 0, 'Numeric crop positioning inputs should be removed.');
+    const pdfCropBox = await page.locator('#toolLivePreviewContent canvas').boundingBox();
+    assert.ok(pdfCropBox && pdfCropBox.width > 100, 'PDF crop page should be visible at a usable size.');
+    await page.mouse.move(pdfCropBox.x + pdfCropBox.width * 0.94, pdfCropBox.y + pdfCropBox.height * 0.94);
+    await page.mouse.down();
+    await page.mouse.move(pdfCropBox.x + pdfCropBox.width * 0.66, pdfCropBox.y + pdfCropBox.height * 0.66, { steps: 5 });
+    await page.mouse.up();
+    await page.locator('#executeActionBtn').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
+
     // Organize PDF automatically expands every page into an editable card as soon as a PDF is added.
     await openTool('organize-pdf');
     await page.locator('#fileInput').setInputFiles(pdfPath);
@@ -214,6 +230,7 @@ const fs = require('node:fs');
 
     // QR and barcode share one generator and show a live preview before saving.
     await openTool('qr-generator');
+    assert.equal(await page.locator('#toolPreviewColumn').evaluate(el => el.classList.contains('xl:col-span-8')), true, 'QR/Barcode preview should have a wide center area beside the settings.');
     await page.waitForFunction(() => typeof window.QRCode === 'function', { timeout: 20000 });
     await page.waitForFunction(() => !document.getElementById('toolLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
     await page.locator('#optQrText').fill('https://example.com/midoc-audit');
@@ -275,6 +292,12 @@ const fs = require('node:fs');
     await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
+
+    // Color palette appears automatically after image upload, with no extraction button.
+    await openTool('color-picker');
+    await page.locator('#fileInput').setInputFiles({ name: 'palette-red.png', mimeType: 'image/png', buffer: redPng });
+    await page.waitForFunction(() => document.querySelectorAll('#toolLivePreviewContent button').length >= 1, { timeout: 10000 });
+    assert.equal(await page.getByText('Ekstrak Palet Warna Gambar #1').count(), 0);
 
     await openTool('color-filters');
     await page.locator('#fileInput').setInputFiles([
