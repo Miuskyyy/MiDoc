@@ -180,7 +180,7 @@
 
         <!-- Desktop Mega Menu Triggers (original MiDoc navigation layout) -->
         <nav class="hidden lg:flex items-center h-full" id="desktopNav">
-          <button onclick="navigateToHome()" id="navHomeBtn" class="h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-accent border-b-2 border-accent">
+          <button onclick="navigateToHome()" id="navHomeBtn" class="h-full px-3.5 flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 border-b-2 border-transparent">
             <span>Beranda</span>
           </button>
 
@@ -2788,7 +2788,7 @@
         bottomStrip.classList.add('hidden');
         document.getElementById('splitterLivePreviewPanel').classList.add('hidden');
         document.getElementById('joinerLivePreviewPanel').classList.add('hidden');
-        if (state.activeEngine === 'qr-generator') drawToolLivePreview();
+        if (['qr-generator','color-picker','split-pdf'].includes(state.activeEngine)) drawToolLivePreview();
         else document.getElementById('toolLivePreviewPanel')?.classList.add('hidden');
         document.getElementById('zipContentsCenter')?.classList.add('hidden');
         updateFilenamePreviewHint();
@@ -4338,13 +4338,14 @@
       if(!baseItem||!frontItem||baseItem.id===frontItem.id) throw new Error('Pilih dua gambar yang berbeda: satu sebagai latar dan satu sebagai layer depan.');
       const baseCanvas=await renderItemToCanvas(baseItem);
       const frontCanvas=await renderItemToCanvas(frontItem);
-      const scale=Math.max(.05,Math.min(1,Number(document.getElementById('optOverlayScale')?.value||28)/100));
-      const targetW=baseCanvas.width*scale;
-      const targetH=frontCanvas.height*(targetW/frontCanvas.width);
+      const requestedScale=Math.max(.05,Math.min(1,Number(document.getElementById('optOverlayScale')?.value||28)/100));
+      const fitScale=Math.min((baseCanvas.width*requestedScale)/frontCanvas.width,baseCanvas.width/frontCanvas.width,baseCanvas.height/frontCanvas.height);
+      const targetW=frontCanvas.width*fitScale;
+      const targetH=frontCanvas.height*fitScale;
       const xPct=Math.max(0,Math.min(100,Number(document.getElementById('optOverlayX')?.value??state.overlayX*100)))/100;
       const yPct=Math.max(0,Math.min(100,Number(document.getElementById('optOverlayY')?.value??state.overlayY*100)))/100;
-      const x=Math.min(baseCanvas.width-targetW,baseCanvas.width*xPct);
-      const y=Math.min(baseCanvas.height-targetH,baseCanvas.height*yPct);
+      const x=(baseCanvas.width-targetW)*xPct;
+      const y=(baseCanvas.height-targetH)*yPct;
       baseCanvas.getContext('2d').drawImage(frontCanvas,x,y,targetW,targetH);
       const blob=await new Promise((resolve,reject)=>baseCanvas.toBlob(result=>result?resolve(result):reject(new Error('Gambar gabungan gagal dibuat.')),'image/png'));
       const finalName=formatDownloadFilename({baseName,ext:'png',isBulkOrZip:false});
@@ -5073,8 +5074,10 @@
 
     // --- ENGINE 14: COLOR PICKER, QR GENERATOR, PASSWORD ---
     async function runColorPicker() {
-      const img = state.items.find(i => i.isImage && i.thumbUrl);
-      if (!img) { showToast('Tambahkan minimal 1 gambar.', 'error'); return; }
+      const img = state.items.find(i => i.id === state.selectedEditItemId && i.isImage && i.thumbUrl) || state.items.find(i => i.isImage && i.thumbUrl);
+      const content = document.getElementById('toolLivePreviewContent');
+      const panel = document.getElementById('toolLivePreviewPanel');
+      if (!img) { if(content)content.innerHTML='<p class="text-xs text-zinc-500">Tambahkan gambar untuk melihat 20 warna dominan.</p>';panel?.classList.remove('hidden');return; }
       const source = await renderItemToCanvas(img);
       const c = resizeCanvas(source, 192, 192, 'stretch');
       const data = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
@@ -5082,16 +5085,12 @@
       for (let i = 0; i < data.length; i += 4) {
         if (data[i + 3] < 32) continue;
         const channels=[data[i],data[i+1],data[i+2]].map(v=>Math.max(0,Math.min(255,Math.floor(v/16)*16+8)));
-        const hex='#'+channels.map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
-        map[hex]=(map[hex]||0)+1;
+        const hex='#'+channels.map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();map[hex]=(map[hex]||0)+1;
       }
-      const top = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,20).map(e=>e[0]);
-      document.getElementById('extractedPaletteSwatches').innerHTML = top.map(hex => `
-        <button onclick="copyTextFallback('${hex}'); showToast('Disalin: ${hex}', 'info')" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-center">
-          <div class="w-full h-6 mb-1" style="background:${hex}"></div>
-          <div class="text-[10px] font-mono font-bold">${hex}</div>
-        </button>
-      `).join('');
+      const top=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,20).map(e=>e[0]);
+      if(content)content.innerHTML='<p class="text-xs text-zinc-500">'+escapeHtml(img.name)+' · '+img.width+' × '+img.height+' px · 20 warna dominan</p><div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 w-full">'+top.map(hex=>'<button onclick="copyTextFallback(\''+hex+'\');showToast(\'Disalin: '+hex+'\',\'info\')" class="overflow-hidden rounded-sm border border-zinc-200 dark:border-darkLine text-left"><span class="block h-12 w-full" style="background:'+hex+'"></span><span class="block px-2 py-1.5 text-[11px] font-mono font-bold">'+hex+'</span></button>').join('')+'</div>';
+      if(panel)panel.classList.remove('hidden');
+      const meta=document.getElementById('toolLivePreviewMeta');if(meta)meta.textContent=top.length+' warna terdeteksi';
     }
 
     async function makeCodeCanvas() {
