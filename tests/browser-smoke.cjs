@@ -243,6 +243,7 @@ const fs = require('node:fs');
     await openTool('crop-image');
     await page.locator('#fileInput').setInputFiles({ name: 'crop-source.png', mimeType: 'image/png', buffer: redPng });
     await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 10000 });
+    await page.locator('#toolLivePreviewContent canvas').scrollIntoViewIfNeeded();
     const cropCanvasBox = await page.locator('#toolLivePreviewContent canvas').boundingBox();
     assert.ok(cropCanvasBox && cropCanvasBox.width > 20, 'Crop preview canvas must be visible and large enough to edit.');
     await page.mouse.move(cropCanvasBox.x + cropCanvasBox.width * 0.95, cropCanvasBox.y + cropCanvasBox.height * 0.95);
