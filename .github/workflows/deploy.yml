@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - main
-      - feature/preview-edit-tools-20261128
   workflow_dispatch:
 
 permissions:
