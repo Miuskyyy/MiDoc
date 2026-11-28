@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - main
-      # Preview is published by a safe deploy from main; feature branch commits never replace production.
+      - test/midoc-preview-final-v6-20261128
+      # Feature branch deploys publish only the isolated /preview-v6 path; main remains unchanged.
   workflow_dispatch:
 
 permissions:
