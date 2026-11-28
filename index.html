@@ -574,6 +574,7 @@
           <!-- Execute Button -->
           <button
             id="executeActionBtn"
+            type="button"
             onclick="executeCurrentTool()"
             class="w-full py-2.5 px-4 rounded-sm bg-accent hover:bg-accentHover text-white font-display font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
           >
@@ -1072,8 +1073,8 @@
       setupWorkspaceDragAndDrop();
       const executeActionButton = document.getElementById('executeActionBtn');
       if (executeActionButton) {
-        executeActionButton.removeAttribute('onclick');
-        executeActionButton.addEventListener('click', async event => {
+        executeActionButton.type = 'button';
+        executeActionButton.onclick = async event => {
           event.preventDefault();
           try {
             await executeCurrentTool();
@@ -1081,7 +1082,7 @@
             console.error(error);
             showToast('Proses gagal: ' + (error?.message || String(error)), 'error');
           }
-        });
+        };
       }
       const liveSettings = document.getElementById('toolSettingsContainer');
       liveSettings?.addEventListener('input', event => { if (state.activeEngine === 'compress-image' && event.target?.id?.startsWith('opt')) { state.compressPreviewBlob = null; if (state.compressedPreviewUrl) URL.revokeObjectURL(state.compressedPreviewUrl); state.compressedPreviewUrl = null; const info=document.getElementById('compressPreviewInfo'); if(info)info.textContent='Pengaturan berubah. Tekan Kompres dulu untuk menghitung ulang ukuran hasil.'; } drawToolLivePreview(); });
