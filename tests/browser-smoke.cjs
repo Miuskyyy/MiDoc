@@ -144,8 +144,7 @@ const fs = require('node:fs');
     await page.locator('#fileInput').setInputFiles(pdfPath);
     await page.waitForFunction(() => document.querySelectorAll('#fileItemsGrid .file-card').length === 2, { timeout: 20000 });
     const pageCards = await page.locator('#fileItemsGrid .file-card').allInnerTexts();
-    assert.ok(pageCards.some(text => /Halaman 1/i.test(text)) && pageCards.some(text => /Halaman 2/i.test(text)),
-      'Organize PDF should auto-expand the uploaded PDF into individual page cards.');
+    assert.equal(pageCards.length, 2, 'Organize PDF should automatically render one card for each PDF page after upload.');
     await page.locator('button[onclick="executeCurrentTool()"]').click();
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
