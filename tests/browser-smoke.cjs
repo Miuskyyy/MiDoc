@@ -206,16 +206,24 @@ const fs = require('node:fs');
     await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 15000 });
     await page.locator('#optCodeType').selectOption('barcode');
     await page.locator('#optQrText').fill('MIDO-C2026');
-    await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 15000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => document.getElementById('toolLivePreviewMeta')?.innerText === 'Barcode', { timeout: 15000 });
+    const barcodeButtonState = await page.locator('#executeActionBtn').evaluate(el => ({ disabled: el.disabled, label: el.innerText }));
+    assert.equal(barcodeButtonState.disabled, false, 'Barcode save button must be enabled.');
+    await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => {
       const box = document.getElementById('resultOutputBox');
       const toast = document.getElementById('toastContainer');
-      return (box && !box.classList.contains('hidden')) || (toast && toast.innerText.includes('Gagal membuat kode'));
-    }, { timeout: 20000 });
-    if (await page.locator('#resultOutputBox').evaluate(el => el.classList.contains('hidden'))) {
-      throw new Error('QR/barcode save failed: ' + await page.locator('#toastContainer').innerText());
-    }
+      return (box && !box.classList.contains('hidden')) || (toast && toast.childElementCount > 0);
+    }, { timeout: 10000 });
+    const barcodeSaveState = await page.evaluate(() => ({
+      engine: state.activeEngine,
+      toolId: state.activeToolObj?.id,
+      itemCount: state.items.length,
+      buttonDisabled: document.getElementById('executeActionBtn')?.disabled,
+      resultHidden: document.getElementById('resultOutputBox')?.classList.contains('hidden'),
+      toast: document.getElementById('toastContainer')?.innerText
+    }));
+    if (barcodeSaveState.resultHidden) throw new Error('QR/barcode save failed: ' + JSON.stringify(barcodeSaveState));
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
     // Resize Image preserves aspect ratio and updates the original/result pixel dimensions live.
