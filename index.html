@@ -2366,6 +2366,40 @@
         img.src = src.toDataURL('image/png');
         img.className = 'w-full h-auto block';
         content.appendChild(img);
+      } else if (sourceType === 'item') {
+        const item = getInspectorItem();
+        if (item) {
+          title.textContent = item.name;
+          const meta = document.getElementById('fullLightboxMeta');
+          if (meta) meta.textContent = `${formatBytes(item.size)} • ${item.type || 'File'}${item.width ? ` • ${item.width}×${item.height} px` : (item.isPdf ? ` • ${item.pageCount || 1} halaman` : '')}`;
+          if (item.isImage && item.thumbUrl) {
+            const img = document.createElement('img');
+            img.src = item.thumbUrl;
+            img.style.transform = `rotate(${item.rotation || 0}deg)`;
+            img.className = 'max-h-[78vh] max-w-full w-auto h-auto block object-contain';
+            content.appendChild(img);
+          } else if (item.isPdf && item.file) {
+            if (state.inspectorPreviewUrl) URL.revokeObjectURL(state.inspectorPreviewUrl);
+            state.inspectorPreviewUrl = URL.createObjectURL(item.file);
+            const frame = document.createElement('iframe');
+            frame.src = state.inspectorPreviewUrl + '#toolbar=0&navpanes=0';
+            frame.title = 'Pratinjau PDF ' + item.name;
+            frame.className = 'w-full h-[78vh] bg-white';
+            content.className = 'max-w-6xl w-full flex justify-center';
+            content.appendChild(frame);
+          } else if (item.file && /^(text\\/|application\\/json)/i.test(item.type || '')) {
+            const pre = document.createElement('pre');
+            pre.className = 'w-full max-w-5xl whitespace-pre-wrap break-words text-left text-xs font-mono text-zinc-100';
+            pre.textContent = 'Memuat isi file...';
+            content.appendChild(pre);
+            item.file.text().then(value => { pre.textContent = value.slice(0, 100000); }).catch(() => { pre.textContent = 'Pratinjau teks tidak tersedia.'; });
+          } else {
+            const note = document.createElement('p');
+            note.className = 'text-xs text-zinc-300';
+            note.textContent = 'Pratinjau visual tidak tersedia untuk jenis file ini.';
+            content.appendChild(note);
+          }
+        }
       } else if (sourceType === 'result' && state.lastBlobUrl) {
         title.textContent = `Hasil Unduhan — ${state.lastDownloadName}`;
         const resultType = document.getElementById('resultSizeBadge')?.dataset.mime || '';
@@ -2401,6 +2435,10 @@
 
     function closeFullPreviewModal() {
       document.getElementById('fullPreviewLightboxModal').classList.add('hidden');
+      if (state.inspectorPreviewUrl) {
+        URL.revokeObjectURL(state.inspectorPreviewUrl);
+        state.inspectorPreviewUrl = null;
+      }
     }
 
     function handleFullLightboxBackdropClick(e) {
@@ -3230,13 +3268,8 @@
       if (!item) return;
       state.inspectorItemId = item.id;
       state.inspectorPage = 1;
-      state.inspectorPageCount = 1;
-      state.inspectorZoom = 100;
-      const zoom = document.getElementById('inspectorZoomSelect');
-      if (zoom) zoom.value = '100';
-      document.getElementById('inspectorModal').classList.remove('hidden');
-      renderInspectorPreview();
-      lucide.createIcons();
+      state.inspectorPageCount = item.pageCount || 1;
+      openFullPreviewModal('item');
     }
 
     function getInspectorItem() {
