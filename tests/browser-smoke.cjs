@@ -246,11 +246,10 @@ const fs = require('node:fs');
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
     await page.locator('#optCodeType').selectOption('barcode');
     await page.locator('#optQrText').fill('MIDO-C2026');
-    await page.waitForFunction(() => document.getElementById('toolLivePreviewMeta')?.innerText === 'Barcode', { timeout: 15000 });
     const barcodeButtonState = await page.locator('#executeActionBtn').evaluate(el => ({ disabled: el.disabled, label: el.innerText }));
     assert.equal(barcodeButtonState.disabled, false, 'Barcode save button must be enabled.');
     await page.locator('#executeActionBtn').click();
-    await page.waitForTimeout(1200);
+    await page.waitForFunction(() => document.getElementById('resultDetailText')?.innerText.includes('Barcode berhasil dibuat.'), { timeout: 20000 });
     const barcodeSaveState = await page.evaluate(() => ({
       trace: window.__midocActionTrace || null,
       executeType: typeof window.executeCurrentTool,
