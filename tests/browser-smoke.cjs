@@ -181,7 +181,7 @@ const fs = require('node:fs');
       const cards = [...document.querySelectorAll('#fileItemsGrid .file-card')];
       return cards.length === 2 && cards.some(card => card.innerText.includes('PDF HAL 1')) && cards.some(card => card.innerText.includes('PDF HAL 2'));
     }, { timeout: 15000 });
-    assert.match(await page.locator('#fileItemsGrid').getAttribute('class'), /xl:grid-cols-4/, 'PDF page cards should use four compact columns.');
+    assert.match(await page.locator('#fileItemsGrid').getAttribute('class'), /md:grid-cols-4/, 'PDF page cards should use four compact columns from medium screens.');
     assert.equal(await page.locator('#expandPdfPagesBtn').count(), 0, 'The manual split-per-page button must remain removed.');
     await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => {
