@@ -139,23 +139,15 @@ const fs = require('node:fs');
     }, { timeout: 45000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
 
-    // Organize PDF must require splitting the source into page cards before processing.
+    // Organize PDF automatically expands each PDF page when the PDF is dropped.
     await openTool('organize-pdf');
     await page.locator('#fileInput').setInputFiles(pdfPath);
-    await page.waitForFunction(() => {
-      const card = document.querySelector('#fileItemsGrid .file-card');
-      return card && card.innerText.includes('PDF 2 HAL');
-    }, { timeout: 15000 });
+    await page.waitForFunction(() => document.querySelectorAll('#fileItemsGrid .file-card').length === 2, { timeout: 20000 });
+    const pageCards = await page.locator('#fileItemsGrid .file-card').allInnerTexts();
+    assert.ok(pageCards.some(text => /Halaman 1/i.test(text)) && pageCards.some(text => /Halaman 2/i.test(text)),
+      'Organize PDF should auto-expand the uploaded PDF into individual page cards.');
     await page.locator('button[onclick="executeCurrentTool()"]').click();
-    await page.waitForTimeout(500);
-    assert.equal(await page.locator('#resultOutputBox').evaluate(el => el.classList.contains('hidden')), true, 'Organize PDF must not silently return an unchanged file before page cards are split');
-    await page.locator('#expandPdfPagesBtn').click();
-    await page.waitForFunction(() => document.querySelectorAll('#fileItemsGrid .file-card').length === 2, { timeout: 15000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
-    await page.waitForFunction(() => {
-      const box = document.getElementById('resultOutputBox');
-      return box && !box.classList.contains('hidden');
-    }, { timeout: 30000 });
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
 
     // PDF splitting: custom page ranges should generate multiple PDFs in one ZIP.
