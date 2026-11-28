@@ -5023,29 +5023,6 @@
           return;
         }
         const images=state.items.filter(i=>i.isImage&&i.thumbUrl);
-          const base=images.find(i=>i.id===document.getElementById('optOverlayBase')?.value)||images[0];
-          const front=images.find(i=>i.id===document.getElementById('optOverlayFront')?.value)||images.find(i=>i.id!==base?.id);
-          if(!base||!front){content.textContent='Tambahkan minimal dua gambar untuk mulai mengatur layer.';return;}
-          const baseCanvas=await renderItemToCanvas(base),frontCanvas=await renderItemToCanvas(front);
-          if(token!==state.livePreviewToken)return;
-          const display=createPreviewCanvas(baseCanvas.width,baseCanvas.height,1400),ctx=display.getContext('2d');
-          const sx=display.width/baseCanvas.width;ctx.drawImage(baseCanvas,0,0,display.width,display.height);
-          const scale=Number(document.getElementById('optOverlayScale')?.value||28)/100;
-          const width=baseCanvas.width*scale,height=frontCanvas.height*(width/frontCanvas.width);
-          const x=Math.min(baseCanvas.width-width,baseCanvas.width*state.overlayX),y=Math.min(baseCanvas.height-height,baseCanvas.height*state.overlayY);
-          ctx.drawImage(frontCanvas,x*sx,y*sx,width*sx,height*sx);
-          display.className='max-w-full h-auto border border-zinc-300 dark:border-darkLine rounded-sm shadow-sm';
-          display.style.maxHeight='70vh';display.style.touchAction='none';content.appendChild(display);
-          const hint=document.createElement('p');hint.className='text-[11px] text-zinc-500';hint.textContent='Layer depan: '+front.name+' · Seret layer untuk mengatur posisi.';
-          content.appendChild(hint);
-          let drag=null;
-          display.onpointerdown=e=>{const b=display.getBoundingClientRect(),px=(e.clientX-b.left)/b.width,py=(e.clientY-b.top)/b.height,rx=state.overlayX,ry=state.overlayY,rw=scale,rh=(height/baseCanvas.height);if(px>=rx&&px<=rx+rw&&py>=ry&&py<=ry+rh){drag={dx:px-rx,dy:py-ry};display.setPointerCapture(e.pointerId);}};
-          display.onpointermove=e=>{if(!drag)return;const b=display.getBoundingClientRect();state.overlayX=Math.max(0,Math.min(1-scale,(e.clientX-b.left)/b.width-drag.dx));state.overlayY=Math.max(0,Math.min(1-height/baseCanvas.height,(e.clientY-b.top)/b.height-drag.dy));const xi=document.getElementById('optOverlayX'),yi=document.getElementById('optOverlayY');if(xi)xi.value=Math.round(state.overlayX*100);if(yi)yi.value=Math.round(state.overlayY*100);const px=baseCanvas.width*state.overlayX,py=baseCanvas.height*state.overlayY;ctx.clearRect(0,0,display.width,display.height);ctx.drawImage(baseCanvas,0,0,display.width,display.height);ctx.drawImage(frontCanvas,px*sx,py*sx,width*sx,height*sx);};
-          display.onpointerup=()=>{drag=null;};display.onpointercancel=()=>{drag=null;};
-          if(meta)meta.textContent='Latar: '+base.name+' · Depan: '+front.name;
-          return;
-        }
-        const images=state.items.filter(i=>i.isImage&&i.thumbUrl);
         const item=images.find(i=>i.id===state.selectedEditItemId)||images[0];
         if(!item){panel.classList.add('hidden');return;}
         state.selectedEditItemId=item.id;
