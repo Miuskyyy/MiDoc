@@ -44,7 +44,7 @@ const fs = require('node:fs');
       'Utilitas & Batch Tools'
     ];
     assert.deepEqual(
-      await page.locator('#directoryGroupsContainer > section h2').allTextContents(),
+      (await page.locator('#directoryGroupsContainer > section h2').allTextContents()).map(label => label.trim()),
       referenceCategories,
       'The directory must contain the eight reference-aligned tool groups.'
     );
