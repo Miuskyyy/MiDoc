@@ -4472,6 +4472,258 @@
       finishWithBlob(await zip.generateAsync({type:'blob'}),formatDownloadFilename({baseName,ext:'zip',isBulkOrZip:true,firstFileName:pdfItems[0].name.replace(/\.pdf$/i,'')}),total+' gambar tertanam diekspor dari PDF.');
     }
 
+    async function runGifTools(baseName) {
+      const mode = document.getElementById('optGifMode')?.value || 'create';
+      if (mode === 'extract') {
+        await extractGifFrames(baseName);
+        return;
+      }
+      await createAnimatedGif(baseName);
+    }
+
+    async function createAnimatedGif(baseName) {
+      const images = state.items.filter(item => item.isImage && item.thumbUrl);
+      if (images.length < 2) throw new Error('GIF Maker memerlukan minimal dua gambar statis.');
+      if (images.length > 150) throw new Error('GIF Maker menerima maksimal 150 frame dalam satu animasi.');
+      if (typeof window.GIF !== 'function') throw new Error('GIF encoder belum berhasil dimuat. Periksa koneksi internet lalu muat ulang halaman.');
+
+      const first = await renderItemToCanvas(images[0]);
+      const maxWidth = parseInt(document.getElementById('optGifMaxWidth')?.value || '0', 10);
+      const requestedWidth = maxWidth > 0 ? Math.min(first.width, maxWidth) : Math.min(first.width, 1080);
+      const outputWidth = Math.max(1, requestedWidth);
+      const outputHeight = Math.max(1, Math.round(first.height * outputWidth / first.width));
+      const totalPixels = outputWidth * outputHeight * images.length;
+      if (outputWidth > 2400 || outputHeight > 4000 || outputWidth * outputHeight > 6000000 || totalPixels > 40000000) {
+        throw new Error('Total frame GIF terlalu besar untuk diproses dengan aman. Pilih lebar 480 atau 720 px, atau kurangi jumlah gambar.');
+      }
+      const delayInput = Number(document.getElementById('optGifDelay')?.value || '250');
+      if (!Number.isFinite(delayInput) || delayInput < 20 || delayInput > 10000) throw new Error('Durasi frame harus antara 20 dan 10.000 ms.');
+      const delay = Math.round(delayInput);
+      const repeat = parseInt(document.getElementById('optGifRepeat')?.value || '0', 10);
+      const prepared = [];
+
+      for (let i = 0; i < images.length; i++) {
+        const src = i === 0 ? first : await renderItemToCanvas(images[i]);
+        const frame = document.createElement('canvas');
+        frame.width = outputWidth;
+        frame.height = outputHeight;
+        const ctx = frame.getContext('2d');
+        if (!ctx) throw new Error('Browser tidak dapat membuat kanvas untuk frame GIF.');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, frame.width, frame.height);
+        const scale = Math.min(frame.width / src.width, frame.height / src.height);
+        const drawW = Math.max(1, Math.round(src.width * scale));
+        const drawH = Math.max(1, Math.round(src.height * scale));
+        ctx.drawImage(src, (frame.width - drawW) / 2, (frame.height - drawH) / 2, drawW, drawH);
+        prepared.push(frame);
+        updateProgress(10 + ((i + 1) / images.length) * 15, 'Menyiapkan frame ' + (i + 1) + ' dari ' + images.length + '...');
+      }
+
+      const blob = await new Promise((resolve, reject) => {
+        let settled = false;
+        const encoder = new GIF({
+          workers: 2,
+          quality: 10,
+          repeat,
+          width: outputWidth,
+          height: outputHeight,
+          workerScript: new URL('./gif.worker.js', window.location.href).href
+        });
+        encoder.on('progress', progress => updateProgress(25 + Math.round(progress * 70), 'Menyusun frame GIF...'));
+        encoder.on('finished', result => {
+          settled = true;
+          resolve(result);
+        });
+        encoder.on('abort', () => {
+          if (!settled) reject(new Error('Pembuatan GIF dibatalkan oleh encoder.'));
+        });
+        encoder.on('error', error => {
+          if (!settled) reject(error instanceof Error ? error : new Error('GIF encoder gagal memproses frame.'));
+        });
+        prepared.forEach(canvas => encoder.addFrame(canvas, { delay, copy: true }));
+        try {
+          encoder.render();
+        } catch (error) {
+          reject(error);
+        }
+      });
+      if (!blob || blob.type !== 'image/gif') throw new Error('Encoder tidak menghasilkan file GIF yang valid.');
+      const finalName = formatDownloadFilename({ baseName, ext: 'gif', isBulkOrZip: false });
+      finishWithBlob(blob, finalName, 'Animasi GIF berhasil dibuat dari ' + images.length + ' gambar, ukuran ' + outputWidth + '×' + outputHeight + ' px, durasi tiap frame ' + delay + ' ms.', { isImageResult: true });
+    }
+
+
+    async function extractGifFrames(baseName) {
+      const item = state.items[0];
+      if (!item) throw new Error('Pilih satu file GIF animasi.');
+      const module = await import('https://esm.sh/gifuct-js@2.1.2');
+      const parsed = module.parseGIF(await item.file.arrayBuffer());
+      const frames = module.decompressFrames(parsed, true);
+      if (!frames || !frames.length) throw new Error('Tidak ada frame animasi yang dapat diekstrak dari GIF ini.');
+      if (frames.length > 500) throw new Error('GIF ini memiliki lebih dari 500 frame. File terlalu besar untuk diekstrak dengan aman di browser.');
+      const width = parsed.lsd.width;
+      const height = parsed.lsd.height;
+      if (!width || !height || width > 6000 || height > 6000 || width * height > 18000000) {
+        throw new Error('Dimensi GIF terlalu besar untuk diproses dengan aman di browser (maksimal 6.000 px per sisi dan 18 megapiksel).');
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) throw new Error('Browser tidak dapat membuat kanvas untuk ekstraksi GIF.');
+      const backgroundIndex = parsed.lsd.backgroundColorIndex;
+      const backgroundColor = parsed.gct && parsed.gct[backgroundIndex];
+      const initialTransparent = frames[0] && frames[0].transparentIndex === backgroundIndex;
+      const paintBackground = (left, top, frameWidth, frameHeight, transparent) => {
+        if (transparent || !backgroundColor) {
+          ctx.clearRect(left, top, frameWidth, frameHeight);
+          return;
+        }
+        ctx.save();
+        ctx.fillStyle = 'rgb(' + backgroundColor[0] + ',' + backgroundColor[1] + ',' + backgroundColor[2] + ')';
+        ctx.fillRect(left, top, frameWidth, frameHeight);
+        ctx.restore();
+      };
+      paintBackground(0, 0, width, height, initialTransparent);
+      const zip = new JSZip();
+      let previousFrame = null;
+      let previousRestore = null;
+      const sourceBase = item.name.replace(/\.gif$/i, '') || 'GIF';
+      for (let i = 0; i < frames.length; i++) {
+        const frame = frames[i];
+        if (previousFrame) {
+          const rect = previousFrame.dims;
+          if (previousFrame.disposalType === 2) {
+            paintBackground(rect.left, rect.top, rect.width, rect.height, previousFrame.transparentIndex === backgroundIndex);
+          } else if (previousFrame.disposalType === 3 && previousRestore) {
+            ctx.putImageData(previousRestore, 0, 0);
+          }
+        }
+        const restoreBeforeFrame = frame.disposalType === 3 ? ctx.getImageData(0, 0, width, height) : null;
+        const patch = frame.patch;
+        const patchWidth = frame.dims.width;
+        const patchHeight = frame.dims.height;
+        if (!patch || patch.length !== patchWidth * patchHeight * 4) {
+          throw new Error('Data frame GIF ke-' + (i + 1) + ' tidak lengkap.');
+        }
+        const composed = ctx.getImageData(frame.dims.left, frame.dims.top, patchWidth, patchHeight);
+        for (let pixel = 0; pixel < patchWidth * patchHeight; pixel++) {
+          const offset = pixel * 4;
+          if (patch[offset + 3] === 0) continue;
+          composed.data[offset] = patch[offset];
+          composed.data[offset + 1] = patch[offset + 1];
+          composed.data[offset + 2] = patch[offset + 2];
+          composed.data[offset + 3] = patch[offset + 3];
+        }
+        ctx.putImageData(composed, frame.dims.left, frame.dims.top);
+        const png = await new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Gagal membuat PNG frame ' + (i + 1) + '.')), 'image/png'));
+        zip.file(sourceBase + '_frame_' + String(i + 1).padStart(4, '0') + '.png', png);
+        previousFrame = frame;
+        previousRestore = restoreBeforeFrame;
+        updateProgress(((i + 1) / frames.length) * 90, 'Mengekstrak frame ' + (i + 1) + ' dari ' + frames.length + '...');
+      }
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const finalName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: sourceBase });
+      finishWithBlob(zipBlob, finalName, frames.length + ' frame GIF berhasil dikomposisikan menjadi PNG dalam satu arsip ZIP.');
+    }
+
+
+    async function runZipMaker(baseName) {
+      const mode = document.getElementById('optZipMode')?.value || 'create';
+      if (mode === 'view' || mode === 'extract') {
+        await readZipArchiveForAction(mode);
+        return;
+      }
+
+      if (!state.items.length) {
+        showToast('Tambahkan file yang ingin dimasukkan ke arsip ZIP.', 'error');
+        return;
+      }
+
+      const zip = new JSZip();
+      const firstClean = getFirstFileBaseName();
+      const usedNames = new Set();
+      for (let index = 0; index < state.items.length; index++) {
+        const item = state.items[index];
+        const relativeName = (item.file?.webkitRelativePath || item.name || ('File_' + (index + 1))).replace(/\\/g, '/');
+        const safeParts = relativeName.split('/').filter(part => part && part !== '.' && part !== '..');
+        let entryName = safeParts.join('/') || ('File_' + (index + 1));
+        const slash = entryName.lastIndexOf('/');
+        const directory = slash >= 0 ? entryName.slice(0, slash + 1) : '';
+        const leaf = slash >= 0 ? entryName.slice(slash + 1) : entryName;
+        const dot = leaf.lastIndexOf('.');
+        const stem = dot > 0 ? leaf.slice(0, dot) : leaf;
+        const extension = dot > 0 ? leaf.slice(dot) : '';
+        let uniqueName = entryName;
+        let duplicate = 2;
+        while (usedNames.has(uniqueName.toLowerCase())) {
+          uniqueName = directory + stem + '_' + duplicate + extension;
+          duplicate++;
+        }
+        usedNames.add(uniqueName.toLowerCase());
+        const fileData = item.arrayBuffer || await item.file.arrayBuffer();
+        zip.file(uniqueName, fileData);
+        updateProgress(((index + 1) / state.items.length) * 70, 'Menambahkan ' + uniqueName + ' (' + (index + 1) + '/' + state.items.length + ')');
+      }
+
+      const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
+      const blob = await zip.generateAsync(
+        { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+        metadata => updateProgress(70 + metadata.percent * 0.3, 'Menyusun arsip ZIP...')
+      );
+      finishWithBlob(blob, finalZipName, state.items.length + ' file berhasil dikemas. Nama asli dan struktur folder dipertahankan; nama duplikat diberi nomor tambahan.');
+    }
+
+    // --- ENGINE 14: COLOR PICKER, QR GENERATOR, PASSWORD ---
+    async function runColorPicker() {
+      const img = state.items.find(i => i.isImage && i.thumbUrl);
+      if (!img) { showToast('Tambahkan minimal 1 gambar.', 'error'); return; }
+      const c = resizeCanvas(await renderItemToCanvas(img), 36, 36, 'stretch');
+      const data = c.getContext('2d').getImageData(0, 0, 36, 36).data;
+      const map = {};
+      for (let i = 0; i < data.length; i += 16) {
+        const hex = '#' + [data[i], data[i + 1], data[i + 2]].map(v => (Math.round(v / 24) * 24).toString(16).padStart(2, '0')).join('').toUpperCase();
+        map[hex] = (map[hex] || 0) + 1;
+      }
+      const top = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 8).map(e => e[0]);
+      document.getElementById('extractedPaletteSwatches').innerHTML = top.map(hex => `
+        <button onclick="copyTextFallback('${hex}'); showToast('Disalin: ${hex}', 'info')" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-center">
+          <div class="w-full h-6 mb-1" style="background:${hex}"></div>
+          <div class="text-[10px] font-mono font-bold">${hex}</div>
+        </button>
+      `).join('');
+    }
+
+    async function runQrGenerator(baseName) {
+      const text = (document.getElementById('optQrText')?.value || '').trim();
+      if (!text) throw new Error('Masukkan teks atau tautan terlebih dahulu.');
+      if (typeof window.QRCode !== 'function') throw new Error('Library QR Code belum berhasil dimuat. Periksa koneksi internet lalu muat ulang halaman.');
+      const host = document.createElement('div');
+      host.style.cssText = 'position:fixed;left:-10000px;top:0;width:1024px;height:1024px;background:#fff;';
+      document.body.appendChild(host);
+      try {
+        new QRCode(host, { text, width: 1024, height: 1024, correctLevel: QRCode.CorrectLevel.M });
+        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 80)));
+        let sourceCanvas = host.querySelector('canvas');
+        if (!sourceCanvas) {
+          const image = host.querySelector('img');
+          if (!image) throw new Error('QR Code gagal dirender.');
+          if (!image.complete) await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
+          if (!image.naturalWidth || !image.naturalHeight) throw new Error('Gambar QR gagal dimuat untuk diekspor.');
+          sourceCanvas = document.createElement('canvas');
+          sourceCanvas.width = 1024;
+          sourceCanvas.height = 1024;
+          sourceCanvas.getContext('2d').drawImage(image, 0, 0, 1024, 1024);
+        }
+        const blob = await new Promise((resolve, reject) => sourceCanvas.toBlob(result => result ? resolve(result) : reject(new Error('Gagal membuat PNG QR Code.')), 'image/png'));
+        const finalName = formatDownloadFilename({ baseName, ext: 'png', isBulkOrZip: false });
+        finishWithBlob(blob, finalName, 'QR Code standar berhasil dibuat untuk teks atau tautan yang dimasukkan.', { isImageResult: true });
+      } finally {
+        host.remove();
+      }
+    }
+
+
     function updateCodeGeneratorUI() {
       const barcode=document.getElementById('optCodeType')?.value==='barcode';
       document.getElementById('barcodeCodeOptions')?.classList.toggle('hidden',!barcode);
