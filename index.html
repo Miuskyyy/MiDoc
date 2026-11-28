@@ -4695,18 +4695,22 @@
     function refreshLayerSelectors() {
       if(state.activeEngine!=='overlay-images')return;
       const images=state.items.filter(item=>item.isImage&&item.thumbUrl);
-      const fill=(id,exclude)=>{
+      const fill=id=>{
         const select=document.getElementById(id);if(!select)return;
         const previous=select.value;
-        select.innerHTML=images.filter(item=>item.id!==exclude).map(item=>'<option value="'+escapeHtml(item.id)+'">'+escapeHtml(item.name)+'</option>').join('');
-        if(images.some(item=>item.id===previous&&item.id!==exclude))select.value=previous;
+        select.innerHTML=images.map(item=>'<option value="'+escapeHtml(item.id)+'">'+escapeHtml(item.name)+'</option>').join('');
+        if(images.some(item=>item.id===previous))select.value=previous;
       };
-      fill('optOverlayBase',document.getElementById('optOverlayFront')?.value);
-      fill('optOverlayFront',document.getElementById('optOverlayBase')?.value);
+      fill('optOverlayBase');fill('optOverlayFront');
       const base=document.getElementById('optOverlayBase'),front=document.getElementById('optOverlayFront');
       if(images.length>=2){
         if(!base.value)base.value=images[0].id;
         if(!front.value||front.value===base.value)front.value=images.find(item=>item.id!==base.value)?.id||'';
+        if(base.value===front.value){
+          const other=images.find(item=>item.id!==base.value)?.id||'';
+          if(document.activeElement?.id==='optOverlayBase')front.value=other;
+          else base.value=other;
+        }
       }
     }
 
