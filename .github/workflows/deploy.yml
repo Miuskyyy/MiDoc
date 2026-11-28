@@ -1,3 +1,4 @@
+# Preview refresh after QR layout class cleanup
 name: Deploy MiDoc to GitHub Pages
 
 on:
