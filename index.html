@@ -2090,7 +2090,7 @@
         updateZipToolMode();
       } else if (engine === 'color-picker') {
         filenameGroup.classList.add('hidden');
-        btnLabel.textContent = 'Ekstrak Palet Warna Gambar #1';
+        btnLabel.textContent = 'Palet Warna Otomatis';
         box.innerHTML = '<p class="text-xs text-zinc-600 dark:text-zinc-400">Palet warna langsung muncul di area pratinjau tengah setelah gambar ditambahkan.</p>';
       } else if (engine === 'qr-generator') {
         extBadge.textContent = '.png';
@@ -2823,7 +2823,7 @@
       } else if (verticalEditors) {
         grid.className = state.items.length <= 1 ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 gap-3';
       } else {
-        grid.className = state.viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5' : 'flex flex-col gap-2';
+        grid.className = state.viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5' : 'flex flex-col gap-2';
       }
 
       const isPdfPageSimMode = (state.activeEngine === 'image-to-pdf' || state.activeEngine === 'merge-pdf-image');
@@ -4205,7 +4205,7 @@
           quality = 0.92;
           if (mime === 'image/jpeg') {
             const background = document.createElement('canvas'); background.width = w; background.height = h;
-            const bgCtx = background.getContext('2d'); bgCtx.fillStyle = document.getElementById('optResizeBgFill')?.value || '#ffffff';
+            const bgCtx = background.getContext('2d'); bgCtx.fillStyle = '#ffffff';
             bgCtx.fillRect(0,0,w,h); bgCtx.drawImage(outCanvas,0,0); outCanvas = background;
           }
         } else if (mode === 'filters-image') {
@@ -4789,17 +4789,7 @@
       });
     }
 
-    function syncPdfCropRect(){
-      const rect={
-        x:Math.max(0,Math.min(99,Number(document.getElementById('optPdfCropX')?.value??6)))/100,
-        y:Math.max(0,Math.min(99,Number(document.getElementById('optPdfCropY')?.value??6)))/100,
-        w:Math.max(.01,Math.min(1,Number(document.getElementById('optPdfCropW')?.value??88)/100)),
-        h:Math.max(.01,Math.min(1,Number(document.getElementById('optPdfCropH')?.value??88)/100))
-      };
-      rect.w=Math.min(rect.w,1-rect.x);rect.h=Math.min(rect.h,1-rect.y);
-      state.cropPdfRect=rect;state.cropPdfRects[state.cropPdfPage||1]={...rect};
-      drawToolLivePreview();
-    }
+    function syncPdfCropRect(){ drawToolLivePreview(); }
 
     function setPdfCropPage(delta){
       const current=state.cropPdfPage||1;
