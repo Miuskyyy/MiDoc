@@ -2960,14 +2960,19 @@
       const bottomStrip = document.getElementById('bottomAddStrip');
       const expandBtn = document.getElementById('expandPdfPagesBtn');
       const stage = document.getElementById('activeWorkspaceStage');
+      const circleAdd = document.getElementById('centerAddCircleWrapper');
       const cropTool = ['image-crop-pixel', 'crop-pdf'].includes(state.activeEngine);
-      const noFileTool = getToolInputRule(state.activeToolObj).formats.includes('none');
+      const activeInputRule = getToolInputRule(state.activeToolObj);
+      const noFileTool = activeInputRule.formats.includes('none');
+      const singleFileTool = activeInputRule.max === 1;
+      document.getElementById('sortControlGroup')?.classList.toggle('hidden', noFileTool);
 
       if (state.items.length === 0 && (state.activeEngine === 'qr-barcode' || noFileTool)) {
         emptyBox.classList.add('hidden');
         grid.classList.add('hidden');
         bottomStrip.classList.add('hidden');
         expandBtn.classList.add('hidden');
+        circleAdd?.classList.add('hidden');
         stage.classList.remove('hidden');
         document.getElementById('splitterLivePreviewPanel')?.classList.add('hidden');
         document.getElementById('joinerLivePreviewPanel')?.classList.add('hidden');
@@ -2991,6 +2996,7 @@
         grid.classList.add('hidden');
         bottomStrip.classList.add('hidden');
         expandBtn.classList.add('hidden');
+        circleAdd?.classList.add('hidden');
         stage.classList.add('hidden');
         stage.innerHTML = '';
         document.getElementById('splitterLivePreviewPanel').classList.add('hidden');
@@ -3005,6 +3011,7 @@
         grid.classList.add('hidden');
         bottomStrip.classList.add('hidden');
         expandBtn.classList.add('hidden');
+        circleAdd?.classList.add('hidden');
         stage.classList.remove('hidden');
         document.getElementById('splitterLivePreviewPanel').classList.add('hidden');
         document.getElementById('joinerLivePreviewPanel').classList.add('hidden');
@@ -3017,6 +3024,7 @@
 
       stage.classList.add('hidden');
       stage.innerHTML = '';
+      circleAdd?.classList.toggle('hidden', singleFileTool);
       grid.classList.remove('hidden');
       bottomStrip.classList.remove('hidden');
 
