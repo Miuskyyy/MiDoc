@@ -30,6 +30,12 @@ const fs = require('node:fs');
   const bluePng = await makePng('#0000ff');
 
   try {
+    // The workspace shell should follow the supplied studio layout.
+    await openTool('gif-tools');
+    assert.equal(await page.locator('#floatingActionDock').evaluate(el => getComputedStyle(el).position), 'sticky');
+    assert.equal(await page.locator('#topSettingsBarWrapper').isVisible(), true);
+    assert.equal(await page.locator('#dropZoneContainer').isVisible(), true);
+
     // GIF creation: static raster images only, real .gif output, no automatic download.
     await openTool('gif-tools');
     const gifInput = page.locator('#fileInput');
@@ -242,19 +248,17 @@ const fs = require('node:fs');
     await page.waitForSelector('#fullLightboxContent iframe', { timeout: 10000 });
     await page.locator('button[onclick="closeFullPreviewModal()"]').click();
 
-    // Pixel crop must open the shared editor, expose draggable selection, and export the exact pixel dimensions.
+    // Pixel crop should appear as a large in-place stage, with a draggable crop box and pixel controls.
     const cropPng = await makePng('#22aa66', 64, 48);
     await openTool('image-crop-pixel');
     await page.locator('#fileInput').setInputFiles([
       { name: 'crop-source.png', mimeType: 'image/png', buffer: cropPng }
     ]);
-    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
-    await page.locator('#fileItemsGrid .file-card').first().click();
-    await page.waitForSelector('#inspectorModal:not(.hidden)', { timeout: 10000 });
-    await page.waitForSelector('#inspectorCropSelection', { timeout: 10000 });
+    await page.waitForSelector('#activeWorkspaceStage:not(.hidden) #inspectorCropSelection', { timeout: 15000 });
+    assert.equal(await page.locator('#fileItemsGrid').evaluate(el => el.classList.contains('hidden')), true);
     await page.locator('#optCropPxW').fill('32');
     await page.locator('#optCropPxH').fill('20');
-    await page.locator('#inspectorModal button').filter({ hasText: 'Selesai Mengedit' }).click();
+    await page.waitForFunction(() => document.getElementById('workspaceCropSummary')?.textContent.includes('32 × 20 px'), { timeout: 10000 });
     await page.locator('button[onclick="executeCurrentTool()"]').click();
     await page.waitForFunction(() => {
       const box = document.getElementById('resultOutputBox');
@@ -275,7 +279,7 @@ const fs = require('node:fs');
     await page.waitForFunction(() => typeof window.JsBarcode === 'function', { timeout: 20000 });
     await page.locator('#optCodeType').selectOption('CODE128');
     await page.locator('#optCodeValue').fill('MIDOC-CODE128-2026');
-    await page.waitForSelector('#qrBarcodePreviewArea canvas', { timeout: 10000 });
+    await page.waitForSelector('#activeWorkspaceStage:not(.hidden) #qrWorkspaceCodeFrame canvas', { timeout: 10000 });
     await page.locator('button[onclick="executeCurrentTool()"]').click();
     await page.waitForFunction(() => {
       const box = document.getElementById('resultOutputBox');
@@ -289,7 +293,7 @@ const fs = require('node:fs');
     assert.deepEqual(Array.from(fs.readFileSync(barcodePath).subarray(0, 8)), [137, 80, 78, 71, 13, 10, 26, 10], 'Barcode generator must export a valid PNG.');
 
     assert.deepEqual(errors, [], 'No uncaught browser exceptions should occur');
-    console.log('Browser smoke tests passed: GIF create/extract, PDF input validation, image/PDF conversion and result preview, ZIP create/view/extract, QR output, interactive pixel crop, and barcode output.');
+    console.log('Browser smoke tests passed: GIF create/extract, PDF input validation, image/PDF conversion and result preview, ZIP create/view/extract, QR output, reference-style workspace, in-place pixel crop, and barcode output.');
   } finally {
     await browser.close();
   }
