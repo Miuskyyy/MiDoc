@@ -132,9 +132,8 @@ jobs:
           const required = [
             ['ZIP modes', 'id="optZipMode"'],
             ['ZIP inspect mode', 'value="view"'],
-            ['ZIP extract mode', 'value="extract"'],
             ['ZIP archive listing', 'showZipArchiveContents'],
-            ['ZIP folder extraction', 'extractZipToFolder'],
+
             ['Explicit result download', 'id="reDownloadBtn"'],
             ['AVIF conversion option', 'image/avif'],
             ['BMP conversion path', 'canvasToBmpBlob'],
@@ -146,6 +145,9 @@ jobs:
             ['Cross-tool transfer restore', 'function consumePendingToolTransfer']
           ];
 
+          if (html.includes('value="extract"') || html.includes('extractZipToFolder')) {
+            throw new Error('ZIP viewer should offer create/view only; folder extraction must stay removed.');
+          }
           const failures = required.filter(item => !html.includes(item[1])).map(item => item[0]);
           if (failures.length) {
             throw new Error('Missing functionality: ' + failures.join(', '));
