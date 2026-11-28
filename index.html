@@ -3723,7 +3723,8 @@
 
     // --- ENGINE 7: CROP PDF ---
     async function runCropPdf(baseName) {
-      const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
+      const selectedPdf = state.items.find(i => i.id === state.selectedEditItemId && i.isPdf && i.arrayBuffer) || state.items.find(i => i.isPdf && i.arrayBuffer);
+      const pdfItems = selectedPdf ? [selectedPdf] : [];
       if (!pdfItems.length) throw new Error('Tambahkan satu file PDF terlebih dahulu.');
       const cropAll = Boolean(document.getElementById('optPdfCropAll')?.checked);
       const selectedPage = Math.max(1, Number(state.cropPdfPage || 1));
@@ -4794,7 +4795,7 @@
     function setPdfCropPage(delta){
       const current=state.cropPdfPage||1;
       state.cropPdfRects[current]={...state.cropPdfRect};
-      const item=state.items.find(i=>i.isPdf&&i.arrayBuffer);
+      const item=state.items.find(i=>i.id===state.selectedEditItemId&&i.isPdf&&i.arrayBuffer)||state.items.find(i=>i.isPdf&&i.arrayBuffer);
       const count=item?.pageCount||1;
       state.cropPdfPage=Math.max(1,Math.min(count,current+delta));
       state.cropPdfRect={...(state.cropPdfRects[state.cropPdfPage]||{x:.06,y:.06,w:.88,h:.88})};
@@ -4954,7 +4955,7 @@
           return;
         }
         if(engine==='crop-pdf'){
-          const item=state.items.find(i=>i.isPdf&&i.arrayBuffer);
+          const item=state.items.find(i=>i.id===state.selectedEditItemId&&i.isPdf&&i.arrayBuffer)||state.items.find(i=>i.isPdf&&i.arrayBuffer);
           if(!item){panel.classList.add('hidden');return;}
           const doc=await pdfjsLib.getDocument({data:item.arrayBuffer.slice(0)}).promise;
           const pageNumber=Math.max(1,Math.min(doc.numPages,state.cropPdfPage||1));state.cropPdfPage=pageNumber;
