@@ -2387,7 +2387,7 @@
             frame.className = 'w-full h-[78vh] bg-white';
             content.className = 'max-w-6xl w-full flex justify-center';
             content.appendChild(frame);
-          } else if (item.file && /^(text\\/|application\\/json)/i.test(item.type || '')) {
+          } else if (item.file && (String(item.type || '').startsWith('text/') || item.type === 'application/json')) {
             const pre = document.createElement('pre');
             pre.className = 'w-full max-w-5xl whitespace-pre-wrap break-words text-left text-xs font-mono text-zinc-100';
             pre.textContent = 'Memuat isi file...';
