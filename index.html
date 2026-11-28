@@ -1058,7 +1058,7 @@
       setupNavAndSearch();
       setupWorkspaceDragAndDrop();
       const liveSettings = document.getElementById('toolSettingsContainer');
-      liveSettings?.addEventListener('input', () => drawToolLivePreview());
+      liveSettings?.addEventListener('input', event => { if (state.activeEngine === 'compress-image' && event.target?.id?.startsWith('opt')) { state.compressPreviewBlob = null; if (state.compressedPreviewUrl) URL.revokeObjectURL(state.compressedPreviewUrl); state.compressedPreviewUrl = null; const info=document.getElementById('compressPreviewInfo'); if(info)info.textContent='Pengaturan berubah. Tekan Kompres dulu untuk menghitung ulang ukuran hasil.'; } drawToolLivePreview(); });
       liveSettings?.addEventListener('change', () => { refreshLayerSelectors(); drawToolLivePreview(); });
       window.addEventListener('popstate', restoreRouteFromLocation);
       restoreRouteFromLocation();
@@ -1771,12 +1771,12 @@
           </div>
           <div id="splitRangeBox">
             <label class="block text-xs font-semibold mb-1">Rentang bagian (satu baris untuk satu PDF)</label>
-            <textarea id="optPageRanges" rows="4" oninput="updateSplitPdfRangesPreview()" placeholder="1-10&#10;11-20" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono">1-10&#10;11-20</textarea>
+            <textarea id="optPageRanges" rows="4" oninput="updateSplitPdfRangesPreview()" placeholder="1-10&#10;11-20" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></textarea>
             <p class="text-[11px] text-zinc-500 mt-1">Contoh: baris pertama menjadi PDF 1 halaman 1–10, baris kedua menjadi PDF 2 halaman 11–20. Rentang tidak boleh saling tumpang tindih.</p>
           </div>
           <div id="splitSingleRangeBox" class="hidden">
             <label class="block text-xs font-semibold mb-1">Rentang halaman yang diambil (contoh 1-10, 12, 15-18)</label>
-            <input id="optPageRange" type="text" value="1-10" oninput="updateSplitPdfRangesPreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
+            <input id="optPageRange" type="text" value="1" oninput="updateSplitPdfRangesPreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
           </div>
           <div id="splitPdfRangePreview" class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-200 dark:border-darkLine text-[11px] text-zinc-600 dark:text-zinc-300">Tambahkan PDF untuk melihat jumlah halaman dan hasil pembagiannya.</div>
         `;
@@ -2198,6 +2198,7 @@
         return;
       }
       const raw = mode === 'range' ? (document.getElementById('optPageRange')?.value || '') : (document.getElementById('optPageRanges')?.value || '');
+      if (!raw.trim()) { target.textContent = 'Masukkan rentang halaman, satu rentang pada setiap baris.'; return; }
       try {
         const ranges = mode === 'range' ? [{label:raw,indices:[...new Set(parsePageRange(raw,total))]}] : parseSplitRangesInput(raw,total);
         target.innerHTML = '<strong>' + total + ' halaman sumber.</strong><div class="mt-1 space-y-1">' + ranges.map((r,i)=>'<div>PDF ' + (i+1) + ': halaman ' + (r.indices[0]+1) + '–' + (r.indices[r.indices.length-1]+1) + ' (' + r.indices.length + ' halaman)</div>').join('') + '</div>';
@@ -3244,6 +3245,8 @@
           case 'convert-image':
           case 'resize-image':
           case 'filters-image':
+          case 'shape-crop':
+          case 'crop-image':
           case 'rotate-flip':
           case 'watermark-image':
             await runBatchImageProcess(baseName, engine);
@@ -3444,7 +3447,7 @@
       const pdfItems = state.items.filter(item => item.isPdf && item.arrayBuffer);
       if (!pdfItems.length) throw new Error('Unggah satu file PDF terlebih dahulu.');
       const unexpanded = pdfItems.some(item => item.singlePageIndex === null && item.pageCount > 1);
-      if (unexpanded) throw new Error('Tekan “Pecah Per Halaman PDF” terlebih dahulu. Setelah halaman menjadi kartu terpisah, geser atau hapus kartu sesuai urutan yang diinginkan.');
+      if (unexpanded) throw new Error('Halaman PDF belum selesai dimuat. Tunggu sampai kartu setiap halaman muncul.');
       const outPdf = await PDFLib.PDFDocument.create();
       let totalPages = 0;
       for (let i = 0; i < pdfItems.length; i++) {
@@ -3668,16 +3671,19 @@
       const hPct = Math.max(1, Math.min(100 - yPct * 100, Number(document.getElementById('optPdfCropH')?.value ?? 88))) / 100;
       const cropAll = Boolean(document.getElementById('optPdfCropAll')?.checked);
       const selectedPage = Math.max(1, Number(state.cropPdfPage || 1));
+      state.cropPdfRects[selectedPage] = {x:xPct,y:yPct,w:wPct,h:hPct};
       const outPdf = await PDFLib.PDFDocument.create();
       for (const item of pdfItems) {
         const src = await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0));
         const pages = await outPdf.copyPages(src, src.getPageIndices());
         pages.forEach((page,index) => {
           const {width,height}=page.getSize();
-          if (cropAll || index === selectedPage - 1) {
-            const left = xPct * width;
-            const bottom = (1 - yPct - hPct) * height;
-            page.setCropBox(left, bottom, wPct * width, hPct * height);
+          const rect = cropAll ? {x:xPct,y:yPct,w:wPct,h:hPct} : state.cropPdfRects[index + 1];
+          if (cropAll || rect) {
+            const r = rect || {x:xPct,y:yPct,w:wPct,h:hPct};
+            const left = r.x * width;
+            const bottom = (1 - r.y - r.h) * height;
+            page.setCropBox(left, bottom, r.w * width, r.h * height);
           }
           outPdf.addPage(page);
         });
