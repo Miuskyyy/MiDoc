@@ -1261,9 +1261,9 @@
         fileColumn.className = (showToolPreview ? (hasFileInputColumn ? 'lg:col-span-3' : 'hidden') : 'lg:col-span-8') + ' min-w-0 space-y-4';
       }
       if (previewColumn) {
+        previewColumn.className = 'min-w-0 space-y-4';
         previewColumn.classList.toggle('hidden', !showToolPreview);
-        previewColumn.classList.toggle('lg:col-span-5', showToolPreview && hasFileInputColumn);
-        previewColumn.classList.toggle('lg:col-span-8', showToolPreview && !hasFileInputColumn);
+        if (showToolPreview) previewColumn.classList.add(hasFileInputColumn ? 'lg:col-span-5' : 'lg:col-span-8');
       }
       if (settingsColumn) settingsColumn.className = 'lg:col-span-4 min-w-0';
       document.getElementById('executeActionBtn')?.classList.toggle('hidden', found.engine === 'color-picker');
