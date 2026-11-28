@@ -538,7 +538,7 @@
         </div>
 
         <section id="toolLivePreviewPanel" class="hidden mt-4 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkSurface p-3 sm:p-4 space-y-3">
-          <div class="flex items-center justify-between gap-2 border-b border-zinc-200 dark:border-darkLine pb-2"><h3 id="toolLivePreviewTitle" class="font-display text-sm font-bold">Pratinjau Langsung</h3><span id="toolLivePreviewMeta" class="text-[11px] font-mono text-zinc-500"></span></div>
+          <div class="flex items-center justify-between gap-2 border-b border-zinc-200 dark:border-darkLine pb-2"><h3 id="toolLivePreviewTitle" class="font-display text-sm font-bold">Area Edit Visual</h3><span id="toolLivePreviewMeta" class="text-[11px] font-mono text-zinc-500"></span></div>
           <div id="toolLivePreviewContent" class="w-full min-w-0 flex flex-col items-center gap-3"></div>
         </section>
         </div>
@@ -4999,9 +4999,9 @@
       const token=(state.livePreviewToken||0)+1;state.livePreviewToken=token;
       const title=document.getElementById('toolLivePreviewTitle');
       const meta=document.getElementById('toolLivePreviewMeta');
-      if(title)title.textContent=engine==='overlay-images'?'Atur Posisi Layer':engine==='crop-pdf'?'Pratinjau Crop PDF':engine==='crop-image'?'Atur Grid Crop Pixel':engine==='qr-generator'?'Pratinjau QR / Barcode':engine==='color-picker'?'Palet Warna Gambar':engine==='split-pdf'?'Pratinjau Split PDF':engine==='watermark-image'?'Pratinjau Watermark Gambar':'Pratinjau Hasil Langsung';
+      if(title)title.textContent=engine==='overlay-images'?'Atur Posisi Layer':engine==='crop-pdf'?'Atur Area Crop PDF':engine==='crop-image'?'Atur Area Crop Gambar':engine==='color-picker'?'Palet Warna Gambar':engine==='split-pdf'?'Pilih Halaman Split':engine==='watermark-image'?'Atur Watermark':'Area Edit Visual';
       content.innerHTML='';
-      if(meta)meta.textContent='Perubahan terlihat sebelum disimpan';
+      if(meta)meta.textContent='Sesuaikan tampilan sebelum membuat hasil';
       try{
         if(engine==='color-picker'){await runColorPicker();return;}
         if(engine==='split-pdf'){await drawSplitPdfPagePreview(token);return;}
