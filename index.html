@@ -19,6 +19,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 
   <script>
     tailwind.config = {
@@ -612,18 +613,67 @@
     </div>
   </div>
 
-  <!-- ==================== FILE INSPECTOR MODAL ==================== -->
-  <div id="inspectorModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-darkSurface border border-zinc-300 dark:border-darkLine rounded-sm max-w-2xl w-full overflow-hidden">
-      <div class="px-4 py-3 border-b border-zinc-200 dark:border-darkLine flex items-center justify-between">
-        <h3 id="inspectorTitle" class="font-display font-bold text-sm truncate">Detail File</h3>
-        <button onclick="closeInspectorModal()" class="p-1 text-zinc-500 hover:text-ink dark:hover:text-white">
+  <!-- ==================== SHARED FILE PREVIEW & EDIT WORKSPACE ==================== -->
+  <div id="inspectorModal" class="hidden fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-2 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="inspectorTitle" onclick="if(event.target===this) closeInspectorModal()">
+    <div class="bg-white dark:bg-darkSurface border border-zinc-300 dark:border-darkLine rounded-sm max-w-7xl w-full max-h-[94vh] overflow-hidden flex flex-col">
+      <div class="px-4 py-3 border-b border-zinc-200 dark:border-darkLine flex items-center justify-between gap-3 shrink-0">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 text-[10px] font-mono font-bold bg-accent text-white rounded-sm">PREVIEW + EDIT</span>
+            <h3 id="inspectorTitle" class="font-display font-bold text-sm truncate">Pratinjau File</h3>
+          </div>
+          <p id="inspectorSubTitle" class="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">Periksa file dan lakukan penyesuaian sebelum memproses.</p>
+        </div>
+        <button type="button" onclick="closeInspectorModal()" class="w-8 h-8 rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-500 hover:text-accent hover:border-accent flex items-center justify-center shrink-0" aria-label="Tutup pratinjau">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
-      <div class="p-4 space-y-4">
-        <div id="inspectorPreviewContainer" class="w-full checkerboard border border-zinc-200 dark:border-darkLine rounded-sm p-3 flex items-center justify-center min-h-[240px]"></div>
-        <div id="inspectorMetaGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs"></div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_310px] flex-1 min-h-0 overflow-hidden">
+        <section class="p-3 sm:p-4 min-w-0 min-h-0 flex flex-col gap-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5">
+              <button id="inspectorPrevItemBtn" type="button" onclick="navigateInspectorItem(-1)" class="px-2.5 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-xs hover:border-accent disabled:opacity-30" title="File sebelumnya"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
+              <span id="inspectorItemCounter" class="text-[11px] font-mono text-zinc-500">File 1 / 1</span>
+              <button id="inspectorNextItemBtn" type="button" onclick="navigateInspectorItem(1)" class="px-2.5 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-xs hover:border-accent disabled:opacity-30" title="File berikutnya"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <div id="inspectorPdfPageControls" class="hidden items-center gap-1.5">
+                <button type="button" onclick="changeInspectorPage(-1)" class="px-2 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs hover:border-accent" title="Halaman sebelumnya"><i data-lucide="chevron-left" class="w-3 h-3"></i></button>
+                <span id="inspectorPageLabel" class="text-[11px] font-mono text-zinc-500">Halaman 1 / 1</span>
+                <button type="button" onclick="changeInspectorPage(1)" class="px-2 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs hover:border-accent" title="Halaman berikutnya"><i data-lucide="chevron-right" class="w-3 h-3"></i></button>
+              </div>
+              <label class="flex items-center gap-1.5 text-[11px] text-zinc-500">
+                Zoom
+                <select id="inspectorZoomSelect" onchange="setInspectorZoom(this.value)" class="px-2 py-1 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono">
+                  <option value="50">50%</option><option value="75">75%</option><option value="100" selected>100%</option><option value="125">125%</option><option value="150">150%</option><option value="200">200%</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div id="inspectorPreviewContainer" class="relative w-full flex-1 min-h-[42vh] max-h-[68vh] overflow-auto checkerboard border border-zinc-200 dark:border-darkLine rounded-sm p-3 flex items-center justify-center">
+            <span class="text-xs text-zinc-500">Pilih file untuk melihat pratinjau.</span>
+          </div>
+        </section>
+
+        <aside class="border-t lg:border-t-0 lg:border-l border-zinc-200 dark:border-darkLine p-3 sm:p-4 overflow-y-auto space-y-4 bg-zinc-50/70 dark:bg-darkCanvas/50">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <h4 class="font-display text-sm font-bold">Edit Cepat</h4>
+              <span class="text-[10px] font-mono text-accent">LANGSUNG</span>
+            </div>
+            <div id="inspectorEditControls" class="space-y-3">
+              <p class="text-xs text-zinc-500">Kontrol edit akan muncul sesuai jenis file.</p>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-zinc-200 dark:border-darkLine">
+            <h4 class="text-xs font-bold mb-2">Informasi File</h4>
+            <div id="inspectorMetaGrid" class="grid grid-cols-2 gap-2 text-[11px]"></div>
+          </div>
+          <p class="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">Perubahan rotasi, flip, dan area crop diterapkan pada file kerja di MiDoc. Hasil akhir baru dibuat saat tombol proses alat digunakan.</p>
+          <button type="button" onclick="closeInspectorModal()" class="w-full px-3 py-2 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold">Selesai Mengedit</button>
+        </aside>
       </div>
     </div>
   </div>
@@ -717,6 +767,7 @@
         title: 'Kelompok 6: Gambar — Edit, Warna & Efek',
         subtitle: 'Potong lingkaran, sudut melengkung, tanda tangan digital, filter warna, dan hapus EXIF.',
         tools: [
+          { id: 'image-crop-pixel', name: 'Image Crop (Pixel)', desc: 'Pilih dan geser area potong langsung di atas pratinjau gambar, dengan ukuran hasil dalam piksel.', icon: 'crop', engine: 'image-crop-pixel' },
           { id: 'crop-circle', name: 'Circle Crop (Potongan Lingkaran)', desc: 'Potong gambar menjadi lingkaran transparan dengan ukuran sisi mengikuti dimensi terpendek gambar.', icon: 'circle', engine: 'filters-image' },
           { id: 'rotate-flip', name: 'Rotate & Flip Gambar', desc: 'Putar 90°/180° atau balik gambar secara horizontal/vertikal', icon: 'flip-horizontal', engine: 'rotate-flip' },
           { id: 'rounded-corners', name: 'Rounded Corners', desc: 'Beri lengkungan sudut halus transparan pada gambar', icon: 'square', engine: 'filters-image' },
@@ -737,6 +788,7 @@
           { id: 'zip-tools', name: 'ZIP Maker & Extractor', desc: 'Bungkus satu atau beberapa file ke dalam ZIP dengan nama asli, ekstrak arsip, atau lihat daftar isinya.', icon: 'archive', engine: 'zip-maker' },
           { id: 'color-picker', name: 'Image Color Palette Extractor', desc: 'Ambil sampel warna dominan dari gambar dan tampilkan kode HEX untuk disalin.', icon: 'pipette', engine: 'color-picker' },
           { id: 'qr-generator', name: 'QR Code Generator', desc: 'Buat QR Code standar yang bisa dipindai dari teks atau tautan.', icon: 'qr-code', engine: 'qr-generator' },
+          { id: 'qr-barcode-gen', name: 'QR & Barcode Generator', desc: 'Buat QR Code atau barcode CODE128, EAN-13, UPC, CODE39, dan ITF-14 dengan pratinjau langsung.', icon: 'barcode', engine: 'qr-barcode' },
           { id: 'password-gen', name: 'Password Generator', desc: 'Buat kata sandi acak kuat untuk pengamanan dokumen', icon: 'key-round', engine: 'password-gen' },
           { id: 'unit-converter', name: 'Konverter PX / CM / MM / Inch', desc: 'Konversi panjang antar PX, CM, MM, dan Inch berdasarkan DPI.', icon: 'calculator', engine: 'unit-converter' }
         ]
@@ -816,14 +868,14 @@
         label: 'Edit Image',
         icon: 'sliders-horizontal',
         description: 'Potong, putar, beri efek, watermark, tanda tangan, dan susun gambar.',
-        toolIds: ['overlay-images', 'crop-circle', 'rotate-flip', 'rounded-corners', 'watermark-image', 'photo-signature', 'color-filters']
+        toolIds: ['overlay-images', 'image-crop-pixel', 'crop-circle', 'rotate-flip', 'rounded-corners', 'watermark-image', 'photo-signature', 'color-filters']
       },
       {
         id: 'utilities',
         label: 'Utilities & Batch',
         icon: 'wrench',
         description: 'Alat bantu untuk pengelolaan file, arsip, kode, dan konversi satuan.',
-        toolIds: ['batch-rename', 'zip-tools', 'color-picker', 'qr-generator', 'password-gen', 'unit-converter']
+        toolIds: ['batch-rename', 'zip-tools', 'color-picker', 'qr-generator', 'qr-barcode-gen', 'password-gen', 'unit-converter']
       }
     ];
 
@@ -854,6 +906,7 @@
       'rotate-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'split-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'crop-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
+      'image-crop-pixel': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster' },
       'compress-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'watermark-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
       'page-number-pdf': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
@@ -896,6 +949,7 @@
       'zip-tools': { formats: ['any'], accept: '*/*', min: 1, label: 'file apa pun' },
       'gif-tools': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar raster statis' },
       'qr-generator': { formats: ['none'], accept: '', min: 0, label: 'tidak membutuhkan file' },
+      'qr-barcode-gen': { formats: ['none'], accept: '', min: 0, label: 'tidak membutuhkan file' },
       'password-gen': { formats: ['none'], accept: '', min: 0, label: 'tidak membutuhkan file' },
       'dpi-calc': { formats: ['none'], accept: '', min: 0, label: 'tidak membutuhkan file' },
       'unit-converter': { formats: ['none'], accept: '', min: 0, label: 'tidak membutuhkan file' }
@@ -1031,7 +1085,15 @@
       previewDisplayMode: 'full', // 'full' | 'fit'
       previewZoom: 100,
       zipArchiveFiles: [],
-      zipArchiveSourceName: null
+      zipArchiveSourceName: null,
+      inspectorItemId: null,
+      inspectorPage: 1,
+      inspectorPageCount: 1,
+      inspectorZoom: 100,
+      inspectorSourceWidth: 0,
+      inspectorSourceHeight: 0,
+      cropImgRect: { x: 0.08, y: 0.08, w: 0.84, h: 0.84 },
+      cropPdfRect: { x: 0.08, y: 0.08, w: 0.84, h: 0.84 }
     };
 
     let toolNavigationRequestId = 0;
@@ -1803,12 +1865,9 @@
       } else if (engine === 'crop-pdf') {
         extBadge.textContent = '.pdf';
         filenameInput.value = 'MiDoc_PDF_Crop';
-        btnLabel.textContent = 'Potong Margin PDF';
+        btnLabel.textContent = 'Crop Area PDF';
         box.innerHTML = `
-          <div>
-            <label class="block text-xs font-semibold mb-1">Potong Margin Setiap Sisi (pt)</label>
-            <input id="optPdfCropMargin" type="number" value="36" min="5" max="200" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
-          </div>
+          <p class="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">Klik kartu PDF atau ikon pratinjau untuk membuka halaman. Geser kotak biru dan sudutnya untuk memilih area crop; area yang sama diterapkan secara proporsional pada halaman dokumen.</p>
         `;
       } else if (engine === 'watermark-pdf') {
         extBadge.textContent = '.pdf';
@@ -1818,6 +1877,14 @@
           <div>
             <label class="block text-xs font-semibold mb-1">Teks Watermark (Opsional)</label>
             <input id="optPdfWatermarkText" type="text" value="DOKUMEN RESMI" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Posisi Watermark (9 Titik)</label>
+            <select id="optPdfWatermarkPos" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="top-left">Atas Kiri</option><option value="top-center">Atas Tengah</option><option value="top-right">Atas Kanan</option>
+              <option value="mid-left">Tengah Kiri</option><option value="center" selected>Tengah</option><option value="mid-right">Tengah Kanan</option>
+              <option value="bottom-left">Bawah Kiri</option><option value="bottom-center">Bawah Tengah</option><option value="bottom-right">Bawah Kanan</option>
+            </select>
           </div>
           <label class="flex items-center gap-2 text-xs cursor-pointer">
             <input id="optPdfPageNumbers" type="checkbox" class="accent-accent" />
@@ -1984,7 +2051,18 @@
           updateResizeMode('dimensions');
           if (toolObj.id === 'bulk-resize') document.getElementById('optResizeFit').value = 'contain';
         }
-      } else if (engine === 'filters-image') {
+      } else if (engine === 'filters-image') {      } else if (engine === 'image-crop-pixel') {
+        extBadge.textContent = '.png';
+        filenameInput.value = 'MiDoc_Crop_Pixel';
+        btnLabel.textContent = 'Generate Crop PNG';
+        box.innerHTML = `
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="block text-xs font-semibold mb-1">Lebar crop (px)</label><input id="optCropPxW" type="number" min="10" value="300" oninput="syncInspectorCropSize('w', this.value)" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" /></div>
+            <div><label class="block text-xs font-semibold mb-1">Tinggi crop (px)</label><input id="optCropPxH" type="number" min="10" value="300" oninput="syncInspectorCropSize('h', this.value)" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" /></div>
+          </div>
+          <p class="text-[11px] text-zinc-500">Klik kartu gambar atau ikon mata untuk membuka pratinjau. Geser kotak biru untuk menentukan posisi potongan.</p>
+        `;
+
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Edit_Gambar';
         btnLabel.textContent = 'Terapkan Edit Gambar';
@@ -2036,9 +2114,9 @@
           <div>
             <label class="block text-xs font-semibold mb-1">Posisi Teks</label>
             <select id="optImgWatermarkPos" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
-              <option value="bottom-right" selected>Pojok Kanan Bawah</option>
-              <option value="center">Tengah Gambar</option>
-              <option value="bottom-left">Pojok Kiri Bawah</option>
+              <option value="top-left">Atas Kiri</option><option value="top-center">Atas Tengah</option><option value="top-right">Atas Kanan</option>
+              <option value="mid-left">Tengah Kiri</option><option value="center">Tengah</option><option value="mid-right">Tengah Kanan</option>
+              <option value="bottom-left">Bawah Kiri</option><option value="bottom-center">Bawah Tengah</option><option value="bottom-right" selected>Bawah Kanan</option>
             </select>
           </div>
         `;
@@ -2125,6 +2203,39 @@
             <input id="optQrText" type="text" value="" placeholder="Masukkan tautan atau teks yang ingin dijadikan QR Code" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
           </div>
         `;
+      } else if (engine === 'qr-barcode') {
+        extBadge.textContent = '.png';
+        filenameInput.value = 'MiDoc_QR_Barcode';
+        btnLabel.textContent = 'Generate PNG';
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Jenis Kode</label>
+            <select id="optCodeType" onchange="updateBarcodeSubControls(); renderQrBarcodePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="QR" selected>QR Code</option>
+              <option value="CODE128">Barcode CODE128</option><option value="EAN13">Barcode EAN-13</option>
+              <option value="UPC">Barcode UPC-A</option><option value="CODE39">Barcode CODE39</option><option value="ITF14">Barcode ITF-14</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Teks / Angka</label>
+            <input id="optCodeValue" type="text" value="MiDoc-2026" oninput="renderQrBarcodePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
+          </div>
+          <div id="barcodeExtraControls" class="hidden grid grid-cols-2 gap-2">
+            <div><label class="block text-xs font-semibold mb-1">Lebar Garis</label><input id="optBarWidth" type="number" min="1" max="5" value="2" oninput="renderQrBarcodePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs" /></div>
+            <div><label class="block text-xs font-semibold mb-1">Tinggi Barcode</label><input id="optBarHeight" type="number" min="30" max="200" value="90" oninput="renderQrBarcodePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs" /></div>
+            <div><label class="block text-xs font-semibold mb-1">Align Teks</label><select id="optBarAlign" onchange="renderQrBarcodePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="center">Tengah</option><option value="left">Kiri</option><option value="right">Kanan</option></select></div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="block text-xs font-semibold mb-1">Warna Kode</label><input id="optCodeFg" type="color" value="#111827" oninput="renderQrBarcodePreview()" class="w-full h-9 rounded-sm border border-zinc-300 dark:border-darkLine bg-transparent" /></div>
+            <div><label class="block text-xs font-semibold mb-1">Latar</label><input id="optCodeBg" type="color" value="#ffffff" oninput="renderQrBarcodePreview()" class="w-full h-9 rounded-sm border border-zinc-300 dark:border-darkLine bg-transparent" /></div>
+          </div>
+          <div class="border border-zinc-200 dark:border-darkLine rounded-sm bg-white p-3">
+            <div class="text-[11px] font-semibold text-zinc-500 mb-2">PRATINJAU LANGSUNG</div>
+            <div id="qrBarcodePreviewArea" class="min-h-[150px] flex items-center justify-center overflow-auto"></div>
+          </div>
+        `;
+        updateBarcodeSubControls();
+        renderQrBarcodePreview();
       } else if (engine === 'password-gen') {
         filenameGroup.classList.add('hidden');
         btnLabel.textContent = 'Buat Kata Sandi Baru';
@@ -2374,10 +2485,31 @@
         content.appendChild(img);
       } else if (sourceType === 'result' && state.lastBlobUrl) {
         title.textContent = `Hasil Unduhan — ${state.lastDownloadName}`;
-        const img = document.createElement('img');
-        img.src = state.lastBlobUrl;
-        img.className = 'w-full h-auto block';
-        content.appendChild(img);
+        const resultType = document.getElementById('resultSizeBadge')?.dataset.mime || '';
+        if (state.lastDownloadName?.toLowerCase().endsWith('.pdf')) {
+          const frame = document.createElement('iframe');
+          frame.src = state.lastBlobUrl + '#toolbar=0&navpanes=0';
+          frame.title = 'Pratinjau PDF hasil MiDoc';
+          frame.className = 'w-full h-[78vh] bg-white';
+          content.className = 'max-w-6xl w-full flex justify-center';
+          content.appendChild(frame);
+        } else if (/\.(png|jpe?g|webp|avif|bmp|gif)$/i.test(state.lastDownloadName || '')) {
+          const img = document.createElement('img');
+          img.src = state.lastBlobUrl;
+          img.className = 'w-full h-auto block';
+          content.appendChild(img);
+        } else if (/\.(txt|csv|md|json)$/i.test(state.lastDownloadName || '')) {
+          const pre = document.createElement('pre');
+          pre.className = 'w-full max-w-5xl whitespace-pre-wrap break-words text-left text-xs font-mono text-zinc-100';
+          pre.textContent = 'Memuat pratinjau teks...';
+          content.appendChild(pre);
+          fetch(state.lastBlobUrl).then(response => response.text()).then(text => { pre.textContent = text.slice(0, 100000); }).catch(() => { pre.textContent = 'Pratinjau teks tidak dapat dimuat.'; });
+        } else {
+          const note = document.createElement('p');
+          note.className = 'text-xs text-zinc-300';
+          note.textContent = 'Format hasil ini tidak memiliki pratinjau browser. Gunakan tombol Unduh Hasil.';
+          content.appendChild(note);
+        }
       }
 
       modal.classList.remove('hidden');
@@ -2941,6 +3073,10 @@
       if (state.activeEngine === 'image-splitter') {
         state.splitterSelectedItemId = id;
         renderWorkspaceItems();
+        return;
+      }
+      if (['image-crop-pixel', 'crop-pdf'].includes(state.activeEngine)) {
+        inspectItem(id);
       }
     }
 
@@ -3044,19 +3180,295 @@
     }
 
     function inspectItem(id) {
-      const item = state.items.find(i => i.id === id);
+      const item = state.items.find(entry => entry.id === id);
       if (!item) return;
-      document.getElementById('inspectorTitle').textContent = item.name;
-      document.getElementById('inspectorPreviewContainer').innerHTML = item.thumbUrl
-        ? `<img src="${item.thumbUrl}" style="transform: rotate(${item.rotation}deg);" class="max-h-[42vh] max-w-full" />`
-        : `<span class="text-xs text-zinc-500">Tidak ada pratinjau visual.</span>`;
-      document.getElementById('inspectorMetaGrid').innerHTML = `
-        <div class="p-2 border border-zinc-200 dark:border-darkLine rounded-sm"><div class="text-zinc-400">Ukuran</div><div class="font-mono font-bold">${formatBytes(item.size)}</div></div>
-        <div class="p-2 border border-zinc-200 dark:border-darkLine rounded-sm"><div class="text-zinc-400">Tipe</div><div class="font-mono font-bold truncate">${item.type}</div></div>
-        <div class="p-2 border border-zinc-200 dark:border-darkLine rounded-sm"><div class="text-zinc-400">Dimensi</div><div class="font-mono font-bold">${item.width ? `${item.width}×${item.height}` : `${item.pageCount} hal`}</div></div>
-        <div class="p-2 border border-zinc-200 dark:border-darkLine rounded-sm"><div class="text-zinc-400">Rotasi</div><div class="font-mono font-bold">${item.rotation}°</div></div>
-      `;
+      state.inspectorItemId = item.id;
+      state.inspectorPage = 1;
+      state.inspectorPageCount = 1;
+      state.inspectorZoom = 100;
+      const zoom = document.getElementById('inspectorZoomSelect');
+      if (zoom) zoom.value = '100';
       document.getElementById('inspectorModal').classList.remove('hidden');
+      renderInspectorPreview();
+      lucide.createIcons();
+    }
+
+    function getInspectorItem() {
+      return state.items.find(entry => entry.id === state.inspectorItemId) || null;
+    }
+
+    function updateInspectorNavigation() {
+      const itemIndex = state.items.findIndex(entry => entry.id === state.inspectorItemId);
+      const prev = document.getElementById('inspectorPrevItemBtn');
+      const next = document.getElementById('inspectorNextItemBtn');
+      const counter = document.getElementById('inspectorItemCounter');
+      if (prev) prev.disabled = itemIndex <= 0;
+      if (next) next.disabled = itemIndex < 0 || itemIndex >= state.items.length - 1;
+      if (counter) counter.textContent = itemIndex >= 0 ? `File ${itemIndex + 1} / ${state.items.length}` : 'File 0 / 0';
+    }
+
+    function navigateInspectorItem(delta) {
+      const index = state.items.findIndex(entry => entry.id === state.inspectorItemId);
+      const nextIndex = index + delta;
+      if (nextIndex < 0 || nextIndex >= state.items.length) return;
+      inspectItem(state.items[nextIndex].id);
+    }
+
+    function changeInspectorPage(delta) {
+      state.inspectorPage = Math.max(1, Math.min(state.inspectorPageCount, state.inspectorPage + delta));
+      renderInspectorPreview();
+    }
+
+    function setInspectorZoom(value) {
+      const zoom = Math.max(50, Math.min(200, Number(value) || 100));
+      state.inspectorZoom = zoom;
+      const select = document.getElementById('inspectorZoomSelect');
+      if (select) select.value = String(zoom);
+      renderInspectorPreview();
+    }
+
+    function updateInspectorCropSummary() {
+      const item = getInspectorItem();
+      const out = document.getElementById('inspectorCropSummary');
+      if (!item || !out) return;
+      const rect = item.isPdf ? state.cropPdfRect : state.cropImgRect;
+      out.textContent = `Area: x ${Math.round(rect.x * 100)}%, y ${Math.round(rect.y * 100)}%, lebar ${Math.round(rect.w * 100)}%, tinggi ${Math.round(rect.h * 100)}%`;
+    }
+
+    function inspectorCropMarkup(rect) {
+      const handle = (name, position, cursor) => `<span data-handle="${name}" class="absolute w-3.5 h-3.5 bg-accent border-2 border-white rounded-full ${position} ${cursor}"></span>`;
+      return `
+        <div id="inspectorCropSelection" class="absolute z-10 border-2 border-accent bg-accent/15 cursor-move touch-none" style="left:${rect.x * 100}%;top:${rect.y * 100}%;width:${rect.w * 100}%;height:${rect.h * 100}%;">
+          ${handle('nw','-left-2 -top-2','cursor-nwse-resize')}
+          ${handle('ne','-right-2 -top-2','cursor-nesw-resize')}
+          ${handle('sw','-left-2 -bottom-2','cursor-nesw-resize')}
+          ${handle('se','-right-2 -bottom-2','cursor-nwse-resize')}
+        </div>`;
+    }
+
+    function initInspectorCropBoxDrag(frame, selection, cropRect, onChange) {
+      if (!frame || !selection) return;
+      let mode = null;
+      let startX = 0, startY = 0, startRect = null;
+      const render = () => {
+        selection.style.left = (cropRect.x * 100) + '%';
+        selection.style.top = (cropRect.y * 100) + '%';
+        selection.style.width = (cropRect.w * 100) + '%';
+        selection.style.height = (cropRect.h * 100) + '%';
+      };
+      const onMove = event => {
+        if (!mode) return;
+        const bounds = frame.getBoundingClientRect();
+        if (!bounds.width || !bounds.height) return;
+        const dx = (event.clientX - startX) / bounds.width;
+        const dy = (event.clientY - startY) / bounds.height;
+        const minSide = 0.05;
+        if (mode === 'move') {
+          cropRect.x = Math.max(0, Math.min(1 - startRect.w, startRect.x + dx));
+          cropRect.y = Math.max(0, Math.min(1 - startRect.h, startRect.y + dy));
+        } else {
+          const left = mode.includes('w');
+          const right = mode.includes('e');
+          const top = mode.includes('n');
+          const bottom = mode.includes('s');
+          if (left) {
+            const nx = Math.max(0, Math.min(startRect.x + startRect.w - minSide, startRect.x + dx));
+            cropRect.w = startRect.w + startRect.x - nx;
+            cropRect.x = nx;
+          }
+          if (right) cropRect.w = Math.max(minSide, Math.min(1 - startRect.x, startRect.w + dx));
+          if (top) {
+            const ny = Math.max(0, Math.min(startRect.y + startRect.h - minSide, startRect.y + dy));
+            cropRect.h = startRect.h + startRect.y - ny;
+            cropRect.y = ny;
+          }
+          if (bottom) cropRect.h = Math.max(minSide, Math.min(1 - startRect.y, startRect.h + dy));
+        }
+        render();
+        if (onChange) onChange();
+      };
+      const onUp = () => {
+        if (!mode) return;
+        mode = null;
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
+      selection.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const handle = event.target.closest('[data-handle]');
+        mode = handle ? handle.getAttribute('data-handle') : 'move';
+        startX = event.clientX;
+        startY = event.clientY;
+        startRect = { ...cropRect };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+      });
+    }
+
+    async function renderInspectorPreview() {
+      const item = getInspectorItem();
+      const container = document.getElementById('inspectorPreviewContainer');
+      const title = document.getElementById('inspectorTitle');
+      const subtitle = document.getElementById('inspectorSubTitle');
+      const controls = document.getElementById('inspectorEditControls');
+      if (!item || !container || !controls) return;
+
+      const cropImage = state.activeToolObj?.id === 'image-crop-pixel' && item.isImage;
+      const cropPdf = state.activeToolObj?.id === 'crop-pdf' && item.isPdf;
+      const cropMode = cropImage || cropPdf;
+      if (title) title.textContent = item.name;
+      if (subtitle) subtitle.textContent = item.isPdf ? 'Pratinjau dokumen PDF dan kontrol halaman.' : (item.isImage ? 'Pratinjau resolusi sumber dengan kontrol edit langsung.' : 'Pratinjau isi file yang didukung browser.');
+      updateInspectorNavigation();
+
+      const pageControls = document.getElementById('inspectorPdfPageControls');
+      if (pageControls) pageControls.classList.toggle('hidden', !item.isPdf);
+      controls.innerHTML = item.isImage ? `
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="adjustInspectorItem('rotate-left')" class="px-2 py-2 border border-zinc-300 dark:border-darkLine rounded-sm text-xs font-semibold hover:border-accent flex items-center justify-center gap-1"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Putar -90°</button>
+          <button type="button" onclick="adjustInspectorItem('rotate-right')" class="px-2 py-2 border border-zinc-300 dark:border-darkLine rounded-sm text-xs font-semibold hover:border-accent flex items-center justify-center gap-1"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> Putar +90°</button>
+          <button type="button" onclick="adjustInspectorItem('flip-horizontal')" class="px-2 py-2 border border-zinc-300 dark:border-darkLine rounded-sm text-xs font-semibold hover:border-accent">Flip Horizontal</button>
+          <button type="button" onclick="adjustInspectorItem('flip-vertical')" class="px-2 py-2 border border-zinc-300 dark:border-darkLine rounded-sm text-xs font-semibold hover:border-accent">Flip Vertikal</button>
+        </div>
+        ${cropImage ? '<p class="text-[11px] text-accent leading-relaxed">Mode crop aktif: geser kotak biru untuk memindahkan area, atau tarik salah satu sudut untuk mengubah ukurannya.</p><div id="inspectorCropSummary" class="text-[11px] font-mono text-zinc-500"></div>' : ''}
+        <button type="button" onclick="resetInspectorEdits()" class="w-full px-3 py-2 border border-zinc-300 dark:border-darkLine rounded-sm text-xs font-semibold hover:border-accent">Reset rotasi, flip, dan crop</button>
+      ` : (item.isPdf ? `
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="adjustInspectorItem('rotate-left')" class="px-2 py-2 border border-zinc-300 dark:border-darkLine rounded-sm text-xs font-semibold hover:border-accent flex items-center justify-center gap-1"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Putar -90°</button>
+          <button type="button" onclick="adjustInspectorItem('rotate-right')" class="px-2 py-2 border border-zinc-300 dark:border-darkLine rounded-sm text-xs font-semibold hover:border-accent flex items-center justify-center gap-1"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> Putar +90°</button>
+        </div>
+        ${cropPdf ? '<p class="text-[11px] text-accent leading-relaxed">Mode crop PDF aktif. Area yang dipilih diterapkan ke halaman PDF secara proporsional.</p><div id="inspectorCropSummary" class="text-[11px] font-mono text-zinc-500"></div>' : '<p class="text-[11px] text-zinc-500">Rotasi disimpan pada file kerja dan akan ikut diterapkan saat alat PDF memproses dokumen.</p>'}
+        <button type="button" onclick="resetInspectorEdits()" class="w-full px-3 py-2 border border-zinc-300 dark:border-darkLine rounded-sm text-xs font-semibold hover:border-accent">Reset rotasi dan area crop</button>
+      ` : '<p class="text-xs text-zinc-500">File ini dapat diperiksa di pratinjau. Untuk mengubah isinya, pilih alat yang sesuai dari direktori MiDoc.</p>');
+
+      container.innerHTML = '<span class="text-xs text-zinc-500">Menyiapkan pratinjau resolusi sumber...</span>';
+      try {
+        if (item.isImage) {
+          const canvas = await renderItemToCanvas(item);
+          if (state.inspectorItemId !== item.id) return;
+          state.inspectorSourceWidth = canvas.width;
+          state.inspectorSourceHeight = canvas.height;
+          const frame = document.createElement('div');
+          frame.className = 'relative inline-block shrink-0';
+          frame.style.width = state.inspectorZoom + '%';
+          frame.style.maxWidth = state.inspectorZoom <= 100 ? '100%' : 'none';
+          canvas.className = 'block w-full h-auto max-w-none';
+          frame.appendChild(canvas);
+          if (cropImage) {
+            const rect = state.cropImgRect;
+            frame.insertAdjacentHTML('beforeend', inspectorCropMarkup(rect));
+            initInspectorCropBoxDrag(frame, frame.querySelector('#inspectorCropSelection'), state.cropImgRect, updateInspectorCropSummary);
+            const widthInput = document.getElementById('optCropPxW');
+            const heightInput = document.getElementById('optCropPxH');
+            if (widthInput) widthInput.value = Math.max(10, Math.round(rect.w * canvas.width));
+            if (heightInput) heightInput.value = Math.max(10, Math.round(rect.h * canvas.height));
+            updateInspectorCropSummary();
+          }
+          container.innerHTML = '';
+          container.appendChild(frame);
+        } else if (item.isPdf && item.arrayBuffer && window.pdfjsLib) {
+          const pdf = await pdfjsLib.getDocument({ data: item.arrayBuffer.slice(0) }).promise;
+          const pageCount = Number.isInteger(item.singlePageIndex) ? 1 : pdf.numPages;
+          state.inspectorPageCount = pageCount;
+          state.inspectorPage = Math.max(1, Math.min(pageCount, state.inspectorPage));
+          const sourcePage = Number.isInteger(item.singlePageIndex) ? item.singlePageIndex + 1 : state.inspectorPage;
+          const page = await pdf.getPage(sourcePage);
+          const rotation = ((page.rotate || 0) + (item.rotation || 0) + 360) % 360;
+          const viewport = page.getViewport({ scale: 1.25 * (state.inspectorZoom / 100), rotation });
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.ceil(viewport.width);
+          canvas.height = Math.ceil(viewport.height);
+          const ctx = canvas.getContext('2d');
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          if (state.inspectorItemId !== item.id) return;
+          state.inspectorSourceWidth = canvas.width;
+          state.inspectorSourceHeight = canvas.height;
+          const frame = document.createElement('div');
+          frame.className = 'relative inline-block shrink-0';
+          frame.style.width = state.inspectorZoom + '%';
+          frame.style.maxWidth = state.inspectorZoom <= 100 ? '100%' : 'none';
+          canvas.className = 'block w-full h-auto max-w-none';
+          frame.appendChild(canvas);
+          if (cropPdf) {
+            frame.insertAdjacentHTML('beforeend', inspectorCropMarkup(state.cropPdfRect));
+            initInspectorCropBoxDrag(frame, frame.querySelector('#inspectorCropSelection'), state.cropPdfRect, updateInspectorCropSummary);
+            updateInspectorCropSummary();
+          }
+          container.innerHTML = '';
+          container.appendChild(frame);
+          const label = document.getElementById('inspectorPageLabel');
+          if (label) label.textContent = Number.isInteger(item.singlePageIndex) ? 'Halaman sumber ' + sourcePage : 'Halaman ' + state.inspectorPage + ' / ' + pageCount;
+        } else if (item.file && /^(text\/|application\/json)/i.test(item.type || '')) {
+          const text = await item.file.text();
+          if (state.inspectorItemId !== item.id) return;
+          const pre = document.createElement('pre');
+          pre.className = 'w-full max-w-full whitespace-pre-wrap break-words text-left font-mono text-zinc-800 dark:text-zinc-100';
+          pre.style.fontSize = (12 * state.inspectorZoom / 100) + 'px';
+          pre.textContent = text.slice(0, 50000);
+          container.innerHTML = '';
+          container.appendChild(pre);
+        } else {
+          container.innerHTML = '<span class="text-xs text-zinc-500">Pratinjau visual tidak tersedia untuk jenis file ini.</span>';
+        }
+      } catch (error) {
+        console.error(error);
+        container.innerHTML = '<span class="text-xs text-red-500">Pratinjau gagal dimuat: ' + escapeHtml(error.message || 'kesalahan tidak diketahui') + '</span>';
+      }
+
+      const meta = document.getElementById('inspectorMetaGrid');
+      if (meta) {
+        const dimension = item.isImage
+          ? (state.inspectorSourceWidth + ' × ' + state.inspectorSourceHeight + ' px')
+          : (item.isPdf ? (state.inspectorPageCount + ' halaman') : '—');
+        meta.innerHTML = `
+          <div class="p-2 border border-zinc-200 dark:border-darkLine rounded-sm"><div class="text-zinc-400">Ukuran</div><div class="font-mono font-bold">${formatBytes(item.size)}</div></div>
+          <div class="p-2 border border-zinc-200 dark:border-darkLine rounded-sm"><div class="text-zinc-400">Tipe</div><div class="font-mono font-bold truncate">${escapeHtml(item.type || '—')}</div></div>
+          <div class="p-2 border border-zinc-200 dark:border-darkLine rounded-sm"><div class="text-zinc-400">Dimensi</div><div class="font-mono font-bold">${dimension}</div></div>
+          <div class="p-2 border border-zinc-200 dark:border-darkLine rounded-sm"><div class="text-zinc-400">Rotasi</div><div class="font-mono font-bold">${item.rotation || 0}°</div></div>
+        `;
+      }
+      lucide.createIcons();
+    }
+
+    function adjustInspectorItem(action) {
+      const item = getInspectorItem();
+      if (!item) return;
+      if (action === 'rotate-left') item.rotation = (((item.rotation || 0) - 90) + 360) % 360;
+      if (action === 'rotate-right') item.rotation = (((item.rotation || 0) + 90) + 360) % 360;
+      if (action === 'flip-horizontal') item.flipH = !item.flipH;
+      if (action === 'flip-vertical') item.flipV = !item.flipV;
+      renderWorkspaceItems();
+      renderInspectorPreview();
+    }
+
+    function resetInspectorEdits() {
+      const item = getInspectorItem();
+      if (item) {
+        item.rotation = 0;
+        item.flipH = false;
+        item.flipV = false;
+      }
+      state.cropImgRect = { x: 0.08, y: 0.08, w: 0.84, h: 0.84 };
+      state.cropPdfRect = { x: 0.08, y: 0.08, w: 0.84, h: 0.84 };
+      renderInspectorPreview();
+      showToast('Penyesuaian pratinjau dikembalikan ke posisi awal.', 'info');
+    }
+
+    function syncInspectorCropSize(axis, value) {
+      const item = getInspectorItem();
+      if (!item || !state.inspectorSourceWidth || !state.inspectorSourceHeight) return;
+      const isW = axis === 'w';
+      const limit = isW ? state.inspectorSourceWidth : state.inspectorSourceHeight;
+      const px = Math.max(10, Math.min(limit, parseInt(value, 10) || 10));
+      const rect = state.cropImgRect;
+      if (isW) {
+        rect.w = px / state.inspectorSourceWidth;
+        rect.x = Math.min(rect.x, 1 - rect.w);
+      } else {
+        rect.h = px / state.inspectorSourceHeight;
+        rect.y = Math.min(rect.y, 1 - rect.h);
+      }
+      renderInspectorPreview();
     }
 
     function closeInspectorModal() {
@@ -3172,7 +3584,8 @@
       };
 
       const inspectResBtn = document.getElementById('inspectResultPreviewBtn');
-      if (isImageResult) {
+      const canPreviewResult = isImageResult || blob.type === 'application/pdf' || blob.type.startsWith('text/');
+      if (canPreviewResult) {
         inspectResBtn.classList.remove('hidden');
         inspectResBtn.onclick = () => openFullPreviewModal('result');
       } else {
@@ -3207,6 +3620,10 @@
         await runQrGenerator(baseName);
         return;
       }
+      if (engine === 'qr-barcode') {
+        await runQrBarcodeGenerator(baseName);
+        return;
+      }
       if (engine === 'password-gen') {
         runPasswordGenerator();
         return;
@@ -3234,6 +3651,9 @@
         switch (engine) {
           case 'image-splitter':
             await runImageSplitter(baseName);
+            break;
+          case 'image-crop-pixel':
+            await runImageCropPixel(baseName);
             break;
           case 'join-images':
             await runJoinImages(baseName);
@@ -3650,25 +4070,40 @@
       finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, `PDF berhasil dioptimasi.`);
     }
 
-    // --- ENGINE 7: CROP PDF ---
+    // --- ENGINE 7: INTERACTIVE PDF CROP ---
     async function runCropPdf(baseName) {
       const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
-      if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
-      const margin = Number(document.getElementById('optPdfCropMargin').value);
-      if (!Number.isFinite(margin) || margin < 0) throw new Error('Margin crop harus berupa angka nol atau lebih.');
+      if (!pdfItems.length) throw new Error('Tambahkan satu file PDF terlebih dahulu.');
+      const r = state.cropPdfRect || { x: 0.08, y: 0.08, w: 0.84, h: 0.84 };
+      if (![r.x, r.y, r.w, r.h].every(Number.isFinite) || r.w < 0.05 || r.h < 0.05 || r.x < 0 || r.y < 0 || r.x + r.w > 1 || r.y + r.h > 1) {
+        throw new Error('Area crop PDF tidak valid. Atur ulang kotak crop pada pratinjau.');
+      }
       const outPdf = await PDFLib.PDFDocument.create();
       for (const item of pdfItems) {
         const src = await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0));
-        const pages = await outPdf.copyPages(src, src.getPageIndices());
+        const indices = Number.isInteger(item.singlePageIndex) ? [item.singlePageIndex] : src.getPageIndices();
+        const pages = await outPdf.copyPages(src, indices);
         pages.forEach(p => {
           const { width, height } = p.getSize();
-          if (margin * 2 >= width || margin * 2 >= height) throw new Error('Margin ' + margin + ' pt terlalu besar untuk halaman PDF berukuran ' + width.toFixed(1) + ' × ' + height.toFixed(1) + ' pt.');
-          p.setCropBox(margin, margin, width - margin * 2, height - margin * 2);
+          const cropX = r.x * width;
+          const cropY = height - (r.y + r.h) * height;
+          const cropW = r.w * width;
+          const cropH = r.h * height;
+          if (cropW < 1 || cropH < 1) throw new Error('Area crop terlalu kecil untuk halaman PDF.');
+          p.setCropBox(cropX, cropY, cropW, cropH);
           outPdf.addPage(p);
         });
       }
       const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
-      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, `Margin PDF dipotong sebesar ${margin} pt.`);
+      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, 'Area crop interaktif diterapkan secara proporsional ke halaman PDF.');
+    }
+
+    function resolveNinePointPdfCoords(posId, pageW, pageH, textW, textH, pad) {
+      const horizontal = posId.endsWith('-left') ? 'left' : (posId.endsWith('-right') ? 'right' : 'center');
+      const vertical = posId.startsWith('top-') ? 'top' : (posId.startsWith('mid-') || posId === 'center' ? 'middle' : 'bottom');
+      const x = horizontal === 'left' ? pad : (horizontal === 'right' ? pageW - textW - pad : (pageW - textW) / 2);
+      const y = vertical === 'top' ? pageH - textH - pad : (vertical === 'middle' ? (pageH - textH) / 2 : pad);
+      return { x: Math.max(8, x), y: Math.max(8, y) };
     }
 
     // --- ENGINE 8: WATERMARK PDF ---
@@ -3689,13 +4124,20 @@
       }
 
       const pages = outPdf.getPages();
+      const position = document.getElementById('optPdfWatermarkPos')?.value || 'center';
+      const wmSize = 26;
       pages.forEach((p, idx) => {
         const { width, height } = p.getSize();
         if (wm) {
-          p.drawText(wm, { x: width * 0.2, y: height * 0.5, size: 26, font, color: PDFLib.rgb(0.15, 0.39, 0.92), opacity: 0.25, rotate: PDFLib.degrees(30) });
+          const textW = font.widthOfTextAtSize(wm, wmSize);
+          const pos = resolveNinePointPdfCoords(position, width, height, textW, wmSize, Math.max(18, width * 0.025));
+          p.drawText(wm, { x: pos.x, y: pos.y, size: wmSize, font, color: PDFLib.rgb(0.15, 0.39, 0.92), opacity: 0.3 });
         }
         if (addNum) {
-          p.drawText(`Halaman ${idx + 1} / ${pages.length}`, { x: width / 2 - 40, y: 18, size: 10, font, color: PDFLib.rgb(0.2, 0.2, 0.2) });
+          const label = `Halaman ${idx + 1} / ${pages.length}`;
+          const size = 10;
+          const labelW = font.widthOfTextAtSize(label, size);
+          p.drawText(label, { x: (width - labelW) / 2, y: 18, size, font, color: PDFLib.rgb(0.2, 0.2, 0.2) });
         }
       });
       const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
@@ -4178,20 +4620,19 @@
           mime = 'image/png';
         } else if (mode === 'watermark-image') {
           const txt = document.getElementById('optImgWatermarkText').value || 'MiDoc';
-          const pos = document.getElementById('optImgWatermarkPos').value;
+          const pos = document.getElementById('optImgWatermarkPos').value || 'bottom-right';
           const ctx = outCanvas.getContext('2d');
           const fs = Math.max(18, Math.round(outCanvas.width * 0.035));
           ctx.font = `bold ${fs}px "Plus Jakarta Sans", sans-serif`;
-          ctx.fillStyle = '#FFFFFF';
-          ctx.strokeStyle = '#111827';
+          ctx.fillStyle = 'rgba(255,255,255,0.88)';
+          ctx.strokeStyle = 'rgba(17,24,39,0.9)';
           ctx.lineWidth = Math.max(2, Math.round(fs * 0.12));
-          let x = outCanvas.width - 20;
-          let y = outCanvas.height - 20;
-          ctx.textAlign = 'right';
-          if (pos === 'center') { x = outCanvas.width / 2; y = outCanvas.height / 2; ctx.textAlign = 'center'; }
-          if (pos === 'bottom-left') { x = 20; ctx.textAlign = 'left'; }
-          ctx.strokeText(txt, x, y);
-          ctx.fillText(txt, x, y);
+          const textW = ctx.measureText(txt).width;
+          const pad = Math.max(18, Math.round(outCanvas.width * 0.025));
+          const p = resolveNinePointCanvasCoords(pos, outCanvas.width, outCanvas.height, textW, fs, pad);
+          ctx.textAlign = pos.endsWith('-left') ? 'left' : (pos.endsWith('-right') ? 'right' : 'center');
+          ctx.strokeText(txt, p.x, p.y);
+          ctx.fillText(txt, p.x, p.y);
           mime = 'image/png';
         }
 
@@ -4803,7 +5244,122 @@
       }
     }
 
-    function runPasswordGenerator() {
+    function runPasswordGenerator() {    async function runQrBarcodeGenerator(baseName) {
+      const type = document.getElementById('optCodeType')?.value || 'QR';
+      const value = (document.getElementById('optCodeValue')?.value || '').trim();
+      if (!value) throw new Error('Masukkan teks atau angka untuk membuat kode.');
+      const fg = document.getElementById('optCodeFg')?.value || '#111827';
+      const bg = document.getElementById('optCodeBg')?.value || '#ffffff';
+      let canvas;
+
+      if (type === 'QR') {
+        if (typeof window.QRCode !== 'function') throw new Error('Library QR Code belum berhasil dimuat.');
+        const host = document.createElement('div');
+        host.style.cssText = 'position:fixed;left:-10000px;top:0;width:1200px;height:1200px;background:#fff;';
+        document.body.appendChild(host);
+        try {
+          new QRCode(host, { text: value, width: 1200, height: 1200, colorDark: fg, colorLight: bg, correctLevel: QRCode.CorrectLevel.H });
+          await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 80)));
+          const source = host.querySelector('canvas');
+          const image = host.querySelector('img');
+          canvas = document.createElement('canvas');
+          canvas.width = 1200; canvas.height = 1200;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
+          if (source) ctx.drawImage(source, 0, 0, 1200, 1200);
+          else if (image) {
+            if (!image.complete) await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
+            ctx.drawImage(image, 0, 0, 1200, 1200);
+          } else throw new Error('QR Code gagal dirender.');
+        } finally {
+          host.remove();
+        }
+      } else {
+        if (typeof window.JsBarcode !== 'function') throw new Error('Library barcode belum berhasil dimuat. Periksa koneksi internet lalu muat ulang.');
+        canvas = document.createElement('canvas');
+        const width = Math.max(1, Math.min(5, Number(document.getElementById('optBarWidth')?.value || 2)));
+        const height = Math.max(30, Math.min(200, Number(document.getElementById('optBarHeight')?.value || 90)));
+        window.JsBarcode(canvas, value, {
+          format: type,
+          width,
+          height,
+          displayValue: true,
+          textAlign: document.getElementById('optBarAlign')?.value || 'center',
+          lineColor: fg,
+          background: bg,
+          margin: 24
+        });
+      }
+
+      const blob = await new Promise((resolve, reject) => canvas.toBlob(result => result ? resolve(result) : reject(new Error('Gagal membuat PNG kode.')), 'image/png'));
+      const finalName = formatDownloadFilename({ baseName, ext: 'png', isBulkOrZip: false });
+      finishWithBlob(blob, finalName, (type === 'QR' ? 'QR Code' : 'Barcode ' + type) + ' berhasil dibuat dalam format PNG.', { isImageResult: true });
+    }
+
+    function updateBarcodeSubControls() {
+      const type = document.getElementById('optCodeType')?.value || 'QR';
+      document.getElementById('barcodeExtraControls')?.classList.toggle('hidden', type === 'QR');
+    }
+
+    function renderQrBarcodePreview() {
+      const host = document.getElementById('qrBarcodePreviewArea');
+      if (!host) return;
+      const type = document.getElementById('optCodeType')?.value || 'QR';
+      const value = (document.getElementById('optCodeValue')?.value || '').trim();
+      const fg = document.getElementById('optCodeFg')?.value || '#111827';
+      const bg = document.getElementById('optCodeBg')?.value || '#ffffff';
+      host.innerHTML = '';
+      if (!value) {
+        host.innerHTML = '<span class="text-xs text-zinc-500">Masukkan isi kode untuk menampilkan pratinjau.</span>';
+        return;
+      }
+      try {
+        if (type === 'QR') {
+          if (typeof window.QRCode !== 'function') throw new Error('Library QR belum siap.');
+          const node = document.createElement('div');
+          host.appendChild(node);
+          new QRCode(node, { text: value, width: 220, height: 220, colorDark: fg, colorLight: bg, correctLevel: QRCode.CorrectLevel.H });
+        } else {
+          if (typeof window.JsBarcode !== 'function') throw new Error('Library barcode belum siap.');
+          const canvas = document.createElement('canvas');
+          host.appendChild(canvas);
+          window.JsBarcode(canvas, value, {
+            format: type,
+            width: Math.max(1, Math.min(5, Number(document.getElementById('optBarWidth')?.value || 2))),
+            height: Math.max(30, Math.min(200, Number(document.getElementById('optBarHeight')?.value || 90))),
+            displayValue: true,
+            textAlign: document.getElementById('optBarAlign')?.value || 'center',
+            lineColor: fg,
+            background: bg,
+            margin: 14
+          });
+          canvas.style.maxWidth = '100%';
+          canvas.style.height = 'auto';
+        }
+      } catch (error) {
+        host.innerHTML = '<span class="text-xs text-red-500">' + escapeHtml(error.message || 'Format kode tidak valid.') + '</span>';
+      }
+    }
+
+    async function runImageCropPixel(baseName) {
+      const item = state.items.find(entry => entry.isImage);
+      if (!item) throw new Error('Tambahkan satu gambar raster terlebih dahulu.');
+      const src = await renderItemToCanvas(item);
+      const r = state.cropImgRect || { x: 0.08, y: 0.08, w: 0.84, h: 0.84 };
+      const x = Math.max(0, Math.min(src.width - 1, Math.round(r.x * src.width)));
+      const y = Math.max(0, Math.min(src.height - 1, Math.round(r.y * src.height)));
+      const w = Math.max(1, Math.min(src.width - x, Math.round(r.w * src.width)));
+      const h = Math.max(1, Math.min(src.height - y, Math.round(r.h * src.height)));
+      if (w < 10 || h < 10) throw new Error('Area crop minimal 10 × 10 piksel.');
+      const out = document.createElement('canvas');
+      out.width = w; out.height = h;
+      out.getContext('2d').drawImage(src, x, y, w, h, 0, 0, w, h);
+      const blob = await new Promise((resolve, reject) => out.toBlob(result => result ? resolve(result) : reject(new Error('Gagal membuat gambar hasil crop.')), 'image/png'));
+      const finalName = formatDownloadFilename({ baseName, ext: 'png', isBulkOrZip: false });
+      finishWithBlob(blob, finalName, 'Gambar dipotong pada area ' + w + ' × ' + h + ' piksel.', { isImageResult: true });
+    }
+
+
       const len = Number(document.getElementById('optPassLen')?.value || '16');
       if (!Number.isInteger(len) || len < 8 || len > 128) throw new Error('Panjang kata sandi harus antara 8 dan 128 karakter.');
       if (!window.crypto || !crypto.getRandomValues) throw new Error('Browser tidak menyediakan generator acak kriptografis yang aman.');
@@ -4829,20 +5385,32 @@
     function renderItemToCanvas(item) {
       return new Promise((resolve, reject) => {
         const img = new Image();
+        let objectUrl = null;
+        const source = item.file instanceof Blob ? (objectUrl = URL.createObjectURL(item.file)) : item.thumbUrl;
         img.onload = () => {
-          const rad = (item.rotation * Math.PI) / 180;
-          const swap = item.rotation === 90 || item.rotation === 270;
+          const rad = (((item.rotation || 0) % 360) * Math.PI) / 180;
+          const swap = (item.rotation || 0) === 90 || (item.rotation || 0) === 270;
           const canvas = document.createElement('canvas');
           canvas.width = swap ? img.naturalHeight : img.naturalWidth;
           canvas.height = swap ? img.naturalWidth : img.naturalHeight;
           const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+            reject(new Error('Browser tidak dapat membuat kanvas untuk gambar ini.'));
+            return;
+          }
           ctx.translate(canvas.width / 2, canvas.height / 2);
           ctx.rotate(rad);
+          ctx.scale(item.flipH ? -1 : 1, item.flipV ? -1 : 1);
           ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+          if (objectUrl) URL.revokeObjectURL(objectUrl);
           resolve(canvas);
         };
-        img.onerror = reject;
-        img.src = item.thumbUrl;
+        img.onerror = error => {
+          if (objectUrl) URL.revokeObjectURL(objectUrl);
+          reject(error instanceof Error ? error : new Error('Gagal memuat gambar sumber.'));
+        };
+        img.src = source;
       });
     }
 
