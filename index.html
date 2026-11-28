@@ -142,8 +142,11 @@
     #fileItemsGrid .file-card { border-width: 1px !important; min-width: 0; }
     #fileItemsGrid .file-card .file-card-preview { padding: 3px !important; }
     #fileItemsGrid .file-card .file-card-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
-    #fileItemsGrid .file-card.is-single-editor-card .file-card-preview { height: clamp(360px, 58vh, 620px) !important; }
-    #fileItemsGrid .file-card.is-double-editor-card .file-card-preview { height: clamp(300px, 46vh, 500px) !important; }
+    #fileItemsGrid .file-card.is-single-editor-card .file-card-preview { height: clamp(280px, 42vh, 420px) !important; }
+    #fileItemsGrid .file-card.is-double-editor-card .file-card-preview { height: clamp(230px, 34vh, 350px) !important; }
+    #fileItemsGrid.editor-compact-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 220px)); align-content: start; justify-content: start; }
+    #fileItemsGrid .file-card.is-single-editor-card { width: min(100%, 360px); }
+    #fileItemsGrid .file-card.is-double-editor-card { max-width: 220px; }
     #imgTextPositionGrid [data-img-text-position] { display: flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; }
     @media (max-width: 1023px) {
       #toolPreviewColumn > #toolLivePreviewPanel { position: static; }
@@ -1258,12 +1261,12 @@
       const settingsColumn = document.getElementById('toolSettingsColumn');
       const hasFileInputColumn = found.engine !== 'qr-generator';
       if (fileColumn) {
-        fileColumn.className = (showToolPreview ? (hasFileInputColumn ? 'lg:col-span-3' : 'hidden') : 'lg:col-span-8') + ' min-w-0 space-y-4';
+        fileColumn.className = (showToolPreview ? (hasFileInputColumn ? 'lg:col-span-5' : 'hidden') : 'lg:col-span-8') + ' min-w-0 space-y-4';
       }
       if (previewColumn) {
         previewColumn.className = 'min-w-0 space-y-4';
         previewColumn.classList.toggle('hidden', !showToolPreview);
-        if (showToolPreview) previewColumn.classList.add(hasFileInputColumn ? 'lg:col-span-5' : 'lg:col-span-8');
+        if (showToolPreview) previewColumn.classList.add(hasFileInputColumn ? 'lg:col-span-3' : 'lg:col-span-8');
       }
       if (settingsColumn) settingsColumn.className = 'lg:col-span-4 min-w-0';
       document.getElementById('executeActionBtn')?.classList.toggle('hidden', found.engine === 'color-picker');
@@ -2852,7 +2855,7 @@
       } else if (twoColumnTools.includes(state.activeEngine)) {
         grid.className = 'grid grid-cols-2 gap-2.5';
       } else if (verticalEditors) {
-        grid.className = state.items.length <= 1 ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 gap-3';
+        grid.className = state.items.length <= 1 ? 'grid grid-cols-1 gap-3' : 'grid editor-compact-grid gap-3';
       } else {
         grid.className = state.viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5' : 'flex flex-col gap-2';
       }
