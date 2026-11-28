@@ -1236,6 +1236,18 @@
 
       document.getElementById('resultOutputBox').classList.add('hidden');
       document.getElementById('progressContainer').classList.add('hidden');
+      const previewEngines = ['resize-image','filters-image','shape-crop','crop-image','overlay-images','compress-image','crop-pdf','qr-generator','color-picker','split-pdf','watermark-image'];
+      const showToolPreview = previewEngines.includes(found.engine);
+      const fileColumn = document.getElementById('toolFileColumn');
+      const previewColumn = document.getElementById('toolPreviewColumn');
+      const settingsColumn = document.getElementById('toolSettingsColumn');
+      if (fileColumn) fileColumn.className = (showToolPreview ? 'xl:col-span-4' : 'xl:col-span-8') + ' min-w-0 space-y-4';
+      if (previewColumn) {
+        previewColumn.classList.toggle('hidden', !showToolPreview);
+        previewColumn.classList.toggle('xl:col-span-4', showToolPreview);
+      }
+      if (settingsColumn) settingsColumn.className = 'xl:col-span-4 min-w-0';
+      document.getElementById('executeActionBtn')?.classList.toggle('hidden', found.engine === 'color-picker');
       renderEngineSettings(found);
       renderWorkspaceItems();
       updateFilenamePreviewHint();
@@ -2824,10 +2836,19 @@
       document.getElementById('totalSummaryText').textContent = `${state.items.length} item • ${formatBytes(totalBytes)}`;
 
       const verticalEditors = ['organize-pdf','crop-pdf','compress-image','resize-image','filters-image','shape-crop','crop-image','overlay-images','rotate-flip','watermark-image'].includes(state.activeEngine);
-      grid.className = verticalEditors
-        ? 'tool-edit-vertical'
-        : (state.viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5' : 'flex flex-col gap-2');
+      const fourColumnTools = ['organize-pdf','image-to-pdf','merge-pdf-image','join-images','image-splitter'];
+      const twoColumnTools = ['filters-image'];
+      const isSingleLargeEditor = ['crop-pdf','shape-crop','crop-image'].includes(state.activeEngine) && state.items.length === 1;
       if (verticalEditors && !state.items.some(item => item.id === state.selectedEditItemId)) state.selectedEditItemId = state.items.find(item => item.isImage)?.id || state.items[0]?.id || null;
+      if (fourColumnTools.includes(state.activeEngine)) {
+        grid.className = 'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2';
+      } else if (twoColumnTools.includes(state.activeEngine)) {
+        grid.className = 'grid grid-cols-2 gap-2.5';
+      } else if (verticalEditors) {
+        grid.className = state.items.length <= 1 ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 gap-3';
+      } else {
+        grid.className = state.viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5' : 'flex flex-col gap-2';
+      }
 
       const isPdfPageSimMode = (state.activeEngine === 'image-to-pdf' || state.activeEngine === 'merge-pdf-image');
 
@@ -2914,7 +2935,7 @@
               </div>
             </div>
 
-            <div class="h-36 p-2.5 checkerboard flex items-center justify-center overflow-hidden">
+            <div class="${isSingleLargeEditor ? 'h-[430px]' : (verticalEditors ? 'h-56' : 'h-36')} file-card-preview checkerboard flex items-center justify-center overflow-hidden">
               ${thumbHtml}
             </div>
 
