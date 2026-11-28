@@ -4133,62 +4133,45 @@
             outCanvas = c;
           }
         } else if (mode === 'resize-image') {
-          if (state.activeToolObj?.id === 'resize-pixel' && document.getElementById('optResizeMode')?.value === 'percent') {
-            const percent = Number(document.getElementById('optResizePercent')?.value);
-            if (!Number.isFinite(percent) || percent < 1 || percent > 500) throw new Error('Persentase resize harus antara 1% dan 500%.');
-            const scale = percent / 100;
-            const w = Math.max(1, Math.round(baseCanvas.width * scale));
-            const h = Math.max(1, Math.round(baseCanvas.height * scale));
-            if (w > 12000 || h > 12000) throw new Error('Ukuran hasil terlalu besar. Kurangi persentase resize hingga dimensi maksimal 12.000 px.');
-            outCanvas = resizeCanvas(baseCanvas, w, h, 'stretch');
-          } else {
-            const w = Number(document.getElementById('optResizeW').value);
-            const h = Number(document.getElementById('optResizeH').value);
-            if (!Number.isInteger(w) || !Number.isInteger(h) || w < 1 || h < 1 || w > 12000 || h > 12000) throw new Error('Lebar dan tinggi harus berupa piksel 1–12.000.');
-            const fit = document.getElementById('optResizeFit').value;
-            outCanvas = resizeCanvas(baseCanvas, w, h, fit);
-          }
+          const percent = Math.max(1, Math.min(500, Number(document.getElementById('optResizePercent')?.value || 100)));
+          const w = Math.max(1, Math.round(baseCanvas.width * percent / 100));
+          const h = Math.max(1, Math.round(baseCanvas.height * percent / 100));
+          if (w > 12000 || h > 12000) throw new Error('Ukuran hasil terlalu besar. Dimensi maksimal 12.000 px.');
+          outCanvas = resizeCanvas(baseCanvas, w, h, 'stretch');
           mime = document.getElementById('optResizeOutputFormat')?.value || 'image/png';
           quality = 0.92;
           if (mime === 'image/jpeg') {
-            const background = document.createElement('canvas');
-            background.width = outCanvas.width;
-            background.height = outCanvas.height;
-            const bgCtx = background.getContext('2d');
-            bgCtx.fillStyle = document.getElementById('optResizeBgFill')?.value || '#ffffff';
-            bgCtx.fillRect(0, 0, background.width, background.height);
-            bgCtx.drawImage(outCanvas, 0, 0);
-            outCanvas = background;
+            const background = document.createElement('canvas'); background.width = w; background.height = h;
+            const bgCtx = background.getContext('2d'); bgCtx.fillStyle = document.getElementById('optResizeBgFill')?.value || '#ffffff';
+            bgCtx.fillRect(0,0,w,h); bgCtx.drawImage(outCanvas,0,0); outCanvas = background;
           }
         } else if (mode === 'filters-image') {
-          const shape = document.getElementById('optShapeCrop').value;
-          const filter = document.getElementById('optColorFilter').value;
-          const c = document.createElement('canvas');
-          c.width = baseCanvas.width;
-          c.height = baseCanvas.height;
-          const ctx = c.getContext('2d');
-          if (shape === 'circle') {
-            const sz = Math.min(c.width, c.height);
-            c.width = sz;
-            c.height = sz;
-            ctx.beginPath();
-            ctx.arc(sz / 2, sz / 2, sz / 2, 0, Math.PI * 2);
-            ctx.clip();
-            ctx.filter = filter;
-            ctx.drawImage(baseCanvas, (sz - baseCanvas.width) / 2, (sz - baseCanvas.height) / 2);
-          } else if (shape === 'rounded') {
-            ctx.beginPath();
-            ctx.roundRect(0, 0, c.width, c.height, 40);
-            ctx.clip();
-            ctx.filter = filter;
-            ctx.drawImage(baseCanvas, 0, 0);
-          } else {
-            ctx.filter = filter;
-            ctx.drawImage(baseCanvas, 0, 0);
-          }
-          outCanvas = c;
-          mime = 'image/png';
-        } else if (mode === 'rotate-flip') {
+          const filter = document.getElementById('optColorFilter')?.value || 'none';
+          const filtered = document.createElement('canvas'); filtered.width=baseCanvas.width; filtered.height=baseCanvas.height;
+          const ctx=filtered.getContext('2d'); ctx.filter=filter; ctx.drawImage(baseCanvas,0,0);
+          outCanvas=filtered; mime='image/png';
+        } else if (mode === 'crop-image') {
+          const sx=Math.max(0,Math.min(baseCanvas.width-1,Number(document.getElementById('optCropX')?.value||0)));
+          const sy=Math.max(0,Math.min(baseCanvas.height-1,Number(document.getElementById('optCropY')?.value||0)));
+          const sw=Math.max(1,Math.min(baseCanvas.width-sx,Number(document.getElementById('optCropW')?.value||baseCanvas.width)));
+          const sh=Math.max(1,Math.min(baseCanvas.height-sy,Number(document.getElementById('optCropH')?.value||baseCanvas.height)));
+          outCanvas=document.createElement('canvas'); outCanvas.width=Math.round(sw); outCanvas.height=Math.round(sh);
+          outCanvas.getContext('2d').drawImage(baseCanvas,sx,sy,sw,sh,0,0,outCanvas.width,outCanvas.height); mime='image/png';
+        } else if (mode === 'shape-crop') {
+          const ratioValue=document.getElementById('optShapeRatio')?.value||'free';
+          let ratio=baseCanvas.width/baseCanvas.height;
+          if(ratioValue!=='free'){const parts=ratioValue.split(':').map(Number); if(parts.length===2&&parts.every(Number.isFinite))ratio=parts[0]/parts[1];}
+          let sx=0,sy=0,sw=baseCanvas.width,sh=baseCanvas.height;
+          if(baseCanvas.width/baseCanvas.height>ratio){sw=baseCanvas.height*ratio;sx=(baseCanvas.width-sw)/2;}
+          else{sh=baseCanvas.width/ratio;sy=(baseCanvas.height-sh)/2;}
+          outCanvas=document.createElement('canvas');outCanvas.width=Math.max(1,Math.round(sw));outCanvas.height=Math.max(1,Math.round(sh));
+          const ctx=outCanvas.getContext('2d');
+          const shape=document.getElementById('optShapeMode')?.value||'rect';
+          if(shape==='circle'){const size=Math.min(outCanvas.width,outCanvas.height);const square=document.createElement('canvas');square.width=size;square.height=size;const sctx=square.getContext('2d');sctx.beginPath();sctx.arc(size/2,size/2,size/2,0,Math.PI*2);sctx.clip();sctx.drawImage(baseCanvas,sx,sy,sw,sh,0,0,size,size);outCanvas=square;}
+          else if(shape==='rounded'){const radius=Math.min(outCanvas.width,outCanvas.height)*(Number(document.getElementById('optShapeRadius')?.value||12)/100);ctx.beginPath();ctx.roundRect(0,0,outCanvas.width,outCanvas.height,radius);ctx.clip();ctx.drawImage(baseCanvas,sx,sy,sw,sh,0,0,outCanvas.width,outCanvas.height);}
+          else ctx.drawImage(baseCanvas,sx,sy,sw,sh,0,0,outCanvas.width,outCanvas.height);
+          mime='image/png';
+        } else if (mode === 'rotate-flip') {        } else if (mode === 'rotate-flip') {
           const flip = document.getElementById('optFlipMode').value;
           const c = document.createElement('canvas');
           c.width = baseCanvas.width;
@@ -4287,27 +4270,28 @@
     }
 
     async function runOverlayImages(baseName) {
-      const imgs = state.items.filter(i => i.isImage && i.thumbUrl);
-      if (imgs.length < 2) { showToast('Tambahkan minimal 2 gambar (#1 utama, #2 overlay/tanda tangan).', 'error'); return; }
-      const baseC = await renderItemToCanvas(imgs[0]);
-      const overC = await renderItemToCanvas(imgs[1]);
-      const pos = document.getElementById('optOverlayPos').value;
-      const ctx = baseC.getContext('2d');
-
-      const targetW = Math.round(baseC.width * 0.28);
-      const targetH = Math.round(overC.height * (targetW / overC.width));
-      let x = baseC.width - targetW - 20;
-      let y = baseC.height - targetH - 20;
-      if (pos === 'center') { x = (baseC.width - targetW) / 2; y = (baseC.height - targetH) / 2; }
-      if (pos === 'bottom-left') { x = 20; }
-
-      ctx.drawImage(overC, x, y, targetW, targetH);
-      const blob = await new Promise(r => baseC.toBlob(r, 'image/png'));
-      const finalName = formatDownloadFilename({ baseName, ext: 'png', isBulkOrZip: false });
-      finishWithBlob(blob, finalName, `Gambar #2 berhasil ditempelkan di atas gambar #1.`, { isImageResult: true });
+      const images = state.items.filter(item=>item.isImage&&item.thumbUrl);
+      const baseId=document.getElementById('optOverlayBase')?.value;
+      const frontId=document.getElementById('optOverlayFront')?.value;
+      const baseItem=images.find(item=>item.id===baseId)||images[0];
+      const frontItem=images.find(item=>item.id===frontId)||images.find(item=>item.id!==baseItem?.id);
+      if(!baseItem||!frontItem||baseItem.id===frontItem.id) throw new Error('Pilih dua gambar yang berbeda: satu sebagai latar dan satu sebagai layer depan.');
+      const baseCanvas=await renderItemToCanvas(baseItem);
+      const frontCanvas=await renderItemToCanvas(frontItem);
+      const scale=Math.max(.05,Math.min(1,Number(document.getElementById('optOverlayScale')?.value||28)/100));
+      const targetW=baseCanvas.width*scale;
+      const targetH=frontCanvas.height*(targetW/frontCanvas.width);
+      const xPct=Math.max(0,Math.min(100,Number(document.getElementById('optOverlayX')?.value??state.overlayX*100)))/100;
+      const yPct=Math.max(0,Math.min(100,Number(document.getElementById('optOverlayY')?.value??state.overlayY*100)))/100;
+      const x=Math.min(baseCanvas.width-targetW,baseCanvas.width*xPct);
+      const y=Math.min(baseCanvas.height-targetH,baseCanvas.height*yPct);
+      baseCanvas.getContext('2d').drawImage(frontCanvas,x,y,targetW,targetH);
+      const blob=await new Promise((resolve,reject)=>baseCanvas.toBlob(result=>result?resolve(result):reject(new Error('Gambar gabungan gagal dibuat.')),'image/png'));
+      const finalName=formatDownloadFilename({baseName,ext:'png',isBulkOrZip:false});
+      finishWithBlob(blob,finalName,'Layer depan berhasil digabungkan di atas gambar latar dengan posisi dan ukuran pilihan.',{isImageResult:true});
     }
 
-    // --- ENGINE 13: BATCH RENAME & ZIP ---
+    // --- ENGINE 13: BATCH RENAME & ZIP ---    // --- ENGINE 13: BATCH RENAME & ZIP ---
     async function runBatchRename(baseName) {
       const rawPrefix = document.getElementById('optRenamePrefix').value || 'File_';
       const invalidChars = new RegExp('[\\\\/<>:' + String.fromCharCode(34) + '|?*\\x00-\\x1F]', 'g');
