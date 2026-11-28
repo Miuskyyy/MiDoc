@@ -239,14 +239,17 @@ const fs = require('node:fs');
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
-    // Pixel Crop is separate from resize and shows the selected pixel area before export.
+    // Pixel Crop uses a draggable crop grid instead of numeric coordinate fields.
     await openTool('crop-image');
     await page.locator('#fileInput').setInputFiles({ name: 'crop-source.png', mimeType: 'image/png', buffer: redPng });
-    await page.locator('#optCropX').fill('1');
-    await page.locator('#optCropY').fill('1');
-    await page.locator('#optCropW').fill('2');
-    await page.locator('#optCropH').fill('2');
-    await page.waitForFunction(() => document.getElementById('cropPixelInfo').innerText.includes('2×2 px'), { timeout: 10000 });
+    await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 10000 });
+    const cropCanvasBox = await page.locator('#toolLivePreviewContent canvas').boundingBox();
+    assert.ok(cropCanvasBox && cropCanvasBox.width > 20, 'Crop preview canvas must be visible and large enough to edit.');
+    await page.mouse.move(cropCanvasBox.x + cropCanvasBox.width * 0.95, cropCanvasBox.y + cropCanvasBox.height * 0.95);
+    await page.mouse.down();
+    await page.mouse.move(cropCanvasBox.x + cropCanvasBox.width * 0.55, cropCanvasBox.y + cropCanvasBox.height * 0.55, { steps: 5 });
+    await page.mouse.up();
+    await page.waitForFunction(() => /2\\s*×\\s*2 px/.test(document.getElementById('cropPixelInfo')?.innerText || ''), { timeout: 10000 });
     await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
