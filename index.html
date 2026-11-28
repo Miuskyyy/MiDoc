@@ -2187,7 +2187,7 @@
 
     function updateSplitPdfMode(mode) {
       const rangeBox=document.getElementById('splitRangeBox'),singleBox=document.getElementById('splitSingleRangeBox');
-      rangeBox?.classList.toggle('hidden',mode==='pages');singleBox?.classList.toggle('hidden',mode!=='range');
+      rangeBox?.classList.toggle('hidden',mode!=='parts');singleBox?.classList.toggle('hidden',mode!=='range');
       const ext=document.getElementById('outputExtBadge'),label=document.getElementById('executeBtnLabel');
       if(ext)ext.textContent=mode==='range'?'.pdf':'.zip';if(label)label.textContent=mode==='range'?'Simpan Rentang sebagai PDF':'Buat Bagian PDF (ZIP)';
       updateSplitPdfRangesPreview();updateFilenamePreviewHint();
