@@ -236,7 +236,8 @@ const fs = require('node:fs');
 
     // QR and barcode share one generator and show a live preview before saving.
     await openTool('qr-generator');
-    assert.equal(await page.locator('#toolPreviewColumn').evaluate(el => el.classList.contains('xl:col-span-8')), true, 'QR/Barcode preview should have a wide center area beside the settings.');
+    assert.equal(await page.locator('#toolPreviewColumn').evaluate(el => el.classList.contains('lg:col-span-8')), true, 'QR/Barcode preview should have a wide center area beside the settings.');
+    assert.equal(await page.locator('#toolSettingsColumn').evaluate(el => el.classList.contains('lg:col-span-4')), true, 'QR/Barcode settings should remain in a compact right-hand column.');
     await page.waitForFunction(() => typeof window.QRCode === 'function', { timeout: 20000 });
     await page.waitForFunction(() => !document.getElementById('toolLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
     await page.locator('#optQrText').fill('https://example.com/midoc-audit');
