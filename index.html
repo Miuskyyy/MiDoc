@@ -2768,7 +2768,8 @@
         bottomStrip.classList.add('hidden');
         document.getElementById('splitterLivePreviewPanel').classList.add('hidden');
         document.getElementById('joinerLivePreviewPanel').classList.add('hidden');
-        document.getElementById('toolLivePreviewPanel')?.classList.add('hidden');
+        if (state.activeEngine === 'qr-generator') drawToolLivePreview();
+        else document.getElementById('toolLivePreviewPanel')?.classList.add('hidden');
         document.getElementById('zipContentsCenter')?.classList.add('hidden');
         updateFilenamePreviewHint();
         return;
