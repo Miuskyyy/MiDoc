@@ -1175,6 +1175,7 @@
       closeMegaMenu();
       state.activeToolObj = found;
       state.activeEngine = found.engine;
+      state.viewMode = ['overlay-images','shape-crop','crop-pixel','resize-pixel','color-filters','crop-pdf','organize-pdf','page-number-pdf','watermark-pdf'].includes(found.id) ? 'list' : 'grid';
       state.editorSelectedItemId = null;
       state.overlayLayout = null;
       state.pdfCropPage = 1;
@@ -1457,7 +1458,7 @@
         navDropdown.innerHTML = matches.length === 0
           ? `<div class="p-2.5 text-xs text-zinc-500">Tidak ditemukan alat.</div>`
           : matches.map(m => `
-              <button onclick="openToolWorkspace('${m.id}'); document.getElementById('navSearchDropdown').classList.add('hidden');" class="w-full p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2.5">
+              <a href="${window.location.pathname}?tool=${encodeURIComponent(m.id)}" onclick="document.getElementById('navSearchDropdown').classList.add('hidden');" class="w-full p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2.5">
                 <span class="w-6 h-6 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
                   <i data-lucide="${m.icon}" class="w-3.5 h-3.5"></i>
                 </span>
@@ -1465,7 +1466,7 @@
                   <div class="text-xs font-bold truncate">${m.name}</div>
                   <div class="text-[11px] text-zinc-500 truncate">${m.groupTitle}</div>
                 </div>
-              </button>
+              </a>
             `).join('');
         navDropdown.classList.remove('hidden');
         lucide.createIcons();
@@ -1475,11 +1476,25 @@
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const menuCat = btn.getAttribute('data-menu');
-          if (state.activeMenu === menuCat) {
-            closeMegaMenu();
-          } else {
-            openMegaMenu(menuCat, btn);
+          if (state.activeMenu === menuCat) closeMegaMenu();
+          else openMegaMenu(menuCat, btn);
+        });
+        btn.addEventListener('mouseenter', () => {
+          document.querySelectorAll('.nav-trigger').forEach(other => {
+            other.classList.remove('text-accent','border-accent');
+            other.classList.add('text-zinc-700','dark:text-zinc-200','border-transparent');
+          });
+          btn.classList.remove('text-zinc-700','dark:text-zinc-200','border-transparent');
+          btn.classList.add('text-accent','border-accent');
+        });
+        btn.addEventListener('mouseleave', () => {
+          let active = state.activeMenu || 'home';
+          if (!state.activeMenu && state.activeToolObj) {
+            const category = NAV_CATEGORIES.find(item => item.toolIds.includes(state.activeToolObj.id));
+            const parent = category ? NAV_GROUPS.find(item => item.categoryIds.includes(category.id)) : null;
+            active = parent?.id || 'home';
           }
+          updateNavbarActiveCategory(active);
         });
       });
 
@@ -1511,7 +1526,7 @@
                   <div class="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mb-1.5">${category.label}</div>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
                     ${categoryTools.map(tool => `
-                      <button onclick="openToolWorkspace('${tool.id}')" class="p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2 text-xs font-medium">
+                      <a href="${window.location.pathname}?tool=${encodeURIComponent(tool.id)}" class="p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2 text-xs font-medium">
                         <span class="w-6 h-6 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
                           <i data-lucide="${tool.icon}" class="w-3.5 h-3.5"></i>
                         </span>
@@ -1519,7 +1534,7 @@
                           <span class="block truncate font-semibold">${tool.name}</span>
                           <span class="block truncate text-[10px] text-zinc-500">${tool.desc}</span>
                         </span>
-                      </button>
+                      </a>
                     `).join('')}
                   </div>
                 </div>
@@ -1576,14 +1591,14 @@
                 </div>
                 <div class="space-y-1">
                   ${categoryTools.map(tool => `
-                    <button onclick="openToolWorkspace('${tool.id}')" class="group w-full p-1.5 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2">
+                    <a href="${window.location.pathname}?tool=${encodeURIComponent(tool.id)}" class="group w-full p-1.5 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-left flex items-center gap-2">
                       <span class="w-6 h-6 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
                         <i data-lucide="${tool.icon}" class="w-3.5 h-3.5"></i>
                       </span>
                       <span class="min-w-0 flex-1">
                         <span class="block text-[11px] font-semibold leading-snug text-ink dark:text-zinc-100 group-hover:text-accent">${tool.name}</span>
                       </span>
-                    </button>
+                    </a>
                   `).join('')}
                 </div>
               </section>
