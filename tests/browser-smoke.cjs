@@ -249,7 +249,7 @@ const fs = require('node:fs');
     await page.mouse.down();
     await page.mouse.move(cropCanvasBox.x + cropCanvasBox.width * 0.55, cropCanvasBox.y + cropCanvasBox.height * 0.55, { steps: 5 });
     await page.mouse.up();
-    await page.waitForFunction(() => /2\\s*×\\s*2 px/.test(document.getElementById('cropPixelInfo')?.innerText || ''), { timeout: 10000 });
+    await page.waitForFunction(() => /2\s*×\s*2 px/.test(document.getElementById('cropPixelInfo')?.innerText || ''), { timeout: 10000 });
     await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
