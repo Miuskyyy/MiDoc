@@ -127,7 +127,19 @@
       background-size: 16px 16px;
       background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
     }
-  </style>
+  
+    #toolSettingsContainer > div { flex: 0 1 auto; min-width: min(180px, 100%); max-width: 100%; }
+    #toolSettingsContainer input:not([type="checkbox"]):not([type="range"]):not([type="color"]),
+    #toolSettingsContainer select, #toolSettingsContainer textarea { max-width: 100%; }
+    #toolSettingsContainer input[type="range"] { max-width: min(260px, 100%); }
+    #toolSettingsContainer input[type="color"] { min-width: 2.25rem; }
+    #activeWorkspaceStage { min-width: 0; }
+    .midoc-workspace-stage-preview { max-width: 100%; overflow: auto; }
+    @media (max-width: 639px) {
+      #floatingActionDock { top: 3.5rem; }
+      #toolSettingsContainer > div { min-width: min(145px, 100%); }
+    }
+</style>
   <meta name="theme-color" content="#1748F5" />
   <meta name="application-name" content="MiDoc" />
   <meta name="apple-mobile-web-app-title" content="MiDoc" />
@@ -270,96 +282,83 @@
     <section id="directoryGroupsContainer" class="mt-8 space-y-10"></section>
   </main>
 
-  <!-- ==================== VIEW 2: WORKSPACE ALAT AKTIF ==================== -->
-  <main id="toolWorkspaceView" class="hidden flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-6">
+  <!-- ==================== VIEW 2: REFERENCE-STYLE STUDIO WORKSPACE ==================== -->
+  <main id="toolWorkspaceView" class="hidden flex-1 max-w-[1380px] w-full mx-auto px-3 sm:px-6 pb-8 space-y-4">
 
-    <!-- Top Breadcrumb & Active Tool Bar -->
-    <div class="mb-6 pb-5 border-b border-zinc-200 dark:border-darkLine flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-      <div class="space-y-1.5">
-        <div class="flex items-center gap-2 text-xs">
-          <button onclick="navigateToHome()" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-700 dark:text-zinc-300 hover:border-accent hover:text-accent font-medium">
-            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
-            <span>Kembali ke Beranda</span>
+    <div id="floatingActionDock" class="sticky top-14 z-30 -mx-3 sm:-mx-6 px-3 sm:px-6 py-2.5 bg-white/95 dark:bg-darkCanvas/95 border-b border-zinc-300 dark:border-darkLine space-y-2 backdrop-blur-sm">
+      <div class="flex flex-wrap items-center justify-between gap-2.5">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <button type="button" onclick="navigateToHome()" class="w-8 h-8 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-zinc-600 dark:text-zinc-300 hover:text-accent flex items-center justify-center shrink-0" title="Kembali ke Beranda">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
           </button>
-          <span class="text-zinc-400">/</span>
-          <span id="wsGroupLabel" class="font-mono text-zinc-500 dark:text-zinc-400">Kelompok Alat</span>
+          <div id="wsIconBox" class="w-7 h-7 rounded-sm bg-accent text-white flex items-center justify-center shrink-0"><i data-lucide="layers" class="w-4 h-4"></i></div>
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <h1 id="wsTitle" class="font-display text-sm sm:text-lg font-extrabold tracking-tight text-ink dark:text-white truncate">MiDoc Studio</h1>
+              <span id="totalSummaryText" class="px-2 py-0.5 rounded-sm bg-zinc-100 dark:bg-darkSurface border border-zinc-300 dark:border-darkLine text-[11px] font-mono text-zinc-600 dark:text-zinc-300 shrink-0">0 file</span>
+              <span id="wsGroupLabel" class="hidden sm:inline text-[10px] font-mono text-zinc-500 dark:text-zinc-400"></span>
+            </div>
+            <p id="wsDesc" class="hidden md:block text-xs text-zinc-500 dark:text-zinc-400 truncate max-w-xl">Workspace alat MiDoc.</p>
+          </div>
         </div>
 
-        <div class="flex items-center gap-3 pt-1">
-          <div id="wsIconBox" class="w-9 h-9 rounded-sm bg-accent text-white flex items-center justify-center shrink-0">
-            <i data-lucide="layers" class="w-5 h-5"></i>
+        <div class="flex flex-wrap items-center gap-2 ml-auto">
+          <label id="topSelectFileWrapper" class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-sm border border-accent text-accent hover:bg-accent hover:text-white text-xs font-semibold transition-colors">
+            <i data-lucide="folder-plus" class="w-3.5 h-3.5"></i><span id="bottomSelectBtnLabel">Pilih File</span>
+            <input id="fileInput" type="file" class="hidden" multiple />
+          </label>
+          <button id="expandPdfPagesBtn" type="button" onclick="explodeAllPdfsToPages()" class="hidden inline-flex items-center gap-1.5 px-2.5 py-2 rounded-sm border border-accent text-accent bg-accent/10 hover:bg-accent hover:text-white text-xs font-semibold">
+            <i data-lucide="scissors" class="w-3.5 h-3.5"></i><span>Pecah Halaman</span>
+          </button>
+          <div id="sortControlGroup" class="hidden sm:flex items-center gap-1 pl-2 py-1 rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-300 dark:border-darkLine">
+            <select id="sortOrderSelect" onchange="applySortOrder(this.value)" class="bg-transparent px-1 py-1 text-xs font-medium text-ink dark:text-zinc-100 focus:outline-none cursor-pointer" title="Urutan File">
+              <option value="drop">Urutan Drop</option><option value="natural-az">Nama A-Z</option><option value="natural-za">Nama Z-A</option><option value="reverse">Balik Urutan</option>
+            </select>
           </div>
-          <div>
-            <h1 id="wsTitle" class="font-display text-xl sm:text-2xl font-extrabold text-ink dark:text-white">
-              Judul Alat
-            </h1>
-            <p id="wsDesc" class="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400">
-              Deskripsi fungsi alat.
-            </p>
+          <div id="outputFilenameGroup" class="hidden flex items-center rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-300 dark:border-darkLine overflow-hidden">
+            <input id="outputFilenameInput" type="text" value="MiDoc_Hasil" oninput="updateFilenamePreviewHint()" class="w-28 sm:w-36 px-2.5 py-1.5 text-xs bg-transparent focus:outline-none text-ink dark:text-zinc-100" title="Nama File Dasar" />
+            <span id="outputExtBadge" class="px-2 py-1.5 text-[11px] font-mono font-semibold text-zinc-500 bg-zinc-100 dark:bg-darkCanvas border-l border-zinc-300 dark:border-darkLine">.pdf</span>
+            <span id="namingRuleBadge" class="sr-only">1 File: +Waktu</span><span id="resolvedFilenamePreview" class="sr-only">MiDoc_Hasil.pdf</span>
           </div>
+          <button type="button" onclick="clearAllFiles()" class="w-8 h-8 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-red-600 text-zinc-600 dark:text-zinc-300 hover:text-red-500 transition-colors flex items-center justify-center shrink-0" title="Kosongkan Semua File"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+          <button id="executeActionBtn" type="button" onclick="executeCurrentTool()" class="px-3.5 sm:px-4 py-2 rounded-sm bg-accent hover:bg-accentHover text-white font-display font-bold text-xs sm:text-sm inline-flex items-center gap-1.5 disabled:opacity-50 shrink-0">
+            <i data-lucide="play" class="w-3.5 h-3.5"></i><span id="executeBtnLabel">Proses & Buat Hasil</span>
+          </button>
         </div>
       </div>
 
-      <!-- Direct Cross-Tool Bridge Button (e.g., Image Joiner <-> Image Splitter) -->
-      <div id="crossToolBridgeContainer" class="flex flex-wrap items-center gap-2"></div>
+      <div id="resultOutputBox" class="hidden flex rounded-sm bg-zinc-50 dark:bg-darkSurface border border-accent px-3.5 py-2.5 flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div class="flex flex-wrap items-center gap-2 min-w-0">
+          <span class="px-2 py-0.5 rounded-sm bg-accent text-white font-mono text-[11px] font-bold shrink-0">SIAP DIUNDUH</span>
+          <span id="resultSavedFilename" class="font-mono text-xs font-bold text-ink dark:text-white truncate max-w-[260px]">hasil.pdf</span>
+          <span id="resultSizeBadge" class="px-2 py-0.5 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine font-mono text-xs font-bold text-accent shrink-0">0 KB</span>
+          <span id="resultDetailText" class="text-xs text-zinc-500 dark:text-zinc-400 truncate"></span>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+          <button id="inspectResultPreviewBtn" type="button" class="hidden px-3 py-1.5 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent bg-white dark:bg-darkCanvas text-xs font-semibold inline-flex items-center gap-1.5"><i data-lucide="search" class="w-3.5 h-3.5 text-accent"></i><span>Pratinjau Hasil</span></button>
+          <button id="sendResultToSplitterBtn" type="button" class="hidden px-3 py-1.5 rounded-sm border border-accent text-accent hover:bg-accent hover:text-white text-xs font-semibold inline-flex items-center gap-1.5"><i data-lucide="grid" class="w-3.5 h-3.5"></i><span>Lanjut ke Splitter</span></button>
+          <button id="reDownloadBtn" type="button" class="px-4 py-1.5 rounded-sm bg-accent hover:bg-accentHover text-white font-display font-bold text-xs inline-flex items-center gap-1.5"><i data-lucide="download" class="w-3.5 h-3.5"></i><span>Unduh Hasil</span></button>
+        </div>
+      </div>
+
+      <div id="progressContainer" class="hidden space-y-1">
+        <div class="flex justify-between text-[11px] font-mono"><span id="progressStatusText">Memproses...</span><span id="progressPercentText" class="text-accent font-bold">0%</span></div>
+        <div class="w-full h-1 bg-zinc-200 dark:bg-darkSurface overflow-hidden"><div id="progressBarFill" class="h-full bg-accent transition-all duration-150" style="width:0%"></div></div>
+      </div>
     </div>
 
-    <!-- Main 12-Column Flat Split Workspace -->
-    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+    <section id="topSettingsBarWrapper" class="rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-300 dark:border-darkLine px-3 sm:px-4 py-3">
+      <div id="toolSettingsContainer" class="midoc-compact-settings flex flex-wrap items-end justify-center gap-3 sm:gap-4 text-xs"></div>
+    </section>
 
-      <!-- LEFT COLUMN (8 Cols): Precision Dropzone, Reorderable Grid & Live Splitter Canvas -->
-      <div id="toolFileColumn" class="xl:col-span-8 space-y-4">
+    <div id="crossToolBridgeContainer" class="flex flex-wrap items-center gap-2"></div>
 
-        <!-- File Staging Toolbar -->
-        <div class="p-3 rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine flex flex-wrap items-center justify-between gap-3">
-          <div class="flex flex-wrap items-center gap-2">
-            <label class="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-2 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold">
-              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-              <span>Tambah File</span>
-              <input id="fileInput" type="file" multiple class="hidden" />
-            </label>
+    <section id="dropZoneContainer" class="relative min-h-[420px] rounded-sm border border-zinc-300 dark:border-darkLine bg-zinc-50/40 dark:bg-darkSurface/70 p-3 sm:p-5 flex flex-col justify-between">
+      <div id="externalDragOverlay" class="hidden absolute inset-2 rounded-sm bg-accent/10 border-2 border-accent z-30 flex flex-col items-center justify-center pointer-events-none">
+        <p class="font-display text-base font-bold text-accent">Lepaskan File di Sini</p><p class="text-xs text-zinc-600 dark:text-zinc-300 mt-1">Urutan file mengikuti urutan saat dipilih atau diseret</p>
+      </div>
 
-            <button id="loadDemoFilesBtn" onclick="loadDemoFiles()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas hover:border-accent text-zinc-700 dark:text-zinc-200 text-xs font-medium">
-              <i data-lucide="file-check" class="w-3.5 h-3.5 text-accent"></i>
-              <span>Muat Contoh File</span>
-            </button>
-
-            <button id="expandPdfPagesBtn" onclick="explodeAllPdfsToPages()" class="hidden inline-flex items-center gap-1.5 px-3 py-2 rounded-sm border border-accent text-accent bg-accent/10 hover:bg-accent hover:text-white text-xs font-semibold">
-              <i data-lucide="scissors" class="w-3.5 h-3.5"></i>
-              <span>Pecah Per Halaman PDF</span>
-            </button>
-          </div>
-
-          <!-- Precision Order & View Controls -->
-          <div class="flex flex-wrap items-center gap-2">
-            <div class="flex items-center gap-1.5 pl-2.5 py-0.5 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine">
-              <span class="text-xs text-zinc-500">Urutan:</span>
-              <select id="sortOrderSelect" onchange="applySortOrder(this.value)" class="bg-transparent py-1 pl-1 text-xs font-semibold text-ink dark:text-zinc-100 focus:outline-none cursor-pointer">
-                <option value="drop" class="dark:bg-darkSurface">Urutan Drop Asli (Terkunci)</option>
-                <option value="natural-az" class="dark:bg-darkSurface">Nama A - Z (1, 2, 10)</option>
-                <option value="natural-za" class="dark:bg-darkSurface">Nama Z - A</option>
-                <option value="size-asc" class="dark:bg-darkSurface">Ukuran Terkecil</option>
-                <option value="size-desc" class="dark:bg-darkSurface">Ukuran Terbesar</option>
-                <option value="reverse" class="dark:bg-darkSurface">Balik Urutan Saat Ini</option>
-              </select>
-            </div>
-
-            <div class="flex items-center rounded-sm border border-zinc-300 dark:border-darkLine overflow-hidden">
-              <button id="viewGridBtn" onclick="setViewMode('grid')" class="p-1.5 bg-accent text-white" title="Tampilan Grid">
-                <i data-lucide="grid" class="w-3.5 h-3.5"></i>
-              </button>
-              <button id="viewListBtn" onclick="setViewMode('list')" class="p-1.5 bg-white dark:bg-darkCanvas text-zinc-500" title="Tampilan Daftar">
-                <i data-lucide="list" class="w-3.5 h-3.5"></i>
-              </button>
-            </div>
-
-            <button onclick="clearAllFiles()" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-zinc-600 dark:text-zinc-300 hover:border-red-600 hover:text-red-600" title="Kosongkan Workspace">
-              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- LIVE IMAGE SPLITTER VISUAL GRID CANVAS (Shown specifically when Image Splitter is active and an image is loaded) -->
+              <!-- LIVE IMAGE SPLITTER VISUAL GRID CANVAS (Shown specifically when Image Splitter is active and an image is loaded) -->
         <div id="splitterLivePreviewPanel" class="hidden rounded-sm border border-zinc-300 dark:border-darkLine bg-zinc-50 dark:bg-darkSurface p-4 space-y-3">
           <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-zinc-200 dark:border-darkLine">
             <div class="flex items-center gap-2">
@@ -453,146 +452,40 @@
           </div>
         </div>
 
-        <!-- Dropzone & Reorderable File Cards Container -->
-        <div
-          id="dropZoneContainer"
-          class="relative min-h-[360px] rounded-sm border border-dashed border-zinc-400 dark:border-zinc-700 bg-zinc-50/60 dark:bg-darkSurface p-4 sm:p-5"
-        >
-          <!-- External Drag Overlay -->
-          <div id="externalDragOverlay" class="hidden absolute inset-2 rounded-sm bg-accent/10 border-2 border-accent z-30 flex flex-col items-center justify-center pointer-events-none">
-            <p class="font-display text-base font-bold text-accent">Lepaskan File di Sini</p>
-            <p class="text-xs text-zinc-600 dark:text-zinc-300 mt-1">Urutan file akan dikunci persis sesuai urutan seret Anda</p>
-          </div>
 
-          <!-- Empty State -->
-          <div id="emptyStateBox" class="h-[310px] flex flex-col items-center justify-center text-center px-4">
-            <div class="w-12 h-12 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-accent flex items-center justify-center mb-3">
-              <i data-lucide="upload" class="w-5 h-5"></i>
-            </div>
-            <h3 class="font-display text-base font-bold text-ink dark:text-white">
-              Seret & Lepas File ke Area Ini
-            </h3>
-            <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-md mt-1">
-              Urutan file mengikuti persis urutan saat Anda menyeret atau memilihnya (<span class="font-mono text-accent">#1, #2, #3</span>) dan dapat digeser-geser kapan saja.
-            </p>
-            <div class="mt-4 flex flex-wrap items-center justify-center gap-2.5">
-              <label class="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold">
-                <i data-lucide="folder-open" class="w-3.5 h-3.5"></i>
-                <span>Pilih File dari Perangkat</span>
-                <input id="emptyFileInput" type="file" multiple class="hidden" />
-              </label>
-              <button id="loadDemoFilesEmptyBtn" onclick="loadDemoFiles()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas hover:border-accent text-xs font-medium">
-                <span>Muat Contoh Gambar & PDF</span>
-              </button>
-            </div>
-          </div>
 
-          <!-- Reorderable Cards Grid -->
-          <div id="fileItemsGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5"></div>
-
-          <!-- Bottom Status Strip -->
-          <div id="bottomAddStrip" class="hidden mt-4 pt-3 border-t border-zinc-200 dark:border-darkLine flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-            <span>Geser kartu untuk menukar urutan posisi, atau gunakan tombol <strong>Kiri / Kanan</strong> di tiap kartu.</span>
-            <span id="totalSummaryText" class="font-mono font-semibold text-ink dark:text-zinc-200">0 item • 0 B</span>
-          </div>
+      <div id="emptyStateBox" class="my-auto py-14 flex flex-col items-center justify-center text-center px-4">
+        <div class="w-12 h-12 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-accent flex items-center justify-center mb-3"><i data-lucide="upload" class="w-5 h-5"></i></div>
+        <h3 id="emptyStateHeading" class="font-display text-base font-bold text-ink dark:text-white">Seret & Lepas File ke Area Ini</h3>
+        <p id="emptyStateSubtext" class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-md mt-1">Format file menyesuaikan alat yang dipilih. Urutan file mengikuti urutan saat Anda memilih atau menyeretnya.</p>
+        <div class="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+          <label class="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold">
+            <i data-lucide="folder-open" class="w-3.5 h-3.5"></i><span id="emptySelectBtnLabel">Pilih File</span><input id="emptyFileInput" type="file" class="hidden" multiple />
+          </label>
+          <button id="loadDemoFilesBtn" type="button" onclick="loadDemoFiles()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-sm border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas hover:border-accent text-xs font-medium"><i data-lucide="file-check" class="w-3.5 h-3.5 text-accent"></i><span>Muat Contoh File</span></button>
+          <button id="loadDemoFilesEmptyBtn" type="button" onclick="loadDemoFiles()" class="hidden">Muat Contoh</button>
         </div>
       </div>
 
-      <!-- RIGHT COLUMN (4 Cols): Tool Configuration & Execution Panel -->
-      <div id="toolSettingsColumn" class="xl:col-span-4">
-        <div class="rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine p-5 sticky top-20 space-y-4">
-          <div class="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-darkLine">
-            <h2 class="font-display text-sm font-bold text-ink dark:text-white">
-              Pengaturan Alat
-            </h2>
-            <span class="font-mono text-[11px] px-2 py-0.5 rounded-sm bg-zinc-200 dark:bg-darkCanvas text-zinc-600 dark:text-zinc-400">
-              CLIENT-SIDE
-            </span>
+      <div id="activeWorkspaceStage" class="hidden w-full space-y-4"></div>
+      <div id="fileItemsGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5"></div>
+
+      <div id="bottomAddStrip" class="hidden mt-4 pt-3 border-t border-zinc-200 dark:border-darkLine flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+        <span>Geser kartu untuk menukar urutan, gunakan pratinjau, atau atur posisi melalui tombol navigasi.</span>
+        <div class="flex items-center gap-2">
+          <div class="flex items-center rounded-sm border border-zinc-300 dark:border-darkLine overflow-hidden">
+            <button id="viewGridBtn" type="button" onclick="setViewMode('grid')" class="p-1.5 bg-accent text-white" title="Tampilan Grid"><i data-lucide="grid" class="w-3.5 h-3.5"></i></button>
+            <button id="viewListBtn" type="button" onclick="setViewMode('list')" class="p-1.5 bg-white dark:bg-darkCanvas text-zinc-500" title="Tampilan Daftar"><i data-lucide="list" class="w-3.5 h-3.5"></i></button>
           </div>
-
-          <!-- Dynamic Tool Options -->
-          <div id="toolSettingsContainer" class="space-y-4 text-xs sm:text-sm"></div>
-
-          <!-- Output Filename -->
-          <div id="outputFilenameGroup" class="pt-3 border-t border-zinc-200 dark:border-darkLine space-y-1.5">
-            <div class="flex items-center justify-between">
-              <label class="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                Nama File Dasar
-              </label>
-              <span id="namingRuleBadge" class="text-[10px] font-mono text-zinc-500 dark:text-zinc-400">
-                1 File: +Waktu
-              </span>
-            </div>
-            <div class="flex items-center rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine overflow-hidden">
-              <input
-                id="outputFilenameInput"
-                type="text"
-                value="MiDoc_Hasil"
-                oninput="updateFilenamePreviewHint()"
-                class="w-full px-3 py-2 text-xs bg-transparent focus:outline-none text-ink dark:text-zinc-100"
-              />
-              <span id="outputExtBadge" class="px-2.5 py-2 text-xs font-mono font-semibold text-zinc-500 bg-zinc-100 dark:bg-darkSurface border-l border-zinc-300 dark:border-darkLine">
-                .pdf
-              </span>
-            </div>
-            <div class="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 truncate">
-              Hasil unduhan: <span id="resolvedFilenamePreview" class="text-ink dark:text-zinc-200 font-semibold">MiDoc_Hasil_20261128_0010.pdf</span>
-            </div>
-          </div>
-
-          <!-- Execute Button -->
-          <button
-            id="executeActionBtn"
-            onclick="executeCurrentTool()"
-            class="w-full py-2.5 px-4 rounded-sm bg-accent hover:bg-accentHover text-white font-display font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            <i data-lucide="play" class="w-4 h-4"></i>
-            <span id="executeBtnLabel">Proses & Buat Hasil</span>
-          </button>
-
-          <!-- Progress Indicator -->
-          <div id="progressContainer" class="hidden space-y-1">
-            <div class="flex justify-between text-xs font-mono">
-              <span id="progressStatusText">Memproses...</span>
-              <span id="progressPercentText" class="text-accent font-semibold">0%</span>
-            </div>
-            <div class="w-full h-1.5 bg-zinc-200 dark:bg-darkCanvas overflow-hidden">
-              <div id="progressBarFill" class="h-full bg-accent" style="width: 0%"></div>
-            </div>
-          </div>
-
-          <!-- Result Output Box -->
-          <div id="resultOutputBox" class="hidden p-3.5 rounded-sm bg-white dark:bg-darkCanvas border border-accent space-y-2.5 text-xs">
-            <div class="flex items-center justify-between">
-              <span class="font-bold text-accent">Proses Selesai</span>
-              <span id="resultSizeBadge" class="font-mono font-semibold"></span>
-            </div>
-            <div class="p-2 rounded-sm bg-zinc-50 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine font-mono text-[11px] break-all">
-              File: <span id="resultSavedFilename" class="font-semibold text-ink dark:text-zinc-100"></span>
-            </div>
-            <p id="resultDetailText" class="text-zinc-600 dark:text-zinc-300 leading-relaxed"></p>
-            <div class="flex flex-col gap-1.5">
-              <button id="reDownloadBtn" class="w-full py-2 px-3 rounded-sm bg-accent hover:bg-accentHover text-white font-semibold flex items-center justify-center gap-1.5">
-                <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                <span>Unduh Hasil</span>
-              </button>
-              <button id="inspectResultPreviewBtn" class="hidden w-full py-2 px-3 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-ink dark:text-zinc-200 font-semibold flex items-center justify-center gap-1.5">
-                <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-accent"></i>
-                <span>Lihat Hasil Panjang Penuh</span>
-              </button>
-              <button id="sendResultToSplitterBtn" class="hidden w-full py-2 px-3 rounded-sm border border-accent text-accent hover:bg-accent hover:text-white font-semibold flex items-center justify-center gap-1.5">
-                <i data-lucide="grid" class="w-3.5 h-3.5"></i>
-                <span>Lanjut Potong di Image Splitter</span>
-              </button>
-            </div>
-          </div>
-
+          <span id="bottomWorkspaceCount" class="font-mono font-semibold text-ink dark:text-zinc-200"></span>
         </div>
       </div>
 
-    </div>
+      <div id="centerAddCircleWrapper" class="hidden pt-5 pb-1 flex justify-center">
+        <label class="w-11 h-11 rounded-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-darkCanvas hover:border-accent text-zinc-500 hover:text-accent flex items-center justify-center cursor-pointer transition-colors" title="Tambah File Lagi"><i data-lucide="plus" class="w-5 h-5"></i><input id="circleAddFileInput" type="file" class="hidden" multiple /></label>
+      </div>
+    </section>
   </main>
-
   <!-- ==================== SCROLLABLE FULL-LENGTH IMAGE LIGHTBOX MODAL ==================== -->
   <div id="fullPreviewLightboxModal" onclick="handleFullLightboxBackdropClick(event)" class="hidden fixed inset-0 z-50 bg-black/85 flex flex-col">
     <div onclick="event.stopPropagation()" class="px-4 sm:px-6 h-14 bg-white dark:bg-darkSurface border-b border-zinc-300 dark:border-darkLine flex items-center justify-between gap-3 shrink-0">
@@ -1046,22 +939,16 @@
     function applyToolInputConfig(toolObj = state.activeToolObj) {
       const rule = getToolInputRule(toolObj);
       const noFiles = rule.formats.includes('none');
-      ['fileInput', 'emptyFileInput'].forEach(id => {
+      ['fileInput', 'emptyFileInput', 'circleAddFileInput'].forEach(id => {
         const input = document.getElementById(id);
         if (!input) return;
         input.accept = rule.accept;
         input.multiple = rule.max !== 1;
         input.disabled = noFiles;
       });
-      const fileColumn = document.getElementById('toolFileColumn');
-      const settingsColumn = document.getElementById('toolSettingsColumn');
+      document.getElementById('topSelectFileWrapper')?.classList.toggle('hidden', noFiles);
       const demoButton = document.getElementById('loadDemoFilesBtn');
       const demoEmptyButton = document.getElementById('loadDemoFilesEmptyBtn');
-      if (fileColumn) fileColumn.classList.toggle('hidden', noFiles);
-      if (settingsColumn) {
-        settingsColumn.classList.toggle('xl:col-span-4', !noFiles);
-        settingsColumn.classList.toggle('xl:col-span-12', noFiles);
-      }
       const showDemo = ['image-splitter', 'join-images'].includes(toolObj?.engine) && toolObj?.id !== 'photo-collage';
       [demoButton, demoEmptyButton].forEach(button => button?.classList.toggle('hidden', !showDemo || noFiles));
     }
