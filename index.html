@@ -126,18 +126,29 @@
       #fileItemsGrid { min-width: 0; }
       #toolWorkspaceView .flex, #toolWorkspaceView .min-w-0 { min-width: 0; }
     }
-    .nav-trigger { border-bottom: 2px solid transparent; transition: color .12s ease, border-color .12s ease; }
+    .nav-trigger { border-bottom: 2px solid transparent; transition: color .12s ease; }
     .nav-trigger:hover, .nav-trigger:focus-visible, #navHomeBtn:hover, #navHomeBtn:focus-visible { color: #2563EB !important; }
-    #desktopNav { position: relative; }
-    #navHoverIndicator { position: absolute; bottom: 0; left: 0; height: 2px; width: 0; background: #2563EB; opacity: 0; transform: translateX(0); transition: transform .16s ease, width .16s ease, opacity .12s ease; pointer-events: none; }
-    #toolPreviewColumn > #toolLivePreviewPanel { position: sticky; top: 5.25rem; }
-    #toolPreviewColumn #toolLivePreviewContent { min-height: 260px; }
+    #desktopNav { position: relative; isolation: isolate; }
+    #navHoverIndicator { position: absolute; z-index: 8; bottom: 0; left: 0; height: 3px; width: 0; border-radius: 999px; background: #2563EB; opacity: 0; transform: translateX(0); transition: transform .13s ease, width .13s ease, opacity .1s ease; pointer-events: none; }
+    #toolPreviewColumn > #toolLivePreviewPanel { position: sticky; top: 4.75rem; }
+    #toolPreviewColumn #toolLivePreviewContent { min-height: 320px; width: 100%; align-items: center; }
+    #toolLivePreviewContent > canvas { display: block; max-width: 100%; height: auto; }
+    #toolSettingsColumn > .sticky { max-height: calc(100vh - 5.75rem); overflow-y: auto; overscroll-behavior: contain; padding: .75rem !important; gap: .55rem !important; }
+    #toolSettingsColumn > .sticky > div:first-child { padding-bottom: .5rem !important; }
+    #toolSettingsContainer { gap: .55rem !important; }
     #toolSettingsContainer > div, #toolSettingsContainer > label { margin-top: 0 !important; }
-    #toolSettingsContainer input:not([type="checkbox"]):not([type="color"]):not([type="range"]), #toolSettingsContainer select, #toolSettingsContainer textarea { min-height: 34px; padding-top: .4rem !important; padding-bottom: .4rem !important; }
-    #fileItemsGrid .file-card { border-width: 1px !important; }
-    #fileItemsGrid .file-card .file-card-preview { padding: 5px !important; }
+    #toolSettingsContainer input:not([type="checkbox"]):not([type="color"]):not([type="range"]), #toolSettingsContainer select, #toolSettingsContainer textarea { min-height: 32px; padding-top: .32rem !important; padding-bottom: .32rem !important; }
+    #toolSettingsContainer p { line-height: 1.4; }
+    #fileItemsGrid .file-card { border-width: 1px !important; min-width: 0; }
+    #fileItemsGrid .file-card .file-card-preview { padding: 3px !important; }
     #fileItemsGrid .file-card .file-card-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
-    @media (max-width: 1279px) { #toolPreviewColumn > #toolLivePreviewPanel { position: static; } }
+    #fileItemsGrid .file-card.is-single-editor-card .file-card-preview { height: clamp(360px, 58vh, 620px) !important; }
+    #fileItemsGrid .file-card.is-double-editor-card .file-card-preview { height: clamp(300px, 46vh, 500px) !important; }
+    #imgTextPositionGrid [data-img-text-position] { display: flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; }
+    @media (max-width: 1023px) {
+      #toolPreviewColumn > #toolLivePreviewPanel { position: static; }
+      #toolSettingsColumn > .sticky { max-height: none; overflow: visible; }
+    }
     .tool-edit-vertical { display: flex !important; flex-direction: column !important; gap: 12px !important; }
     .tool-edit-vertical > .file-card { width: 100%; }
 
@@ -329,7 +340,7 @@
     </div>
 
     <!-- Main 12-Column Flat Split Workspace -->
-    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-start">
 
       <!-- LEFT COLUMN (8 Cols): Precision Dropzone, Reorderable Grid & Live Splitter Canvas -->
       <div id="toolFileColumn" class="xl:col-span-8 min-w-0 space-y-4">
@@ -1018,8 +1029,9 @@
       const demoEmptyButton = document.getElementById('loadDemoFilesEmptyBtn');
       if (fileColumn) fileColumn.classList.toggle('hidden', noFiles);
       if (settingsColumn) {
-        settingsColumn.classList.toggle('xl:col-span-4', !noFiles);
-        settingsColumn.classList.toggle('xl:col-span-12', noFiles);
+        const hasCenterPreview = toolObj?.engine === 'qr-generator';
+        settingsColumn.classList.toggle('lg:col-span-4', !noFiles || hasCenterPreview);
+        settingsColumn.classList.toggle('lg:col-span-12', noFiles && !hasCenterPreview);
       }
       const showDemo = ['image-splitter', 'join-images'].includes(toolObj?.engine) && toolObj?.id !== 'photo-collage';
       [demoButton, demoEmptyButton].forEach(button => button?.classList.toggle('hidden', !showDemo || noFiles));
@@ -1041,8 +1053,8 @@
       lastProcessedImageFile: null, // Used for seamless Joiner -> Splitter pipeline
       splitterSelectedItemId: null,
       selectedEditItemId: null,
-      overlayX: 0.66,
-      overlayY: 0.66,
+      overlayX: 0.5,
+      overlayY: 0.5,
       overlayScale: 0.28,
       overlayPointerActive: false,
       cropPdfPage: 1,
@@ -1246,14 +1258,14 @@
       const settingsColumn = document.getElementById('toolSettingsColumn');
       const hasFileInputColumn = found.engine !== 'qr-generator';
       if (fileColumn) {
-        fileColumn.className = (showToolPreview ? (hasFileInputColumn ? 'xl:col-span-4' : 'hidden') : 'xl:col-span-8') + ' min-w-0 space-y-4';
+        fileColumn.className = (showToolPreview ? (hasFileInputColumn ? 'lg:col-span-3' : 'hidden') : 'lg:col-span-8') + ' min-w-0 space-y-4';
       }
       if (previewColumn) {
         previewColumn.classList.toggle('hidden', !showToolPreview);
-        previewColumn.classList.toggle('xl:col-span-4', showToolPreview && hasFileInputColumn);
-        previewColumn.classList.toggle('xl:col-span-8', showToolPreview && !hasFileInputColumn);
+        previewColumn.classList.toggle('lg:col-span-5', showToolPreview && hasFileInputColumn);
+        previewColumn.classList.toggle('lg:col-span-8', showToolPreview && !hasFileInputColumn);
       }
-      if (settingsColumn) settingsColumn.className = 'xl:col-span-4 min-w-0';
+      if (settingsColumn) settingsColumn.className = 'lg:col-span-4 min-w-0';
       document.getElementById('executeActionBtn')?.classList.toggle('hidden', found.engine === 'color-picker');
       renderEngineSettings(found);
       renderWorkspaceItems();
@@ -1520,12 +1532,15 @@
       });
 
       const desktopNav = document.getElementById('desktopNav');
-      if (desktopNav && !document.getElementById('navHoverIndicator')) {
-        const indicator = document.createElement('span');
-        indicator.id = 'navHoverIndicator';
-        desktopNav.appendChild(indicator);
+      if (desktopNav) {
+        let indicator = document.getElementById('navHoverIndicator');
+        if (!indicator) {
+          indicator = document.createElement('span');
+          indicator.id = 'navHoverIndicator';
+          desktopNav.appendChild(indicator);
+        }
         const moveIndicator = target => {
-          const button = target?.closest('#navHomeBtn, .nav-trigger');
+          const button = target?.closest?.('#navHomeBtn, .nav-trigger');
           if (!button || !desktopNav.contains(button)) return;
           const navRect = desktopNav.getBoundingClientRect();
           const buttonRect = button.getBoundingClientRect();
@@ -1533,10 +1548,15 @@
           indicator.style.transform = 'translateX(' + (buttonRect.left - navRect.left + desktopNav.scrollLeft) + 'px)';
           indicator.style.opacity = '1';
         };
-        desktopNav.addEventListener('pointerover', e => moveIndicator(e.target));
-        desktopNav.addEventListener('pointermove', e => moveIndicator(e.target));
+        const trackPointer = event => moveIndicator(document.elementFromPoint(event.clientX, event.clientY) || event.target);
+        desktopNav.addEventListener('pointerover', trackPointer);
+        desktopNav.addEventListener('pointermove', trackPointer);
+        desktopNav.addEventListener('mousemove', trackPointer);
         desktopNav.addEventListener('pointerleave', () => { indicator.style.opacity = '0'; });
-        desktopNav.querySelectorAll('#navHomeBtn, .nav-trigger').forEach(button => button.addEventListener('focus', () => moveIndicator(button)));
+        desktopNav.querySelectorAll('#navHomeBtn, .nav-trigger').forEach(button => {
+          button.addEventListener('mouseenter', () => moveIndicator(button));
+          button.addEventListener('focus', () => moveIndicator(button));
+        });
       }
 
       document.addEventListener('click', (e) => {
@@ -1739,10 +1759,7 @@
               <label class="block text-xs font-semibold mb-1">Jarak Pemisah (px)</label>
               <input id="optJoinGap" type="number" value="0" min="0" max="100" oninput="drawJoinerLivePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
             </div>
-            <div>
-              <label class="block text-xs font-semibold mb-1">Warna Latar</label>
-              <input id="optJoinBg" type="color" value="#ffffff" oninput="drawJoinerLivePreview()" class="w-full h-8 rounded-sm border border-zinc-300 dark:border-darkLine bg-transparent cursor-pointer" />
-            </div>
+            <input id="optJoinBg" type="hidden" value="#ffffff" />
           </div>
         `;
       } else if (engine === 'merge-pdf') {
@@ -1893,8 +1910,7 @@
             <div><label class="block text-xs font-semibold mb-1">Start From</label><input id="optPdfStartFrom" type="number" min="1" value="1" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
           ` : `
             <div><label class="block text-xs font-semibold mb-1">Text Watermark</label><input id="optPdfWatermarkText" type="text" value="DOKUMEN RESMI" placeholder="Tulis teks watermark" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div>
-            <label class="flex items-center gap-2 text-xs"><input id="optPdfNoRotate" type="checkbox" checked class="accent-accent"><span>Do Not Rotate</span></label>
-            <div><label class="block text-xs font-semibold mb-1">Sudut Rotasi</label><input id="optPdfRotate" type="range" min="-90" max="90" value="0" class="w-full accent-accent"></div>
+            <p class="text-[11px] text-zinc-500">Watermark ditempatkan tanpa rotasi, sama seperti watermark gambar.</p>
           `}
           <div class="grid grid-cols-2 gap-2">
             <div><label class="block text-xs font-semibold mb-1">Pages From</label><input id="optPdfFrom" type="number" min="1" value="1" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
@@ -2036,7 +2052,7 @@
         extBadge.textContent = '.png';
         filenameInput.value = 'MiDoc_Watermark_Gambar';
         btnLabel.textContent = 'Beri Teks Watermark';
-        box.innerHTML = '<div><label class="block text-xs font-semibold mb-1">Teks Watermark</label><input id="optImgWatermarkText" type="text" value="MiDoc Document" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div><div><label class="block text-xs font-semibold mb-1">Posisi · Pilih 1 dari 9 titik</label><input id="optImgWatermarkPosition" type="hidden" value="br"><div class="grid grid-cols-3 gap-1.5 w-36"><button type="button" data-img-text-position="tl" onclick="setImageTextPosition(&quot;tl&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="tc" onclick="setImageTextPosition(&quot;tc&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="tr" onclick="setImageTextPosition(&quot;tr&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="ml" onclick="setImageTextPosition(&quot;ml&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="mc" onclick="setImageTextPosition(&quot;mc&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="mr" onclick="setImageTextPosition(&quot;mr&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="bl" onclick="setImageTextPosition(&quot;bl&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="bc" onclick="setImageTextPosition(&quot;bc&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="br" onclick="setImageTextPosition(&quot;br&quot;)" class="min-w-10 min-h-10 rounded-sm border border-accent bg-accent/10 text-accent">●</button></div></div><div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Ukuran (px)</label><input id="optImgWatermarkSize" type="number" min="8" max="240" value="36" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div><div><label class="block text-xs font-semibold mb-1">Transparansi</label><input id="optImgWatermarkOpacity" type="range" min="5" max="100" value="70" class="w-full accent-accent"></div></div><div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Warna Teks</label><input id="optImgWatermarkColor" type="color" value="#FFFFFF" class="w-full h-9 bg-transparent border rounded-sm"></div><div><label class="block text-xs font-semibold mb-1">Jenis Font</label><select id="optImgWatermarkFont" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option></select></div></div>';
+        box.innerHTML = '<div><label class="block text-xs font-semibold mb-1">Teks Watermark</label><input id="optImgWatermarkText" type="text" value="MiDoc Document" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div><div><label class="block text-xs font-semibold mb-1">Posisi · Pilih 1 dari 9 titik</label><input id="optImgWatermarkPosition" type="hidden" value="br"><div id="imgTextPositionGrid" class="grid grid-cols-3 gap-1.5 w-36"><button type="button" data-img-text-position="tl" onclick="setImageTextPosition(&quot;tl&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="tc" onclick="setImageTextPosition(&quot;tc&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="tr" onclick="setImageTextPosition(&quot;tr&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="ml" onclick="setImageTextPosition(&quot;ml&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="mc" onclick="setImageTextPosition(&quot;mc&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="mr" onclick="setImageTextPosition(&quot;mr&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="bl" onclick="setImageTextPosition(&quot;bl&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="bc" onclick="setImageTextPosition(&quot;bc&quot;)" class="min-w-10 min-h-10 rounded-sm border">●</button><button type="button" data-img-text-position="br" onclick="setImageTextPosition(&quot;br&quot;)" class="min-w-10 min-h-10 rounded-sm border border-accent bg-accent/10 text-accent">●</button></div></div><div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Ukuran (px)</label><input id="optImgWatermarkSize" type="number" min="8" max="240" value="36" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div><div><label class="block text-xs font-semibold mb-1">Transparansi</label><input id="optImgWatermarkOpacity" type="range" min="5" max="100" value="70" class="w-full accent-accent"></div></div><div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Warna Teks</label><input id="optImgWatermarkColor" type="color" value="#FFFFFF" class="w-full h-9 bg-transparent border rounded-sm"></div><div><label class="block text-xs font-semibold mb-1">Jenis Font</label><select id="optImgWatermarkFont" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option></select></div></div>';
       } else if (engine === 'overlay-images') {
         extBadge.textContent = '.png';
         filenameInput.value = 'MiDoc_Gabungan_Layer';
@@ -2046,8 +2062,8 @@
           <div><label class="block text-xs font-semibold mb-1">Gambar 1 · Latar / Belakang</label><select id="optOverlayBase" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></select></div>
           <div><label class="block text-xs font-semibold mb-1">Gambar 2 · Depan / Tanda Tangan / Stempel</label><select id="optOverlayFront" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></select></div>
           <input id="optOverlayScale" type="hidden" value="28">
-          <input id="optOverlayX" type="hidden" value="66">
-          <input id="optOverlayY" type="hidden" value="66">
+          <input id="optOverlayX" type="hidden" value="50">
+          <input id="optOverlayY" type="hidden" value="50">
           <p class="text-[11px] text-zinc-500">Ukuran dan posisi diatur di bawah dua pratinjau tengah. Pilih dua file berbeda untuk menentukan latar dan layer depan.</p>
         `;
       } else if (engine === 'batch-rename') {
@@ -2634,7 +2650,7 @@
       renderWorkspaceItems();
       updateFilenamePreviewHint();
       if (state.activeEngine === 'split-pdf') updateSplitPdfRangesPreview();
-      if (state.activeToolObj?.id === 'organize-pdf' && state.items.some(item => item.isPdf && item.singlePageIndex === null && item.pageCount > 1)) await explodeAllPdfsToPages({ silent: true });
+      if (state.activeToolObj?.id === 'organize-pdf' && state.items.some(item => item.isPdf && item.singlePageIndex === null && item.pageCount >= 1)) await explodeAllPdfsToPages({ silent: true });
       if (state.activeToolObj?.id === 'zip-tools' && document.getElementById('optZipMode')?.value === 'view') { try { await readZipArchiveForAction('view'); } catch (error) { showToast('ZIP gagal dibaca: ' + error.message, 'error'); } }
       showToast(`${filesArray.length} file ditambahkan sesuai urutan.`, 'success');
     }
@@ -2660,7 +2676,7 @@
       }
       const updated = [];
       for (const item of state.items) {
-        if (item.isPdf && item.singlePageIndex === null && item.pageCount > 1 && item.arrayBuffer) {
+        if (item.isPdf && item.singlePageIndex === null && item.pageCount >= 1 && item.arrayBuffer) {
           const pdfDoc = await pdfjsLib.getDocument({ data: item.arrayBuffer.slice(0) }).promise;
           for (let p = 0; p < pdfDoc.numPages; p++) {
             const page = await pdfDoc.getPage(p + 1);
@@ -2823,7 +2839,7 @@
       const isDoubleLargeEditor = fileEditingTools.includes(state.activeEngine) && state.items.length === 2;
       if (verticalEditors && !state.items.some(item => item.id === state.selectedEditItemId)) state.selectedEditItemId = state.items.find(item => item.isImage)?.id || state.items[0]?.id || null;
       if (fourColumnTools.includes(state.activeEngine)) {
-        grid.className = 'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2';
+        grid.className = 'grid grid-cols-2 md:grid-cols-4 gap-2';
       } else if (twoColumnTools.includes(state.activeEngine)) {
         grid.className = 'grid grid-cols-2 gap-2.5';
       } else if (verticalEditors) {
@@ -2900,7 +2916,7 @@
             draggable="true"
             data-id="${item.id}"
             onclick="selectCardForSplitter('${item.id}')"
-            class="file-card flex flex-col justify-between rounded-sm bg-white dark:bg-darkCanvas border ${isSelectedForSplit ? 'border-accent' : 'border-zinc-200 dark:border-darkLine'} hover:border-accent cursor-grab"
+            class="file-card ${isSingleLargeEditor ? 'is-single-editor-card' : ''} ${isDoubleLargeEditor ? 'is-double-editor-card' : ''} flex flex-col justify-between rounded-sm bg-white dark:bg-darkCanvas border ${isSelectedForSplit ? 'border-accent' : 'border-zinc-200 dark:border-darkLine'} hover:border-accent cursor-grab"
           >
             <div class="px-2.5 py-1.5 flex items-center justify-between border-b border-zinc-200 dark:border-darkLine bg-zinc-50 dark:bg-darkSurface">
               <div class="flex items-center gap-1.5">
@@ -2917,7 +2933,7 @@
               </div>
             </div>
 
-            <div class="${isSingleLargeEditor ? 'h-[430px]' : (isDoubleLargeEditor ? 'h-[340px]' : (fileEditingTools.includes(state.activeEngine) ? 'h-56' : 'h-36'))} file-card-preview checkerboard flex items-center justify-center overflow-hidden">
+            <div class="${isSingleLargeEditor ? 'h-[520px]' : (isDoubleLargeEditor ? 'h-[400px]' : (fileEditingTools.includes(state.activeEngine) ? 'h-56' : 'h-36'))} file-card-preview checkerboard flex items-center justify-center overflow-hidden">
               ${thumbHtml}
             </div>
 
@@ -3777,8 +3793,7 @@
       }
       const pages = outPdf.getPages();
       const position = document.getElementById('optPdfTextPosition')?.value || 'bc';
-      const rotate = !pageNumberOnly && !document.getElementById('optPdfNoRotate')?.checked
-        ? Number(document.getElementById('optPdfRotate')?.value || 0) : 0;
+      const rotate = 0;
       pages.forEach((page,idx) => {
         const pageNo = idx + 1;
         if (pageNo < from || pageNo > to) return;
@@ -4344,6 +4359,12 @@
       }
     }
 
+    function getOverlayGeometry(baseWidth,baseHeight,frontWidth,frontHeight,scale,xPct,yPct){
+      const fitScale=Math.min((baseWidth*scale)/frontWidth,baseWidth/frontWidth,baseHeight/frontHeight);
+      const width=frontWidth*fitScale,height=frontHeight*fitScale;
+      return {x:(baseWidth-width)*xPct,y:(baseHeight-height)*yPct,width,height};
+    }
+
     async function runOverlayImages(baseName) {
       const images = state.items.filter(item=>item.isImage&&item.thumbUrl);
       const baseId=document.getElementById('optOverlayBase')?.value;
@@ -4354,14 +4375,10 @@
       const baseCanvas=await renderItemToCanvas(baseItem);
       const frontCanvas=await renderItemToCanvas(frontItem);
       const requestedScale=Math.max(.05,Math.min(1,Number(document.getElementById('optOverlayScale')?.value||28)/100));
-      const fitScale=Math.min((baseCanvas.width*requestedScale)/frontCanvas.width,baseCanvas.width/frontCanvas.width,baseCanvas.height/frontCanvas.height);
-      const targetW=frontCanvas.width*fitScale;
-      const targetH=frontCanvas.height*fitScale;
-      const xPct=Math.max(0,Math.min(100,Number(document.getElementById('optOverlayX')?.value??state.overlayX*100)))/100;
-      const yPct=Math.max(0,Math.min(100,Number(document.getElementById('optOverlayY')?.value??state.overlayY*100)))/100;
-      const x=(baseCanvas.width-targetW)*xPct;
-      const y=(baseCanvas.height-targetH)*yPct;
-      baseCanvas.getContext('2d').drawImage(frontCanvas,x,y,targetW,targetH);
+      const xPct=Math.max(0,Math.min(1,Number(state.overlayX ?? 0.5)));
+      const yPct=Math.max(0,Math.min(1,Number(state.overlayY ?? 0.5)));
+      const geometry=getOverlayGeometry(baseCanvas.width,baseCanvas.height,frontCanvas.width,frontCanvas.height,requestedScale,xPct,yPct);
+      baseCanvas.getContext('2d').drawImage(frontCanvas,geometry.x,geometry.y,geometry.width,geometry.height);
       const blob=await new Promise((resolve,reject)=>baseCanvas.toBlob(result=>result?resolve(result):reject(new Error('Gambar gabungan gagal dibuat.')),'image/png'));
       const finalName=formatDownloadFilename({baseName,ext:'png',isBulkOrZip:false});
       finishWithBlob(blob,finalName,'Layer depan berhasil digabungkan di atas gambar latar dengan posisi dan ukuran pilihan.',{isImageResult:true});
@@ -4831,10 +4848,15 @@
       if(input)input.value=position;
       document.querySelectorAll('[data-img-text-position]').forEach(button=>{
         const active=button.dataset.imgTextPosition===position;
+        button.setAttribute('aria-pressed',String(active));
         button.classList.toggle('border-accent',active);
         button.classList.toggle('bg-accent/10',active);
         button.classList.toggle('text-accent',active);
         button.classList.toggle('border-zinc-300',!active);
+        button.classList.toggle('dark:border-darkLine',!active);
+        button.classList.toggle('bg-white',!active);
+        button.classList.toggle('dark:bg-darkCanvas',!active);
+        button.classList.toggle('text-zinc-500',!active);
       });
       drawToolLivePreview();
     }
@@ -4919,15 +4941,15 @@
       content.innerHTML='';
       const valid=ranges.filter(r=>r.indices.length);
       for(let i=0;i<valid.length;i++){
-        const r=valid[i],group=document.createElement('section');group.className='w-full border border-zinc-200 dark:border-darkLine rounded-sm p-2 space-y-2';
+        const r=valid[i],group=document.createElement('section');group.className='w-full border border-zinc-200 dark:border-darkLine rounded-sm p-3 space-y-3';
         const heading=document.createElement('h4');heading.className='text-xs font-bold';heading.textContent=mode==='pages'?'Halaman '+(r.indices[0]+1):'Split '+(i+1)+' · PDF halaman '+(r.indices[0]+1)+'–'+(r.indices[r.indices.length-1]+1);group.appendChild(heading);
-        const grid=document.createElement('div');grid.className='grid grid-cols-2 gap-2';
+        const grid=document.createElement('div');grid.className='grid grid-cols-2 gap-3';
         const endpoints=mode==='pages'?[r.indices[0]]:[r.indices[0],r.indices[r.indices.length-1]];
         for(let j=0;j<endpoints.length;j++){
-          const pageNo=endpoints[j]+1,card=document.createElement('div');card.className='min-w-0 border border-zinc-200 dark:border-darkLine rounded-sm p-1.5';
-          const label=document.createElement('div');label.className='text-[10px] font-mono font-semibold text-zinc-500 mb-1';label.textContent=(j===0?'Halaman awal · ':'Halaman akhir · ')+pageNo;card.appendChild(label);
-          const page=await doc.getPage(pageNo),base=page.getViewport({scale:1}),scale=Math.min(240/base.width,180/base.height),vp=page.getViewport({scale});
-          const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.ceil(vp.width));canvas.height=Math.max(1,Math.ceil(vp.height));canvas.className='block mx-auto max-w-full h-auto bg-white';
+          const pageNo=endpoints[j]+1,card=document.createElement('div');card.className='min-w-0 border border-zinc-200 dark:border-darkLine rounded-sm p-2 bg-white dark:bg-darkCanvas';
+          const label=document.createElement('div');label.className='text-[11px] font-mono font-semibold text-zinc-600 dark:text-zinc-300 mb-2';label.textContent=(mode==='pages'?'Halaman ':'Halaman '+(j===0?'dari · ':'sampai · '))+pageNo;card.appendChild(label);
+          const page=await doc.getPage(pageNo),base=page.getViewport({scale:1}),scale=Math.min(360/base.width,270/base.height),vp=page.getViewport({scale});
+          const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.ceil(vp.width));canvas.height=Math.max(1,Math.ceil(vp.height));canvas.className='block mx-auto max-w-full h-auto bg-white';canvas.style.maxHeight='270px';
           await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
           if(token!==state.livePreviewToken)return;card.appendChild(canvas);grid.appendChild(card);
         }
@@ -4954,8 +4976,9 @@
         if(engine==='split-pdf'){await drawSplitPdfPagePreview(token);return;}
         if(engine==='qr-generator'){
           const canvas=await makeCodeCanvas();if(token!==state.livePreviewToken)return;
-          canvas.className='block mx-auto w-full h-auto border border-zinc-200 dark:border-darkLine rounded-sm bg-white';
-          canvas.style.width='100%';canvas.style.maxWidth='100%';canvas.style.maxHeight='none';content.appendChild(canvas);
+          canvas.className='block mx-auto h-auto border border-zinc-200 dark:border-darkLine rounded-sm bg-white';
+          canvas.style.width=(document.getElementById('optCodeType')?.value||'qr')==='qr'?'min(100%, 720px)':'100%';
+          canvas.style.maxWidth='100%';canvas.style.maxHeight='70vh';canvas.style.objectFit='contain';content.appendChild(canvas);
           if(meta)meta.textContent=(document.getElementById('optCodeType')?.value||'qr')==='qr'?'QR Code':'Barcode';
           return;
         }
@@ -4998,11 +5021,11 @@
           const front=images.find(i=>i.id===document.getElementById('optOverlayFront')?.value)||images.find(i=>i.id!==base?.id);
           if(!base||!front){content.innerHTML='<p class="text-xs text-zinc-500">Tambahkan dua gambar untuk mulai: satu sebagai latar dan satu sebagai layer depan.</p>';return;}
           const baseCanvas=await renderItemToCanvas(base),frontCanvas=await renderItemToCanvas(front);if(token!==state.livePreviewToken)return;
-          const sourceRow=document.createElement('div');sourceRow.className='grid grid-cols-2 gap-2 w-full';
+          const sourceRow=document.createElement('div');sourceRow.className='grid grid-cols-2 gap-3 w-full';
           [[baseCanvas,'Gambar 1 · Latar / Belakang',base.name],[frontCanvas,'Gambar 2 · Depan / Overlay',front.name]].forEach(([source,label,name])=>{
             const card=document.createElement('div');card.className='min-w-0 border border-zinc-200 dark:border-darkLine rounded-sm p-2';
             const heading=document.createElement('div');heading.className='text-[11px] font-bold mb-2 truncate';heading.textContent=label;card.appendChild(heading);
-            const img=document.createElement('canvas');img.width=source.width;img.height=source.height;img.getContext('2d').drawImage(source,0,0);img.className='block w-full h-32 object-contain bg-zinc-100 dark:bg-darkCanvas';img.title=name;card.appendChild(img);
+            const img=document.createElement('canvas');img.width=source.width;img.height=source.height;img.getContext('2d').drawImage(source,0,0);img.className='block w-full h-48 sm:h-56 object-contain bg-zinc-100 dark:bg-darkCanvas';img.title=name;card.appendChild(img);
             const nameLabel=document.createElement('div');nameLabel.className='text-[10px] text-zinc-500 mt-1 truncate';nameLabel.textContent=name;card.appendChild(nameLabel);sourceRow.appendChild(card);
           });
           content.appendChild(sourceRow);
@@ -5013,7 +5036,7 @@
           const display=createPreviewCanvas(baseCanvas.width,baseCanvas.height,1400);display.className='block w-full h-auto border border-zinc-300 dark:border-darkLine rounded-sm';display.style.maxHeight='65vh';display.style.touchAction='none';content.appendChild(display);
           const scaleValue=()=>Math.max(.05,Math.min(1,Number(document.getElementById('overlayPreviewScale')?.value||document.getElementById('optOverlayScale')?.value||28)/100));
           let layerBox={x:0,y:0,w:0,h:0};
-          const drawComposite=()=>{const factor=Math.min((baseCanvas.width*scaleValue())/frontCanvas.width,baseCanvas.width/frontCanvas.width,baseCanvas.height/frontCanvas.height);const w=frontCanvas.width*factor,h=frontCanvas.height*factor;const x=(baseCanvas.width-w)*state.overlayX,y=(baseCanvas.height-h)*state.overlayY;const k=display.width/baseCanvas.width;const dctx=display.getContext('2d');dctx.clearRect(0,0,display.width,display.height);dctx.drawImage(baseCanvas,0,0,display.width,display.height);dctx.drawImage(frontCanvas,x*k,y*k,w*k,h*k);layerBox={x:x/baseCanvas.width,y:y/baseCanvas.height,w:w/baseCanvas.width,h:h/baseCanvas.height};
+          const drawComposite=()=>{const geometry=getOverlayGeometry(baseCanvas.width,baseCanvas.height,frontCanvas.width,frontCanvas.height,scaleValue(),state.overlayX,state.overlayY);const {x,y,width:w,height:h}=geometry;const k=display.width/baseCanvas.width;const dctx=display.getContext('2d');dctx.clearRect(0,0,display.width,display.height);dctx.drawImage(baseCanvas,0,0,display.width,display.height);dctx.drawImage(frontCanvas,x*k,y*k,w*k,h*k);layerBox={x:x/baseCanvas.width,y:y/baseCanvas.height,w:w/baseCanvas.width,h:h/baseCanvas.height};
             const scaleEl=document.getElementById('optOverlayScale'),xEl=document.getElementById('optOverlayX'),yEl=document.getElementById('optOverlayY');if(scaleEl)scaleEl.value=Math.round(scaleValue()*100);if(xEl)xEl.value=Math.round(state.overlayX*100);if(yEl)yEl.value=Math.round(state.overlayY*100);
             const scaleLabel=document.getElementById('overlayPreviewScaleLabel'),xLabel=document.getElementById('overlayPreviewXLabel'),yLabel=document.getElementById('overlayPreviewYLabel');if(scaleLabel)scaleLabel.textContent=Math.round(scaleValue()*100)+'%';if(xLabel)xLabel.textContent=Math.round(state.overlayX*100)+'%';if(yLabel)yLabel.textContent=Math.round(state.overlayY*100)+'%';
             const xRange=document.getElementById('overlayPreviewX'),yRange=document.getElementById('overlayPreviewY');if(xRange)xRange.value=Math.round(state.overlayX*100);if(yRange)yRange.value=Math.round(state.overlayY*100);
