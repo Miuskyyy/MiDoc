@@ -1936,33 +1936,42 @@
           <p class="text-[11px] text-zinc-500">Rasio lebar dan tinggi selalu dipertahankan. Tidak ada crop, stretch, atau margin tambahan pada Resize Image.</p>
         `;
         updateResizeOutputOptions();
-      } else if (engine === 'filters-image') {      } else if (engine === 'filters-image') {
-        extBadge.textContent = '.zip';
-        filenameInput.value = 'MiDoc_Edit_Gambar';
-        btnLabel.textContent = 'Terapkan Edit Gambar';
+      } else if (engine === 'filters-image') {
+        extBadge.textContent = '.png';
+        filenameInput.value = 'MiDoc_Filter_Warna';
+        btnLabel.textContent = 'Simpan Filter Warna';
         box.innerHTML = `
-          <div>
-            <label class="block text-xs font-semibold mb-1">Bentuk Potongan</label>
-            <select id="optShapeCrop" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
-              <option value="none" selected>Persegi Asli</option>
-              <option value="circle">Circle Crop (Lingkaran Transparan)</option>
-              <option value="rounded">Rounded Corners (Sudut Melengkung)</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1">Efek & Filter Warna</label>
+          <div><label class="block text-xs font-semibold mb-1">Filter Warna</label>
             <select id="optColorFilter" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
-              <option value="none">Tanpa Filter Warna</option>
-              <option value="grayscale(100%)">Grayscale (Hitam Putih)</option>
-              <option value="sepia(85%)">Sepia</option>
-              <option value="contrast(140%)">Kontras Tinggi</option>
-              <option value="brightness(120%)">Cerahkan Gambar</option>
-              <option value="invert(100%)">Invert Colors</option>
-              <option value="blur(4px)">Blur</option>
+              <option value="none">Normal</option><option value="grayscale(100%)">Grayscale</option><option value="sepia(85%)">Sepia</option><option value="contrast(140%)">Kontras Tinggi</option><option value="brightness(120%)">Lebih Cerah</option><option value="brightness(80%)">Lebih Gelap</option><option value="saturate(160%)">Saturasi Tinggi</option><option value="saturate(60%)">Saturasi Rendah</option><option value="invert(100%)">Invert</option><option value="hue-rotate(90deg)">Hue 90°</option><option value="blur(2px)">Blur 2 px</option><option value="blur(4px)">Blur 4 px</option>
             </select>
           </div>
+          <p class="text-[11px] text-zinc-500">Hasil filter langsung terlihat pada pratinjau gambar. File sumber tidak diubah sampai tombol simpan ditekan.</p>
         `;
-      } else if (engine === 'rotate-flip') {
+      } else if (engine === 'shape-crop') {
+        extBadge.textContent = '.png';
+        filenameInput.value = 'MiDoc_Shape_Crop';
+        btnLabel.textContent = 'Simpan Shape Crop';
+        box.innerHTML = `
+          <div><label class="block text-xs font-semibold mb-1">Bentuk</label><select id="optShapeMode" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="rect">Persegi / Persegi Panjang</option><option value="circle">Lingkaran</option><option value="rounded">Rounded Corners</option></select></div>
+          <div><label class="block text-xs font-semibold mb-1">Rasio Crop / Pas Foto</label><select id="optShapeRatio" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="free">Bebas (ikuti gambar)</option><option value="3:4">Pas Foto 3×4 cm</option><option value="4:6">Pas Foto 4×6 cm</option><option value="3.5:4.5">Pas Foto 3,5×4,5 cm</option><option value="1:1">1:1</option><option value="4:5">4:5</option><option value="16:9">16:9</option></select></div>
+          <div><label class="block text-xs font-semibold mb-1">Radius Sudut <span id="shapeRadiusLabel">12</span>%</label><input id="optShapeRadius" type="range" min="0" max="50" value="12" oninput="document.getElementById('shapeRadiusLabel').textContent=this.value;drawToolLivePreview()" class="w-full accent-accent"></div>
+          <p class="text-[11px] text-zinc-500">Pilih gambar dari kartu di sebelah kiri untuk mengedit satu gambar saja. Pratinjau mengikuti bentuk dan rasio yang dipilih.</p>
+        `;
+      } else if (engine === 'crop-image') {
+        extBadge.textContent = '.png';
+        filenameInput.value = 'MiDoc_Crop_Image';
+        btnLabel.textContent = 'Simpan Crop Image';
+        box.innerHTML = `
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="block text-xs font-semibold mb-1">X (px)</label><input id="optCropX" type="number" min="0" value="0" oninput="drawToolLivePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
+            <div><label class="block text-xs font-semibold mb-1">Y (px)</label><input id="optCropY" type="number" min="0" value="0" oninput="drawToolLivePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
+            <div><label class="block text-xs font-semibold mb-1">Lebar (px)</label><input id="optCropW" type="number" min="1" value="1000" oninput="drawToolLivePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
+            <div><label class="block text-xs font-semibold mb-1">Tinggi (px)</label><input id="optCropH" type="number" min="1" value="1000" oninput="drawToolLivePreview()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono"></div>
+          </div>
+          <p id="cropPixelInfo" class="text-[11px] text-zinc-500">Crop berdasarkan koordinat piksel gambar asli. Dimensi output mengikuti lebar × tinggi area yang dipilih.</p>
+        `;
+      } else if (engine === 'rotate-flip') {      } else if (engine === 'rotate-flip') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Rotate_Flip';
         btnLabel.textContent = 'Simpan Hasil Rotate / Flip';
@@ -1996,22 +2005,17 @@
         `;
       } else if (engine === 'overlay-images') {
         extBadge.textContent = '.png';
-        filenameInput.value = 'MiDoc_Overlay';
-        btnLabel.textContent = 'Gabung Gambar #1 + #2';
+        filenameInput.value = 'MiDoc_Gabungan_Layer';
+        btnLabel.textContent = 'Simpan Gabungan Layer';
         box.innerHTML = `
-          <p class="text-xs text-zinc-600 dark:text-zinc-400">
-            Menempatkan gambar urutan <strong>#2</strong> (tanda tangan/stempel/logo) di atas gambar urutan <strong>#1</strong> (foto utama).
-          </p>
-          <div>
-            <label class="block text-xs font-semibold mb-1">Posisi Overlay (#2)</label>
-            <select id="optOverlayPos" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
-              <option value="bottom-right" selected>Kanan Bawah</option>
-              <option value="center">Tengah</option>
-              <option value="bottom-left">Kiri Bawah</option>
-            </select>
-          </div>
+          <p class="text-xs text-zinc-600 dark:text-zinc-400">Pilih gambar latar dan gambar depan. Geser layer gambar depan pada pratinjau di tengah; ubah ukurannya dengan slider, lalu simpan saat posisinya sudah tepat.</p>
+          <div><label class="block text-xs font-semibold mb-1">Gambar 1 · Latar / Belakang</label><select id="optOverlayBase" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></select></div>
+          <div><label class="block text-xs font-semibold mb-1">Gambar 2 · Depan / Tanda Tangan / Stempel</label><select id="optOverlayFront" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></select></div>
+          <div><div class="flex justify-between text-xs font-semibold mb-1"><label for="optOverlayScale">Ukuran Layer Depan</label><span id="overlayScaleLabel" class="font-mono text-accent">28%</span></div><input id="optOverlayScale" type="range" min="5" max="100" value="28" oninput="document.getElementById('overlayScaleLabel').textContent=this.value+'%';drawToolLivePreview()" class="w-full accent-accent"></div>
+          <div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Posisi X (%)</label><input id="optOverlayX" type="number" min="0" max="100" value="66" oninput="syncOverlayPosition()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div><div><label class="block text-xs font-semibold mb-1">Posisi Y (%)</label><input id="optOverlayY" type="number" min="0" max="100" value="66" oninput="syncOverlayPosition()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div></div>
+          <p class="text-[11px] text-zinc-500">Kamu bisa drag layer langsung pada pratinjau. Pilih kedua file dulu; urutan tidak harus mengikuti urutan upload.</p>
         `;
-      } else if (engine === 'batch-rename') {
+      } else if (engine === 'batch-rename') {      } else if (engine === 'batch-rename') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Batch_Rename';
         btnLabel.textContent = 'Proses Batch Rename';
@@ -2046,20 +2050,11 @@
         filenameInput.value = 'MiDoc_Arsip';
         btnLabel.textContent = 'Buat Arsip ZIP';
         box.innerHTML = `
-          <div>
-            <label class="block text-xs font-semibold mb-1">Mode ZIP</label>
-            <select id="optZipMode" onchange="updateZipToolMode()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
-              <option value="create" selected>Buat ZIP dari file yang dipilih</option>
-              <option value="extract">Ekstrak ZIP ke folder</option>
-              <option value="view">Lihat isi ZIP saja</option>
-            </select>
-          </div>
-          <div id="zipModeDescription" class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-200 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">
-            Kemas semua file di workspace sesuai urutan kartu menjadi satu arsip ZIP.
-          </div>
+          <div><label class="block text-xs font-semibold mb-1">Mode ZIP</label><select id="optZipMode" onchange="updateZipToolMode()" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="create" selected>Buat ZIP dari file yang dipilih</option><option value="view">Lihat isi ZIP</option></select></div>
+          <p id="zipModeDescription" class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-200 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">Kemas file menjadi satu arsip ZIP.</p>
         `;
         updateZipToolMode();
-      } else if (engine === 'color-picker') {
+      } else if (engine === 'color-picker') {      } else if (engine === 'color-picker') {
         filenameGroup.classList.add('hidden');
         btnLabel.textContent = 'Ekstrak Palet Warna Gambar #1';
         box.innerHTML = `
@@ -2068,15 +2063,32 @@
         `;
       } else if (engine === 'qr-generator') {
         extBadge.textContent = '.png';
-        filenameInput.value = 'MiDoc_Kode_Matrix';
-        btnLabel.textContent = 'Generate Kode QR';
+        filenameInput.value = 'MiDoc_QR_Barcode';
+        btnLabel.textContent = 'Simpan Kode';
         box.innerHTML = `
-          <div>
-            <label class="block text-xs font-semibold mb-1">Teks atau Tautan URL</label>
-            <input id="optQrText" type="text" value="" placeholder="Masukkan tautan atau teks yang ingin dijadikan QR Code" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs font-mono" />
+          <div><label class="block text-xs font-semibold mb-1">Jenis Kode</label><select id="optCodeType" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="qr" selected>QR Code</option><option value="barcode">Barcode</option></select></div>
+          <div><label class="block text-xs font-semibold mb-1">Teks / Nomor</label><input id="optQrText" type="text" value="MiDoc 2026" placeholder="Masukkan teks, URL, atau nomor barcode" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div>
+          <div id="qrOptions" class="space-y-2">
+            <div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Ukuran QR</label><input id="optQrSize" type="number" min="128" max="2048" value="512" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div><div><label class="block text-xs font-semibold mb-1">Error Correction</label><select id="optQrCorrection" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="L">Low</option><option value="M" selected>Medium</option><option value="Q">Quartile</option><option value="H">High</option></select></div></div>
+            <div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Background</label><input id="optQrBg" type="color" value="#ffffff" class="w-full h-9 bg-transparent border rounded-sm"></div><div><label class="block text-xs font-semibold mb-1">Line Color</label><input id="optQrFg" type="color" value="#000000" class="w-full h-9 bg-transparent border rounded-sm"></div></div>
           </div>
+          <div id="barcodeOptions" class="hidden space-y-2">
+            <div><label class="block text-xs font-semibold mb-1">Format Barcode</label><select id="optBarcodeFormat" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs">
+              <option value="CODE128" selected>CODE128 Auto</option><option value="CODE128A">CODE128 A</option><option value="CODE128B">CODE128 B</option><option value="CODE128C">CODE128 C</option><option value="EAN13">EAN13</option><option value="EAN8">EAN8</option><option value="UPC">UPC</option><option value="CODE39">CODE39</option><option value="ITF14">ITF14</option><option value="ITF">ITF</option><option value="MSI">MSI</option><option value="MSI10">MSI10</option><option value="MSI11">MSI11</option><option value="MSI1010">MSI1010</option><option value="MSI1110">MSI1110</option><option value="Pharmacode">Pharmacode</option>
+            </select></div>
+            <label class="flex items-center gap-2 text-xs"><input id="optBarcodeShowText" type="checkbox" checked class="accent-accent"><span>Show Text</span></label>
+            <div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Bar Width</label><input id="optBarcodeWidth" type="number" min="1" max="5" value="2" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div><div><label class="block text-xs font-semibold mb-1">Bar Height</label><input id="optBarcodeHeight" type="number" min="20" max="300" value="100" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div></div>
+            <div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Margin</label><input id="optBarcodeMargin" type="number" min="0" max="100" value="10" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div><div><label class="block text-xs font-semibold mb-1">Font Size</label><input id="optBarcodeFontSize" type="number" min="8" max="64" value="20" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div></div>
+            <div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Text Margin</label><input id="optBarcodeTextMargin" type="number" min="0" max="40" value="0" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"></div><div><label class="block text-xs font-semibold mb-1">Text Align</label><select id="optBarcodeAlign" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="left">Left</option><option value="center" selected>Center</option><option value="right">Right</option></select></div></div>
+            <div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-semibold mb-1">Background</label><input id="optBarcodeBg" type="color" value="#ffffff" class="w-full h-9 bg-transparent border rounded-sm"></div><div><label class="block text-xs font-semibold mb-1">Line Color</label><input id="optBarcodeFg" type="color" value="#000000" class="w-full h-9 bg-transparent border rounded-sm"></div></div>
+            <div class="grid grid-cols-2 gap-2"><label class="flex items-center gap-2 text-xs"><input id="optBarcodeBold" type="checkbox" class="accent-accent">Bold</label><label class="flex items-center gap-2 text-xs"><input id="optBarcodeItalic" type="checkbox" class="accent-accent">Italic</label></div>
+            <div><label class="block text-xs font-semibold mb-1">Font Family</label><select id="optBarcodeFont" class="w-full px-3 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine text-xs"><option value="Monospace">Monospace</option><option value="Sans-serif" selected>Sans-serif</option><option value="Serif">Serif</option><option value="Fantasy">Fantasy</option><option value="Cursive">Cursive</option></select></div>
+          </div>
+          <p class="text-[11px] text-zinc-500">Preview akan diperbarui saat teks atau pengaturan berubah. Ekspor dilakukan setelah hasilnya sesuai.</p>
         `;
-      } else if (engine === 'password-gen') {
+        box.querySelector('#optCodeType')?.addEventListener('change', updateCodeType);
+        updateCodeType();
+      } else if (engine === 'password-gen') {      } else if (engine === 'password-gen') {
         filenameGroup.classList.add('hidden');
         btnLabel.textContent = 'Buat Kata Sandi Baru';
         box.innerHTML = `
