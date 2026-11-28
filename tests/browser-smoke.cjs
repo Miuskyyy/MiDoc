@@ -139,23 +139,117 @@ const fs = require('node:fs');
     }, { timeout: 45000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
 
-    // Organize PDF must require splitting the source into page cards before processing.
+    // Extract Images mode should return embedded raster assets, not page renders.
+    await openTool('pdf-to-image');
+    await page.locator('#optPdfExportMode').selectOption('embedded');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 45000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
+    const embeddedZipDownloadPromise = page.waitForEvent('download', { timeout: 10000 });
+    await page.locator('#reDownloadBtn').click();
+    const embeddedZipDownload = await embeddedZipDownloadPromise;
+    const embeddedZipPath = '/tmp/midoc-embedded-images-test.zip';
+    await embeddedZipDownload.saveAs(embeddedZipPath);
+    const embeddedZipBytes = fs.readFileSync(embeddedZipPath);
+    const embeddedImageEntries = await page.evaluate(async base64 => {
+      const binary = atob(base64);
+      const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+      const archive = await JSZip.loadAsync(bytes);
+      return Object.keys(archive.files).filter(name => !archive.files[name].dir && /\.(png|jpe?g|webp)$/i.test(name));
+    }, embeddedZipBytes.toString('base64'));
+    assert.ok(embeddedImageEntries.length > 0, 'Extract Images should export at least one embedded image asset from an image-based PDF.');
+
+    // Organize PDF automatically expands each PDF page when the PDF is dropped.
     await openTool('organize-pdf');
     await page.locator('#fileInput').setInputFiles(pdfPath);
-    await page.waitForFunction(() => {
-      const card = document.querySelector('#fileItemsGrid .file-card');
-      return card && card.innerText.includes('PDF 2 HAL');
-    }, { timeout: 15000 });
+    await page.waitForFunction(() => document.querySelectorAll('#fileItemsGrid .file-card').length === 2, { timeout: 20000 });
+    const pageCards = await page.locator('#fileItemsGrid .file-card').allInnerTexts();
+    assert.equal(pageCards.length, 2, 'Organize PDF should automatically render one card for each PDF page after upload.');
     await page.locator('button[onclick="executeCurrentTool()"]').click();
-    await page.waitForTimeout(500);
-    assert.equal(await page.locator('#resultOutputBox').evaluate(el => el.classList.contains('hidden')), true, 'Organize PDF must not silently return an unchanged file before page cards are split');
-    await page.locator('#expandPdfPagesBtn').click();
-    await page.waitForFunction(() => document.querySelectorAll('#fileItemsGrid .file-card').length === 2, { timeout: 15000 });
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
+
+    // PDF splitting: custom page ranges should generate multiple PDFs in one ZIP.
+    await openTool('split-pdf');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optSplitParts').fill('1; 2');
     await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
+
+    // Extract Pages should still save only the selected range as a PDF.
+    await openTool('extract-pdf-pages');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optPageRange').fill('2');
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
+
+    // The same tool can remove selected pages and keep the remaining pages.
+    await openTool('extract-pdf-pages');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optExtractPageMode').selectOption('remove');
+    await page.locator('#optPageRange').fill('1');
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    const deletePdfDownloadPromise = page.waitForEvent('download', { timeout: 10000 });
+    await page.locator('#reDownloadBtn').click();
+    const deletePdfDownload = await deletePdfDownloadPromise;
+    const deletePdfPath = '/tmp/midoc-delete-page-test.pdf';
+    await deletePdfDownload.saveAs(deletePdfPath);
+    const remainingPages = await page.evaluate(async base64 => {
+      const binary = atob(base64);
+      const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+      return (await PDFLib.PDFDocument.load(bytes)).getPageCount();
+    }, fs.readFileSync(deletePdfPath).toString('base64'));
+    assert.equal(remainingPages, 1, 'Removing page 1 from a 2-page PDF should leave one page.');
+
+    // Crop PDF should render its first page immediately and accept a draggable crop rectangle.
+    await openTool('crop-pdf');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
     await page.waitForFunction(() => {
-      const box = document.getElementById('resultOutputBox');
-      return box && !box.classList.contains('hidden');
-    }, { timeout: 30000 });
+      const panel = document.getElementById('pdfCropPreviewPanel');
+      const canvas = document.getElementById('pdfCropCanvas');
+      return panel && !panel.classList.contains('hidden') && canvas && canvas.width > 0;
+    }, { timeout: 20000 });
+    const cropCanvas = await page.locator('#pdfCropCanvas').boundingBox();
+    await page.mouse.move(cropCanvas.x + cropCanvas.width * 0.12, cropCanvas.y + cropCanvas.height * 0.12);
+    await page.mouse.down();
+    await page.mouse.move(cropCanvas.x + cropCanvas.width * 0.82, cropCanvas.y + cropCanvas.height * 0.82, { steps: 5 });
+    await page.mouse.up();
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
+
+    // Page numbering and watermark expose configurable controls and produce a PDF.
+    await openTool('page-number-pdf');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optPdfStartFrom').fill('7');
+    await page.locator('#optPdfFrom').fill('2');
+    await page.locator('#optPdfTo').fill('2');
+    await page.locator('[data-pdf-position="top-right"]').click();
+    assert.equal(await page.locator('#optPdfPosition').inputValue(), 'top-right');
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
+
+    await openTool('watermark-pdf');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optPdfWatermarkText').fill('MIDOC TEST');
+    await page.locator('#optWmFrom').fill('1');
+    await page.locator('#optWmTo').fill('1');
+    await page.locator('#optWmOpacity').evaluate(el => { el.value = '60'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    await page.locator('#optWmFormat').selectOption('diagonal');
+    await page.locator('[data-pdf-position="center"]').click();
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
 
     // ZIP Maker creates a real archive while preserving source names.
@@ -178,12 +272,12 @@ const fs = require('node:fs');
     await zipDownload.saveAs(zipPath);
     assert.equal(fs.readFileSync(zipPath).subarray(0, 2).toString('ascii'), 'PK', 'ZIP Maker must create a real ZIP file.');
 
-    // ZIP Viewer and Extractor must load archive contents and expose per-file download.
+    // ZIP Viewer automatically opens its central, scrollable contents after the archive is selected.
     await openTool('zip-tools');
     await page.locator('#optZipMode').selectOption('view');
+    assert.match(await page.locator('#fileInput').getAttribute('accept'), /\.zip/);
+    assert.equal(await page.locator('#fileInput').evaluate(el => el.multiple), false);
     await page.locator('#fileInput').setInputFiles(zipPath);
-    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
     await page.waitForFunction(() => {
       const panel = document.getElementById('zipContentsPanel');
       return panel && !panel.classList.contains('hidden');
@@ -191,40 +285,77 @@ const fs = require('node:fs');
     const zipContents = await page.locator('#zipContentsPanel').innerText();
     assert.match(zipContents, /alpha\.txt/);
     assert.match(zipContents, /beta\.txt/);
-
-    await openTool('zip-tools');
-    await page.locator('#optZipMode').selectOption('extract');
-    await page.locator('#fileInput').setInputFiles(zipPath);
-    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
-    await page.waitForFunction(() => {
-      const panel = document.getElementById('zipContentsPanel');
-      return panel && !panel.classList.contains('hidden');
-    }, { timeout: 20000 });
     const fileDownloadPromise = page.waitForEvent('download', { timeout: 10000 });
     await page.locator('#zipContentsPanel button[data-zip-entry-download="0"]').click();
     const extractedFile = await fileDownloadPromise;
     assert.equal(extractedFile.suggestedFilename(), 'alpha.txt');
 
-    // ZIP modes must change the file picker rules.
+    // ZIP no longer exposes a folder extraction mode.
     await openTool('zip-tools');
-    assert.equal(await page.locator('#optZipMode').inputValue(), 'create');
-    await page.locator('#optZipMode').selectOption('view');
-    assert.match(await page.locator('#fileInput').getAttribute('accept'), /\.zip/);
-    assert.equal(await page.locator('#fileInput').evaluate(el => el.multiple), false);
-    await page.locator('#optZipMode').selectOption('extract');
-    assert.match(await page.locator('#fileInput').getAttribute('accept'), /\.zip/);
+    const zipModes = await page.locator('#optZipMode option').evaluateAll(options => options.map(option => option.value));
+    assert.deepEqual(zipModes, ['create', 'view']);
 
-    // QR generator must create a standards-compatible PNG result from supplied text.
-    await openTool('qr-generator');
-    await page.waitForFunction(() => typeof window.QRCode === 'function', { timeout: 20000 });
-    await page.locator('#optQrText').fill('https://example.com/midoc-audit');
+    // Resize Image updates the preview as the user slides the percentage before saving.
+    await openTool('resize-pixel');
+    await page.locator('#fileInput').setInputFiles({ name: 'resize-source.png', mimeType: 'image/png', buffer: redPng });
+    await page.waitForFunction(() => !document.getElementById('editorLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optResizePercent').evaluate(el => { el.value = '50'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    await page.waitForFunction(() => document.getElementById('optResizeResultDimensions').innerText.includes('2 × 2'), { timeout: 10000 });
     await page.locator('button[onclick="executeCurrentTool()"]').click();
-    await page.waitForFunction(() => {
-      const box = document.getElementById('resultOutputBox');
-      return box && !box.classList.contains('hidden');
-    }, { timeout: 20000 });
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
+
+    // Shape Crop, Crop by Pixel and Color Filter all show a live preview in the workspace.
+    await openTool('shape-crop');
+    await page.locator('#fileInput').setInputFiles({ name: 'shape-source.png', mimeType: 'image/png', buffer: redPng });
+    await page.waitForFunction(() => !document.getElementById('editorLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
+    assert.ok(await page.locator('#editorPreviewCanvas').evaluate(canvas => canvas.width > 0));
+    await page.locator('#optShapeMask').selectOption('rounded');
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$|\.zip$/i);
+
+    await openTool('crop-pixel');
+    await page.locator('#fileInput').setInputFiles({ name: 'crop-source.png', mimeType: 'image/png', buffer: redPng });
+    await page.waitForFunction(() => !document.getElementById('editorLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optCropW').fill('2');
+    await page.locator('#optCropH').fill('2');
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
+
+    await openTool('color-filters');
+    await page.locator('#fileInput').setInputFiles({ name: 'filter-source.png', mimeType: 'image/png', buffer: redPng });
+    await page.waitForFunction(() => !document.getElementById('editorLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optColorFilter').selectOption('grayscale(100%)');
+    assert.ok(await page.locator('#editorPreviewCanvas').evaluate(canvas => canvas.width > 0));
+
+    // QR and barcode share one generator and both preview before the Save button is pressed.
+    await openTool('code-generator');
+    await page.waitForFunction(() => typeof window.QRCode === 'function' && typeof window.JsBarcode === 'function', { timeout: 20000 });
+    await page.locator('#optCodeText').fill('https://example.com/midoc-audit');
+    await page.waitForFunction(() => document.querySelector('#codePreviewHolder canvas, #codePreviewHolder img'), { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
+
+    await openTool('code-generator');
+    await page.locator('#optCodeType').selectOption('barcode');
+    await page.locator('#optCodeText').fill('123456789012');
+    await page.waitForFunction(() => document.querySelector('#codePreviewHolder svg'), { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
+
+    // Key editing controls should stay inside a narrow mobile viewport.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openTool('watermark-pdf');
+    const mobileLayout = await page.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      document: document.documentElement.scrollWidth
+    }));
+    assert.ok(mobileLayout.document <= mobileLayout.viewport + 1,
+      'Watermark PDF controls should not create horizontal overflow on mobile: ' + JSON.stringify(mobileLayout));
 
     assert.deepEqual(errors, [], 'No uncaught browser exceptions should occur');
     console.log('Browser smoke tests passed: GIF create/extract, strict PDF input guard, Image-to-PDF defaults/export, valid PDF-to-image export, ZIP create/view/extract/download, QR output.');
