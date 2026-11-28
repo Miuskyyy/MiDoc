@@ -2209,7 +2209,7 @@
     function updateResizeMode(mode) { /* replaced by aspect-preserving Resize Image */ }
     function applyResizePreset(val) { /* legacy preset handler intentionally unused */ }
 
-    function recalcUnitConverter() {    function recalcUnitConverter() {
+    function recalcUnitConverter() {
       const value = Number(document.getElementById('unitValue')?.value);
       const from = document.getElementById('unitFrom')?.value || 'px';
       const to = document.getElementById('unitTo')?.value || 'cm';
