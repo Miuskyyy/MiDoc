@@ -19,6 +19,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 
   <script>
     tailwind.config = {
@@ -322,11 +323,6 @@
               <i data-lucide="file-check" class="w-3.5 h-3.5 text-accent"></i>
               <span>Muat Contoh File</span>
             </button>
-
-            <button id="expandPdfPagesBtn" onclick="explodeAllPdfsToPages()" class="hidden inline-flex items-center gap-1.5 px-3 py-2 rounded-sm border border-accent text-accent bg-accent/10 hover:bg-accent hover:text-white text-xs font-semibold">
-              <i data-lucide="scissors" class="w-3.5 h-3.5"></i>
-              <span>Pecah Per Halaman PDF</span>
-            </button>
           </div>
 
           <!-- Precision Order & View Controls -->
@@ -488,6 +484,17 @@
 
           <!-- Reorderable Cards Grid -->
           <div id="fileItemsGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5"></div>
+          <div id="editorLivePreviewPanel" class="hidden mt-4 rounded-sm border border-zinc-300 dark:border-darkLine bg-zinc-50 dark:bg-darkSurface p-3 sm:p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2"><div><h3 id="editorPreviewTitle" class="font-display text-sm font-bold">Pratinjau langsung</h3><p id="editorPreviewHint" class="text-[11px] text-zinc-500">Perubahan terlihat sebelum disimpan.</p></div><span id="editorPreviewDimensions" class="text-[11px] font-mono text-accent"></span></div>
+            <div id="editorPreviewCanvasWrap" class="w-full min-w-0 checkerboard border border-zinc-200 dark:border-darkLine rounded-sm p-2 flex items-center justify-center overflow-auto"><canvas id="editorPreviewCanvas" class="max-w-full h-auto block"></canvas></div>
+          </div>
+          <div id="zipContentsPanel" class="hidden mt-4 space-y-2"></div>
+          <div id="pdfCropPreviewPanel" class="hidden mt-4 rounded-sm border border-zinc-300 dark:border-darkLine bg-zinc-50 dark:bg-darkSurface p-3 sm:p-4 space-y-3">
+            <div class="flex items-center justify-between gap-2"><h3 class="font-display text-sm font-bold">Pratinjau Crop PDF</h3><span id="pdfCropPageLabel" class="text-xs font-mono text-accent"></span></div>
+            <div class="flex flex-wrap items-center gap-2"><button type="button" onclick="changePdfCropPage(-1)" class="px-3 py-2 min-h-10 border rounded-sm">Halaman Sebelumnya</button><button type="button" onclick="changePdfCropPage(1)" class="px-3 py-2 min-h-10 border rounded-sm">Halaman Berikutnya</button><label class="text-xs flex items-center gap-2"><input id="optCropPdfAllPages" type="checkbox" checked> Terapkan crop yang sama ke semua halaman</label></div>
+            <div class="w-full overflow-auto checkerboard border border-zinc-200 dark:border-darkLine p-2"><canvas id="pdfCropCanvas" class="max-w-full h-auto block mx-auto touch-none" onpointerdown="startPdfCropDrag(event)" onpointermove="movePdfCropDrag(event)" onpointerup="finishPdfCropDrag(event)" onpointercancel="finishPdfCropDrag(event)"></canvas></div>
+            <p class="text-[11px] text-zinc-500">Tarik pada halaman untuk menentukan area yang dipertahankan. Pilih halaman lain untuk membuat area crop berbeda atau aktifkan pilihan semua halaman.</p>
+          </div>
 
           <!-- Bottom Status Strip -->
           <div id="bottomAddStrip" class="hidden mt-4 pt-3 border-t border-zinc-200 dark:border-darkLine flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
@@ -602,7 +609,7 @@
       <div class="flex items-center gap-2">
         <span class="hidden sm:inline text-xs text-zinc-500">Ketuk area kosong di luar gambar atau tekan ESC untuk kembali</span>
         <button onclick="closeFullPreviewModal()" class="px-3 py-1.5 rounded-sm bg-accent hover:bg-accentHover text-white text-xs font-semibold flex items-center gap-1.5">
-          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          <i data-lucide="x" class="w-5 h-5"></i>
           <span>Tutup</span>
         </button>
       </div>
@@ -613,7 +620,7 @@
   </div>
 
   <!-- ==================== FILE INSPECTOR MODAL ==================== -->
-  <div id="inspectorModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+  <div id="inspectorModal" onclick="if(event.target===this) closeInspectorModal()" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
     <div class="bg-white dark:bg-darkSurface border border-zinc-300 dark:border-darkLine rounded-sm max-w-2xl w-full overflow-hidden">
       <div class="px-4 py-3 border-b border-zinc-200 dark:border-darkLine flex items-center justify-between">
         <h3 id="inspectorTitle" class="font-display font-bold text-sm truncate">Detail File</h3>
@@ -649,10 +656,9 @@
         tools: [
           { id: 'merge-pdf', name: 'Merge PDF', desc: 'Gabungkan dua atau lebih dokumen PDF sesuai urutan.', icon: 'file-plus-2', engine: 'merge-pdf' },
           { id: 'merge-pdf-image', name: 'Merge PDF & Gambar', desc: 'Gabungkan PDF dan gambar raster JPG, PNG, WebP, AVIF, atau BMP dalam satu dokumen.', icon: 'layers', engine: 'merge-pdf-image' },
-          { id: 'split-pdf', name: 'Split PDF', desc: 'Pisahkan halaman PDF menjadi file satuan atau rentang', icon: 'scissors', engine: 'split-pdf' },
+          { id: 'split-pdf', name: 'Split PDF', desc: 'Bagi halaman PDF menjadi beberapa file berdasarkan rentang halaman khusus atau satu halaman per file.', icon: 'scissors', engine: 'split-pdf' },
           { id: 'organize-pdf', name: 'Organize & Hapus Halaman PDF', desc: 'Susun ulang atau hapus halaman PDF dengan mengatur kartu halaman.', icon: 'layout-grid', engine: 'organize-pdf' },
           { id: 'extract-pdf-pages', name: 'Ekstrak Halaman PDF', desc: 'Ambil nomor halaman tertentu menjadi PDF baru', icon: 'file-output', engine: 'split-pdf' },
-          { id: 'extract-pdf-images', name: 'Ekspor Halaman PDF ke Gambar', desc: 'Render setiap halaman PDF menjadi PNG, JPG, atau WebP.', icon: 'images', engine: 'pdf-to-image' }
         ]
       },
       {
@@ -663,9 +669,9 @@
         tools: [
           { id: 'compress-pdf', name: 'Compress PDF (Rasterisasi)', desc: 'Kompres dengan merender ulang halaman menjadi gambar; teks dan vektor tidak lagi dapat dipilih.', icon: 'minimize-2', engine: 'compress-pdf' },
           { id: 'rotate-pdf', name: 'Rotate PDF', desc: 'Putar halaman PDF 90°, 180°, atau 270°.', icon: 'rotate-cw', engine: 'rotate-pdf' },
-          { id: 'crop-pdf', name: 'Crop PDF', desc: 'Potong area margin tepi halaman PDF', icon: 'crop', engine: 'crop-pdf' },
-          { id: 'page-number-pdf', name: 'Tambah Nomor Halaman', desc: 'Sisipkan penomoran halaman otomatis di bagian bawah', icon: 'hash', engine: 'watermark-pdf' },
-          { id: 'watermark-pdf', name: 'Tambah Watermark PDF', desc: 'Beri teks stempel watermark transparan di setiap halaman', icon: 'stamp', engine: 'watermark-pdf' },
+          { id: 'crop-pdf', name: 'Crop PDF', desc: 'Pilih area potong langsung pada pratinjau halaman PDF dan terapkan ke halaman pilihan atau seluruh dokumen.', icon: 'crop', engine: 'crop-pdf' },
+          { id: 'page-number-pdf', name: 'Tambah Nomor Halaman', desc: 'Atur rentang halaman, nomor awal, posisi, warna, ukuran, dan font nomor halaman.', icon: 'hash', engine: 'watermark-pdf' },
+          { id: 'watermark-pdf', name: 'Tambah Watermark PDF', desc: 'Atur teks, rentang halaman, posisi, rotasi, font, warna, ukuran, dan transparansi watermark.', icon: 'stamp', engine: 'watermark-pdf' },
           { id: 'pdf-copy', name: 'Salin Ulang PDF', desc: 'Baca dan simpan ulang struktur PDF tanpa mengklaim menambah atau menghapus password.', icon: 'file-check', engine: 'copy-pdf' }
         ]
       },
@@ -676,9 +682,9 @@
         subtitle: 'Konversi lintas format antara gambar, PDF, teks dokumen, lembar kerja, dan eBook.',
         tools: [
           { id: 'image-to-pdf', name: 'Gambar ke PDF', desc: 'Ubah gambar JPG, PNG, WebP, AVIF, atau BMP menjadi PDF.', icon: 'file-image', engine: 'image-to-pdf' },
-          { id: 'pdf-to-image', name: 'PDF ke Gambar', desc: 'Render tiap halaman PDF menjadi file PNG, JPG, atau WebP dalam ZIP.', icon: 'image', engine: 'pdf-to-image' },
+          { id: 'pdf-to-image', name: 'Page to Image & Extract Images', desc: 'Ekspor setiap halaman PDF sebagai gambar atau ekstrak gambar yang tertanam di dalam PDF.', icon: 'image', engine: 'pdf-to-image' },
           { id: 'word-to-pdf', name: 'DOCX / RTF ke PDF (Ekstrak Teks)', desc: 'Ambil teks dari DOCX atau RTF lalu susun ke PDF baru. Tata letak, tabel kompleks, dan gambar dokumen tidak dipertahankan.', icon: 'file-text', engine: 'doc-to-pdf' },
-          { id: 'pdf-to-word', name: 'PDF ke TXT (Ekstrak Teks)', desc: 'Ekstrak lapisan teks PDF ke TXT. PDF scan tanpa OCR tidak menghasilkan teks.', icon: 'file-type', engine: 'pdf-to-text' },
+          { id: 'pdf-to-word', name: 'PDF ke TXT', desc: 'Ekstrak lapisan teks PDF ke TXT. PDF scan tanpa OCR tidak menghasilkan teks.', icon: 'file-type', engine: 'pdf-to-text' },
           { id: 'excel-to-pdf', name: 'XLSX / CSV / TSV ke PDF (Data Sel)', desc: 'Ekstrak nilai sel menjadi teks berbaris pada PDF. Format tabel, rumus tampilan, dan styling spreadsheet tidak dipertahankan.', icon: 'table', engine: 'doc-to-pdf' },
           { id: 'ppt-to-pdf', name: 'PPTX ke PDF (Teks Slide)', desc: 'Ekstrak teks dari tiap slide ke halaman PDF baru. Gambar, posisi objek, animasi, dan desain slide tidak direplikasi.', icon: 'presentation', engine: 'doc-to-pdf' },
           { id: 'txt-to-pdf', name: 'TXT ke PDF', desc: 'Tulis atau unggah file .txt lalu simpan sebagai PDF', icon: 'align-left', engine: 'text-to-pdf' },
@@ -693,21 +699,17 @@
         tools: [
           { id: 'image-splitter', name: 'Image Splitter (Pemisah Gambar Seimbang)', desc: 'Potong gambar menjadi N bagian ke samping & M bagian ke bawah dengan pratinjau garis presisi', icon: 'grid', engine: 'image-splitter', badge: 'PRESISI GRID' },
           { id: 'join-images', name: 'Gabung Gambar', desc: 'Satukan dua atau lebih gambar raster secara vertikal, horizontal, atau grid sesuai urutan.', icon: 'columns', engine: 'join-images' },
-          { id: 'stitch-screenshot', name: 'Gabung Screenshot Berurutan', desc: 'Susun beberapa screenshot secara vertikal atau horizontal sesuai urutan pilihan. Tidak mendeteksi area tumpang tindih secara otomatis.', icon: 'smartphone', engine: 'join-images' },
-          { id: 'photo-collage', name: 'Instagram Grid Splitter 3×3', desc: 'Pecah satu foto menjadi sembilan potongan berurutan untuk feed Instagram.', icon: 'layout-grid', engine: 'image-splitter' },
-          { id: 'overlay-images', name: 'Overlay Gambar', desc: 'Tumpuk gambar kedua (logo/stempel) di atas gambar utama', icon: 'copy', engine: 'overlay-images' }
+          { id: 'overlay-images', name: 'Overlay Gambar', desc: 'Gabungkan gambar latar dan gambar depan; geser, ubah ukuran, dan atur transparansinya sebelum disimpan.', icon: 'copy', engine: 'overlay-images' }
         ]
       },
       {
         id: 'group-img-resize',
         navCat: 'image',
         title: 'Kelompok 5: Gambar — Optimasi & Ubah Ukuran',
-        subtitle: 'Kompres ukuran KB, atur piksel/persentase, ukuran pas foto resmi, dan pengecekan DPI.',
+        subtitle: 'Kompres gambar, resize dengan rasio asli, dan hitung kebutuhan dimensi cetak.',
         tools: [
-          { id: 'compress-image', name: 'Compress Gambar & Target KB', desc: 'Kompres gambar raster JPG, PNG, WebP, AVIF, atau BMP menjadi JPG/WebP dengan kontrol kualitas dan batas lebar.', icon: 'shrink', engine: 'compress-image' },
-          { id: 'resize-pixel', name: 'Resize Pixel & Persentase', desc: 'Ubah dimensi piksel atau skala persentase gambar secara akurat', icon: 'maximize-2', engine: 'resize-image' },
-          { id: 'resize-official', name: 'Resize Resmi & Pas Foto (3.5x4.5cm / 3x4 / 4x6 / A4)', desc: 'Preset pas foto KTP, CPNS, Visa, dan kertas cetak A4 300 DPI', icon: 'user-square', engine: 'resize-image' },
-          { id: 'bulk-resize', name: 'Bulk Resize Gambar', desc: 'Ubah ukuran puluhan gambar sekaligus dalam satu proses', icon: 'layers', engine: 'resize-image' },
+          { id: 'compress-image', name: 'Compress Gambar', desc: 'Atur kualitas dan pratinjau ukuran hasil kompres sebelum menyimpan.', icon: 'shrink', engine: 'compress-image' },
+          { id: 'resize-pixel', name: 'Resize Image', desc: 'Ubah ukuran gambar dengan rasio asli tetap terjaga dan pratinjau dimensi hasil.', icon: 'maximize-2', engine: 'resize-image' },
           { id: 'dpi-checker', name: 'Kalkulator Dimensi Cetak', desc: 'Hitung kebutuhan piksel dari ukuran cetak dan DPI.', icon: 'ruler', engine: 'dpi-calc' }
         ]
       },
@@ -715,14 +717,13 @@
         id: 'group-img-edit',
         navCat: 'image',
         title: 'Kelompok 6: Gambar — Edit, Warna & Efek',
-        subtitle: 'Potong lingkaran, sudut melengkung, tanda tangan digital, filter warna, dan hapus EXIF.',
+        subtitle: 'Atur posisi overlay, crop bentuk dan piksel, putar, beri filter, watermark, atau hapus EXIF.',
         tools: [
-          { id: 'crop-circle', name: 'Circle Crop (Potongan Lingkaran)', desc: 'Potong gambar menjadi lingkaran transparan dengan ukuran sisi mengikuti dimensi terpendek gambar.', icon: 'circle', engine: 'filters-image' },
+          { id: 'shape-crop', name: 'Shape Crop & Pas Foto', desc: 'Potong gambar menjadi lingkaran, sudut bulat, atau rasio pas foto seperti 3×4, 4×6, dan 3,5×4,5 cm.', icon: 'scan', engine: 'shape-crop' },
+          { id: 'crop-pixel', name: 'Crop Image by Pixel', desc: 'Potong gambar menggunakan koordinat X, Y, lebar, dan tinggi dalam piksel.', icon: 'crop', engine: 'crop-pixel' },
           { id: 'rotate-flip', name: 'Rotate & Flip Gambar', desc: 'Putar 90°/180° atau balik gambar secara horizontal/vertikal', icon: 'flip-horizontal', engine: 'rotate-flip' },
-          { id: 'rounded-corners', name: 'Rounded Corners', desc: 'Beri lengkungan sudut halus transparan pada gambar', icon: 'square', engine: 'filters-image' },
           { id: 'watermark-image', name: 'Watermark & Teks Gambar', desc: 'Tambahkan teks hak cipta atau label pada foto', icon: 'type', engine: 'watermark-image' },
-          { id: 'photo-signature', name: 'Foto + Tanda Tangan & Stempel Digital', desc: 'Gabungkan pas foto dengan gambar tanda tangan/stempel', icon: 'pen-tool', engine: 'overlay-images' },
-          { id: 'color-filters', name: 'Filter Warna (Grayscale, Sepia, Invert, Kontras, Blur)', desc: 'Terapkan filter grayscale, sepia, invert, kontras, brightness, atau blur pada gambar.', icon: 'sliders', engine: 'filters-image' },
+          { id: 'color-filters', name: 'Filter Warna', desc: 'Terapkan filter grayscale, sepia, invert, kontras, brightness, atau blur pada gambar.', icon: 'sliders', engine: 'filters-image' },
           { id: 'remove-exif', name: 'Hapus Metadata EXIF & GPS', desc: 'Ekspor ulang gambar dalam format sumber untuk menghapus metadata EXIF/GPS dan informasi kamera. Kualitas re-encode mengikuti kemampuan browser.', icon: 'shield-check', engine: 'remove-exif' }
         ]
       },
@@ -734,9 +735,9 @@
         tools: [
           { id: 'batch-rename', name: 'Batch Rename File', desc: 'Ganti nama puluhan file sekaligus dengan nomor urut rapi', icon: 'edit-3', engine: 'batch-rename' },
           { id: 'gif-tools', name: 'GIF Maker & Ekstrak Frame GIF', desc: 'Buat animasi GIF dari rangkaian gambar, atau ekstrak frame dari satu file GIF.', icon: 'film', engine: 'gif-tools' },
-          { id: 'zip-tools', name: 'ZIP Maker & Extractor', desc: 'Bungkus satu atau beberapa file ke dalam ZIP dengan nama asli, ekstrak arsip, atau lihat daftar isinya.', icon: 'archive', engine: 'zip-maker' },
-          { id: 'color-picker', name: 'Image Color Palette Extractor', desc: 'Ambil sampel warna dominan dari gambar dan tampilkan kode HEX untuk disalin.', icon: 'pipette', engine: 'color-picker' },
-          { id: 'qr-generator', name: 'QR Code Generator', desc: 'Buat QR Code standar yang bisa dipindai dari teks atau tautan.', icon: 'qr-code', engine: 'qr-generator' },
+          { id: 'zip-tools', name: 'ZIP Maker & ZIP Viewer', desc: 'Buat arsip ZIP atau lihat isi arsip dan unduh file di dalamnya satu per satu.', icon: 'archive', engine: 'zip-maker' },
+          { id: 'color-picker', name: 'Image Color Palette Extractor', desc: 'Temukan warna dominan dan variasi warna gambar dengan palet HEX yang lebih lengkap.', icon: 'pipette', engine: 'color-picker' },
+          { id: 'code-generator', name: 'QR & Barcode Generator', desc: 'Buat QR Code atau berbagai format barcode dengan pratinjau langsung sebelum disimpan.', icon: 'barcode', engine: 'code-generator' },
           { id: 'password-gen', name: 'Password Generator', desc: 'Buat kata sandi acak kuat untuk pengamanan dokumen', icon: 'key-round', engine: 'password-gen' },
           { id: 'unit-converter', name: 'Konverter PX / CM / MM / Inch', desc: 'Konversi panjang antar PX, CM, MM, dan Inch berdasarkan DPI.', icon: 'calculator', engine: 'unit-converter' }
         ]
@@ -767,7 +768,7 @@
         label: 'View & Edit',
         icon: 'file-pen-line',
         description: 'Atur tata letak halaman, putar orientasi, potong margin, ekstrak halaman, dan tambahkan elemen PDF.',
-        toolIds: ['crop-pdf', 'organize-pdf', 'rotate-pdf', 'extract-pdf-pages', 'extract-pdf-images', 'page-number-pdf', 'watermark-pdf']
+        toolIds: ['crop-pdf', 'organize-pdf', 'rotate-pdf', 'extract-pdf-pages', 'page-number-pdf', 'watermark-pdf']
       },
       {
         id: 'pdf-to',
@@ -795,7 +796,7 @@
         label: 'Optimize Image',
         icon: 'image',
         description: 'Kompres, ubah ukuran, dan siapkan gambar untuk kebutuhan cetak.',
-        toolIds: ['compress-image', 'resize-pixel', 'resize-official', 'bulk-resize', 'dpi-checker']
+        toolIds: ['compress-image', 'resize-pixel', 'dpi-checker']
       },
       {
         id: 'image-convert',
@@ -809,21 +810,21 @@
         label: 'Merge & Split Image',
         icon: 'grid-2x2',
         description: 'Gabungkan, sambungkan, buat kolase, atau potong gambar menjadi beberapa bagian.',
-        toolIds: ['image-splitter', 'join-images', 'stitch-screenshot', 'photo-collage']
+        toolIds: ['image-splitter', 'join-images']
       },
       {
         id: 'image-edit',
         label: 'Edit Image',
         icon: 'sliders-horizontal',
         description: 'Potong, putar, beri efek, watermark, tanda tangan, dan susun gambar.',
-        toolIds: ['overlay-images', 'crop-circle', 'rotate-flip', 'rounded-corners', 'watermark-image', 'photo-signature', 'color-filters']
+        toolIds: ['overlay-images', 'shape-crop', 'crop-pixel', 'rotate-flip', 'watermark-image', 'color-filters']
       },
       {
         id: 'utilities',
         label: 'Utilities & Batch',
         icon: 'wrench',
         description: 'Alat bantu untuk pengelolaan file, arsip, kode, dan konversi satuan.',
-        toolIds: ['batch-rename', 'zip-tools', 'color-picker', 'qr-generator', 'password-gen', 'unit-converter']
+        toolIds: ['batch-rename', 'zip-tools', 'color-picker', 'password-gen', 'unit-converter']
       }
     ];
 
@@ -861,7 +862,6 @@
       'pdf-to-word': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
       'dpi-checker': { formats: ['none'], accept: '', min: 0, label: 'tidak membutuhkan file' },
       'extract-pdf-pages': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, max: 1, label: 'satu file PDF' },
-      'extract-pdf-images': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
       'image-to-pdf': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar JPG, PNG, WebP, AVIF, atau BMP' },
       'pdf-to-image': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
       'pdf-to-text': { formats: ['pdf'], accept: '.pdf,application/pdf', min: 1, label: 'file PDF' },
@@ -872,16 +872,11 @@
       'txt-to-pdf': { formats: ['txt', 'md'], accept: '.txt,.md', min: 0, max: 1, label: 'satu file TXT atau Markdown' },
       'doc-to-pdf': { formats: ['docx', 'rtf', 'txt', 'md', 'html', 'csv', 'tsv', 'xlsx', 'pptx', 'epub'], accept: '.docx,.rtf,.txt,.md,.html,.htm,.csv,.tsv,.xlsx,.pptx,.epub', min: 0, max: 1, label: 'DOCX, RTF, TXT, Markdown, HTML, CSV, TSV, XLSX, PPTX, atau EPUB' },
       
-      'photo-collage': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
-      'stitch-screenshot': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar screenshot' },
       'image-splitter': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
-      'photo-signature': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, max: 2, label: 'tepat dua gambar: foto dan tanda tangan/stempel' },
       'resize-pixel': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
-      'resize-official': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
-      'bulk-resize': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar raster statis' },
-      'crop-circle': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
-      'rounded-corners': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'color-filters': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'shape-crop': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'crop-pixel': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'remove-exif': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'join-images': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar raster statis' },
       'compress-image': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
@@ -894,8 +889,8 @@
       'color-picker': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
       'batch-rename': { formats: ['any'], accept: '*/*', min: 1, label: 'file apa pun' },
       'zip-tools': { formats: ['any'], accept: '*/*', min: 1, label: 'file apa pun' },
+      'code-generator': { formats: ['none'], accept: '', min: 0, label: 'tidak membutuhkan file' },
       'gif-tools': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar raster statis' },
-      'qr-generator': { formats: ['none'], accept: '', min: 0, label: 'tidak membutuhkan file' },
       'password-gen': { formats: ['none'], accept: '', min: 0, label: 'tidak membutuhkan file' },
       'dpi-calc': { formats: ['none'], accept: '', min: 0, label: 'tidak membutuhkan file' },
       'unit-converter': { formats: ['none'], accept: '', min: 0, label: 'tidak membutuhkan file' }
@@ -907,7 +902,7 @@
       if (toolObj.id === 'gif-tools' && document.getElementById('optGifMode')?.value === 'extract') {
         return { formats: ['gif'], accept: '.gif,image/gif', min: 1, max: 1, label: 'tepat satu file GIF animasi' };
       }
-      if (toolObj.id === 'zip-tools' && document.getElementById('optZipMode')?.value !== 'create') {
+      if (toolObj.id === 'zip-tools' && document.getElementById('optZipMode')?.value === 'view') {
         return { formats: ['zip'], accept: '.zip,application/zip,application/x-zip-compressed', min: 1, max: 1, label: 'tepat satu file ZIP' };
       }
       return rule;
@@ -1392,8 +1387,8 @@
 
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             ${category.tools.map(tool => `
-              <button
-                onclick="openToolWorkspace('${tool.id}')"
+              <a
+                href="${window.location.pathname}?tool=${encodeURIComponent(tool.id)}"
                 class="group p-4 rounded-sm bg-zinc-50/70 dark:bg-darkSurface border border-zinc-200 dark:border-darkLine hover:border-accent dark:hover:border-accent text-left flex items-start gap-3.5 transition-colors"
               >
                 <div class="w-8 h-8 rounded-sm bg-accent text-white flex items-center justify-center shrink-0 mt-0.5">
@@ -1407,7 +1402,7 @@
                     ${tool.desc}
                   </p>
                 </div>
-              </button>
+              </a>
             `).join('')}
           </div>
         </section>
@@ -2893,10 +2888,10 @@
               </div>
               <div class="flex items-center gap-1">
                 <button onclick="event.stopPropagation(); inspectItem('${item.id}')" class="p-1 text-zinc-500 hover:text-accent" title="Detail File">
-                  <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                  <i data-lucide="zoom-in" class="w-5 h-5"></i>
                 </button>
                 <button onclick="event.stopPropagation(); removeItem('${item.id}')" class="p-1 text-zinc-500 hover:text-red-600" title="Hapus">
-                  <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                  <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
               </div>
             </div>
