@@ -1970,10 +1970,6 @@
             </div>
             <input id="optConvertQuality" type="range" min="10" max="100" value="85" oninput="document.getElementById('optConvertQualityLabel').textContent = this.value + '%'" class="w-full accent-accent" />
           </div>
-          <div id="optBgFillGroup">
-            <label class="block text-xs font-semibold mb-1">Warna Latar (untuk JPG/JPEG)</label>
-            <input id="optBgFill" type="color" value="#ffffff" class="w-full h-8 rounded-sm border border-zinc-300 dark:border-darkLine bg-transparent" />
-          </div>
           <p class="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
             AVIF bergantung pada dukungan encoder browser. GIF animasi diproses melalui alat GIF khusus agar frame tidak hilang.
           </p>
@@ -4027,9 +4023,7 @@
       const target = document.getElementById('optTargetFormat')?.value || 'image/png';
       const isLossy = ['image/jpeg', 'image/webp', 'image/avif'].includes(target);
       const qualityGroup = document.getElementById('optConvertQualityGroup');
-      const backgroundGroup = document.getElementById('optBgFillGroup');
       if (qualityGroup) qualityGroup.classList.toggle('hidden', !isLossy);
-      if (backgroundGroup) backgroundGroup.classList.toggle('hidden', target !== 'image/jpeg');
     }
 
     function imageMimeToExtension(mime) {
@@ -4196,12 +4190,11 @@
           mime = document.getElementById('optTargetFormat').value;
           quality = (parseInt(document.getElementById('optConvertQuality')?.value || '85', 10)) / 100;
           if (mime === 'image/jpeg') {
-            const bg = document.getElementById('optBgFill').value;
             const c = document.createElement('canvas');
             c.width = baseCanvas.width;
             c.height = baseCanvas.height;
             const ctx = c.getContext('2d');
-            ctx.fillStyle = bg;
+            ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, c.width, c.height);
             ctx.drawImage(baseCanvas, 0, 0);
             outCanvas = c;
