@@ -90,7 +90,15 @@ jobs:
             ['Real QR generation', 'new QRCode(host'],
             ['Independent unit converter', 'function recalcUnitConverter'],
             ['Percentage resize mode', "document.getElementById('optResizePercent')"],
-            ['ZIP path traversal protection', "originalParts.includes('..')"],
+            ['Multi-range PDF split', "split(';')"],
+            ['Interactive overlay positioning', 'function startOverlayDrag'],
+            ['Live image editor previews', 'function renderActiveEditorPreview'],
+            ['Pixel crop engine', 'async function runCropImagePixels'],
+            ['Embedded PDF image extraction', 'async function runPdfEmbeddedImages'],
+            ['QR and barcode generator', 'async function runCodeGenerator'],
+            ['Barcode encoder', 'JsBarcode(svg'],
+            ['PDF watermark controls', 'optWmOpacity'],
+            ['ZIP viewer without folder extraction', 'function showZipArchiveContents'],
             ['Image-to-PDF original-size default', '<option value="FIT" selected>Sesuai Dimensi Asli Gambar</option>'],
             ['Image-to-PDF zero margin default', '<option value="0">0 pt (Penuh Tanpa Margin)</option>'],
             ['Image-to-PDF original quality default', '<option value="original" selected>Same as Image — 100% / kualitas asli</option>']
@@ -132,9 +140,8 @@ jobs:
           const required = [
             ['ZIP modes', 'id="optZipMode"'],
             ['ZIP inspect mode', 'value="view"'],
-            ['ZIP extract mode', 'value="extract"'],
             ['ZIP archive listing', 'showZipArchiveContents'],
-            ['ZIP folder extraction', 'extractZipToFolder'],
+            ['ZIP viewer automatic loading', "readZipArchiveForAction('view')"],
             ['Explicit result download', 'id="reDownloadBtn"'],
             ['AVIF conversion option', 'image/avif'],
             ['BMP conversion path', 'canvasToBmpBlob'],
@@ -149,6 +156,9 @@ jobs:
           const failures = required.filter(item => !html.includes(item[1])).map(item => item[0]);
           if (failures.length) {
             throw new Error('Missing functionality: ' + failures.join(', '));
+          }
+          if (html.includes('function extractZipToFolder')) {
+            throw new Error('Obsolete ZIP folder extraction should not be present.');
           }
           if (html.includes('Lokal • Tanpa Upload Server')) {
             throw new Error('Obsolete local-only navbar badge is still present.');
