@@ -2279,7 +2279,7 @@
       }
       if (toolObj.id === 'resize-pixel') {
         extBadge.textContent = '.png'; filenameInput.value = 'MiDoc_Resize_Image'; btnLabel.textContent = 'Simpan Resize Image';
-        box.innerHTML = '<div><div class="flex justify-between"><label class="font-semibold">Persentase Ukuran</label><strong id="optResizePercentLabel" class="font-mono text-accent">100%</strong></div><input id="optResizePercent" type="range" min="10" max="300" value="100" step="1" oninput="renderActiveEditorPreview()" class="w-full accent-accent"><p class="text-[11px] text-zinc-500">Rasio gambar selalu dipertahankan. Geser untuk memperbesar atau memperkecil.</p></div><div class="grid grid-cols-2 gap-2"><div><label class="font-semibold">Lebar target (px)</label><input id="optResizeWidth" type="number" min="1" max="12000" value="1200" oninput="syncResizeFromWidth()" class="w-full px-2 py-2 border rounded-sm bg-white dark:bg-darkCanvas"></div><div><label class="font-semibold">Tinggi hasil</label><div id="optResizeHeightResult" class="p-2 border rounded-sm font-mono">—</div></div></div><select id="optResizeOutputFormat" class="w-full px-3 py-2 border rounded-sm bg-white dark:bg-darkCanvas"><option value="image/png">PNG</option><option value="image/jpeg">JPG</option><option value="image/webp">WebP</option></select>';
+        box.innerHTML = '<div><div class="flex justify-between"><label class="font-semibold">Persentase Ukuran</label><strong id="optResizePercentLabel" class="font-mono text-accent">100%</strong></div><input id="optResizePercent" type="range" min="10" max="300" value="100" step="1" oninput="document.getElementById(\\'optResizePercentLabel\\').textContent=this.value+\\'%\\';renderActiveEditorPreview()" class="w-full accent-accent"><p class="text-[11px] text-zinc-500">Geser untuk memperbesar atau memperkecil. Rasio asli selalu dipertahankan.</p></div><div class="grid grid-cols-2 gap-2"><div class="p-2 border rounded-sm min-w-0"><span class="block text-[10px] text-zinc-500">Piksel Asli</span><strong id="optResizeOriginalDimensions" class="block font-mono text-xs break-all">—</strong></div><div class="p-2 border rounded-sm min-w-0"><span class="block text-[10px] text-zinc-500">Piksel Hasil</span><strong id="optResizeResultDimensions" class="block font-mono text-xs break-all">—</strong></div></div><select id="optResizeOutputFormat" class="w-full px-3 py-2 border rounded-sm bg-white dark:bg-darkCanvas"><option value="image/png">PNG</option><option value="image/jpeg">JPG</option><option value="image/webp">WebP</option></select>';
       }
       if (toolObj.id === 'color-filters') {
         box.innerHTML = '<label class="block font-semibold mb-1">Filter Warna</label><select id="optColorFilter" oninput="renderActiveEditorPreview()" class="w-full px-3 py-2 border rounded-sm bg-white dark:bg-darkCanvas"><option value="none">Normal</option><option value="grayscale(100%)">Grayscale</option><option value="sepia(85%)">Sepia</option><option value="invert(100%)">Invert</option><option value="contrast(140%)">Kontras</option><option value="brightness(120%)">Brightness</option><option value="blur(4px)">Blur</option></select><p class="text-[11px] text-zinc-500">Hasil langsung terlihat sebelum disimpan.</p>';
@@ -2751,6 +2751,8 @@
       if (state.activeToolObj?.id === 'organize-pdf' && state.items.some(item => item.isPdf && item.singlePageIndex === null && item.pageCount > 1)) await explodeAllPdfsToPages();
       refreshActiveToolPreview();
       if (state.activeToolObj?.id === 'crop-pdf') await drawPdfCropPreview();
+      if (state.activeToolObj?.id === 'split-pdf') updateSplitPdfPreview();
+      if (state.activeToolObj?.id === 'extract-pdf-pages') updateExtractPdfPreview();
       if (state.activeToolObj?.id === 'zip-tools' && document.getElementById('optZipMode')?.value === 'view') await readZipArchiveForAction('view');
       showToast(`${filesArray.length} file ditambahkan sesuai urutan.`, 'success');
     }
@@ -4207,18 +4209,19 @@
       let output=source;
       if (id==='resize-pixel') {
         const percent=Number(document.getElementById('optResizePercent')?.value||100)/100;
-        const widthInput=Number(document.getElementById('optResizeWidth')?.value);
-        const customWidth=Number.isFinite(widthInput)&&widthInput>0&&document.activeElement?.id==='optResizeWidth';
-        const w=Math.max(1,Math.min(12000,Math.round(customWidth?widthInput:source.width*percent)));
-        const h=Math.max(1,Math.min(12000,Math.round(source.height*(w/source.width))));
+        const w=Math.max(1,Math.min(12000,Math.round(source.width*percent)));
+        const h=Math.max(1,Math.min(12000,Math.round(source.height*percent)));
         output=resizeCanvas(source,w,h,'stretch');
-        const heightLabel=document.getElementById('optResizeHeightResult');
-        if(heightLabel)heightLabel.textContent=h+' px';
+        const originalLabel=document.getElementById('optResizeOriginalDimensions');
+        const resultLabel=document.getElementById('optResizeResultDimensions');
+        if(originalLabel)originalLabel.textContent=source.width+' × '+source.height+' px';
+        if(resultLabel)resultLabel.textContent=w+' × '+h+' px';
         const percentLabel=document.getElementById('optResizePercentLabel');
-        if(percentLabel&&!customWidth)percentLabel.textContent=Math.round(w/source.width*100)+'%';
-        if(dims)dims.textContent='Asli '+source.width+'×'+source.height+' → Hasil '+w+'×'+h+' px';
+        if(percentLabel)percentLabel.textContent=Math.round(percent*100)+'%';
+        if(dims)dims.textContent='Hasil '+w+'×'+h+' px';
         if(title)title.textContent='Pratinjau Resize Image';
-        if(hint)hint.textContent='Rasio asli dipertahankan; tidak ada crop, regang, atau margin.';
+        if(hint)hint.textContent='Rasio asli dipertahankan. Tidak ada crop, peregangan, atau margin.';
+      } else if (id==='color-filters') {
       } else if (id==='color-filters') {
         const filter=document.getElementById('optColorFilter')?.value||'none';
         output=document.createElement('canvas'); output.width=source.width; output.height=source.height;
@@ -4685,9 +4688,9 @@
             const ctx=output.getContext('2d');ctx.fillStyle=document.getElementById('optBgFill')?.value||'#fff';ctx.fillRect(0,0,output.width,output.height);ctx.drawImage(source,0,0);
           }
         }else if(mode==='resize-image'){
-          const widthInput=Number(document.getElementById('optResizeWidth')?.value),percent=Number(document.getElementById('optResizePercent')?.value||100)/100;
-          const width=Number.isFinite(widthInput)&&widthInput>0&&state.activeToolObj?.id==='resize-pixel'?Math.round(widthInput):Math.round(source.width*percent);
-          const height=Math.round(source.height*(width/source.width));
+          const percent=Number(document.getElementById('optResizePercent')?.value||100)/100;
+          const width=Math.round(source.width*percent);
+          const height=Math.round(source.height*percent);
           if(width>12000||height>12000)throw new Error('Dimensi hasil maksimal 12.000 px. Turunkan persentase ukuran.');
           output=resizeCanvas(source,Math.max(1,width),Math.max(1,height),'stretch');mime=document.getElementById('optResizeOutputFormat')?.value||'image/png';
           if(mime==='image/jpeg'){
