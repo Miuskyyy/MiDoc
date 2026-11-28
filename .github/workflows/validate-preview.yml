@@ -3,6 +3,9 @@ name: MiDoc Preview Validation
 on:
   pull_request:
     branches: [main]
+  push:
+    branches:
+      - test/midoc-preview-final-v6-20261128
   workflow_dispatch:
 
 permissions:
