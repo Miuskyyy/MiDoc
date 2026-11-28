@@ -2632,6 +2632,7 @@
 
       renderWorkspaceItems();
       updateFilenamePreviewHint();
+      if (state.activeEngine === 'split-pdf') updateSplitPdfRangesPreview();
       if (state.activeToolObj?.id === 'organize-pdf' && state.items.some(item => item.isPdf && item.singlePageIndex === null && item.pageCount > 1)) await explodeAllPdfsToPages({ silent: true });
       if (state.activeToolObj?.id === 'zip-tools' && document.getElementById('optZipMode')?.value === 'view') { try { await readZipArchiveForAction('view'); } catch (error) { showToast('ZIP gagal dibaca: ' + error.message, 'error'); } }
       showToast(`${filesArray.length} file ditambahkan sesuai urutan.`, 'success');
@@ -3618,6 +3619,7 @@
         return;
       }
 
+      if (mode === 'parts') syncSplitPdfRangeRows();
       const ranges = mode === 'pages'
         ? Array.from({length: total}, (_,i)=>({label:String(i+1),indices:[i]}))
         : parseSplitRangesInput(document.getElementById('optPageRanges')?.value || '', total);
