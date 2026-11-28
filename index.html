@@ -1244,10 +1244,14 @@
       const fileColumn = document.getElementById('toolFileColumn');
       const previewColumn = document.getElementById('toolPreviewColumn');
       const settingsColumn = document.getElementById('toolSettingsColumn');
-      if (fileColumn) fileColumn.className = (showToolPreview ? 'xl:col-span-4' : 'xl:col-span-8') + ' min-w-0 space-y-4';
+      const hasFileInputColumn = found.engine !== 'qr-generator';
+      if (fileColumn) {
+        fileColumn.className = (showToolPreview ? (hasFileInputColumn ? 'xl:col-span-4' : 'hidden') : 'xl:col-span-8') + ' min-w-0 space-y-4';
+      }
       if (previewColumn) {
         previewColumn.classList.toggle('hidden', !showToolPreview);
-        previewColumn.classList.toggle('xl:col-span-4', showToolPreview);
+        previewColumn.classList.toggle('xl:col-span-4', showToolPreview && hasFileInputColumn);
+        previewColumn.classList.toggle('xl:col-span-8', showToolPreview && !hasFileInputColumn);
       }
       if (settingsColumn) settingsColumn.className = 'xl:col-span-4 min-w-0';
       document.getElementById('executeActionBtn')?.classList.toggle('hidden', found.engine === 'color-picker');
