@@ -2051,7 +2051,7 @@
           updateResizeMode('dimensions');
           if (toolObj.id === 'bulk-resize') document.getElementById('optResizeFit').value = 'contain';
         }
-      } else if (engine === 'filters-image') {      } else if (engine === 'image-crop-pixel') {
+      } else if (engine === 'image-crop-pixel') {
         extBadge.textContent = '.png';
         filenameInput.value = 'MiDoc_Crop_Pixel';
         btnLabel.textContent = 'Generate Crop PNG';
@@ -2062,7 +2062,7 @@
           </div>
           <p class="text-[11px] text-zinc-500">Klik kartu gambar atau ikon mata untuk membuka pratinjau. Geser kotak biru untuk menentukan posisi potongan.</p>
         `;
-
+      } else if (engine === 'filters-image') {
         extBadge.textContent = '.zip';
         filenameInput.value = 'MiDoc_Edit_Gambar';
         btnLabel.textContent = 'Terapkan Edit Gambar';
