@@ -149,7 +149,6 @@
     #fileItemsGrid .file-card.is-double-editor-card { max-width: 220px; }
     #imgTextPositionGrid [data-img-text-position] { display: flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; }
     @media (max-width: 1023px) {
-      #toolPreviewColumn > #toolLivePreviewPanel { position: static; }
       #toolSettingsColumn > .sticky { max-height: none; overflow: visible; }
     }
     .tool-edit-vertical { display: flex !important; flex-direction: column !important; gap: 12px !important; }
@@ -4994,7 +4993,7 @@
       const content=document.getElementById('toolLivePreviewContent');
       if(!panel||!content)return;
       const engine=state.activeEngine;
-      const supported=['resize-image','filters-image','shape-crop','crop-image','overlay-images','compress-image','crop-pdf','qr-generator','color-picker','split-pdf','watermark-image'].includes(engine);
+      const supported=['resize-image','filters-image','shape-crop','crop-image','overlay-images','compress-image','crop-pdf','color-picker','split-pdf','watermark-image'].includes(engine);
       if(!supported){panel.classList.add('hidden');return;}
       panel.classList.remove('hidden');
       const token=(state.livePreviewToken||0)+1;state.livePreviewToken=token;
