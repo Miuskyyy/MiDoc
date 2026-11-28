@@ -130,8 +130,8 @@
     .nav-trigger:hover, .nav-trigger:focus-visible, #navHomeBtn:hover, #navHomeBtn:focus-visible { color: #2563EB !important; }
     #desktopNav { position: relative; isolation: isolate; }
     #navHoverIndicator { position: absolute; z-index: 8; bottom: 0; left: 0; height: 3px; width: 0; border-radius: 999px; background: #2563EB; opacity: 0; transform: translateX(0); transition: transform .13s ease, width .13s ease, opacity .1s ease; pointer-events: none; }
-    #toolPreviewColumn > #toolLivePreviewPanel { position: sticky; top: 4.75rem; }
-    #toolPreviewColumn #toolLivePreviewContent { min-height: 320px; width: 100%; align-items: center; }
+    #toolVisualWorkspace #toolLivePreviewPanel { position: static; }
+    #toolVisualWorkspace #toolLivePreviewContent { min-height: 260px; width: 100%; align-items: center; }
     #toolLivePreviewContent > canvas { display: block; max-width: 100%; height: auto; }
     #toolSettingsColumn > .sticky { max-height: calc(100vh - 5.75rem); overflow-y: auto; overscroll-behavior: contain; padding: .75rem !important; gap: .55rem !important; }
     #toolSettingsColumn > .sticky > div:first-child { padding-bottom: .5rem !important; }
@@ -439,9 +439,10 @@
           </div>
         </div>
 
-      </div>
+        <!-- A      <!-- Kolom tengah dihapus; preview interaktif dipindahkan ke Area File -->
+      <div id="toolPreviewColumn" class="hidden" aria-hidden="true"></div>
 
-      <!-- CENTER COLUMN: Live output / page preview -->
+      <!-- RIGHT COLUMN (4 Cols): Tool Configuration & Execution Panel -->>
       <div id="toolPreviewColumn" class="hidden xl:col-span-4 min-w-0 space-y-4">
         <!-- LIVE IMAGE SPLITTER VISUAL GRID CANVAS (Shown specifically when Image Splitter is active and an image is loaded) -->
         <div id="splitterLivePreviewPanel" class="hidden rounded-sm border border-zinc-300 dark:border-darkLine bg-zinc-50 dark:bg-darkSurface p-4 space-y-3">
@@ -1032,9 +1033,8 @@
       const demoEmptyButton = document.getElementById('loadDemoFilesEmptyBtn');
       if (fileColumn) fileColumn.classList.toggle('hidden', noFiles);
       if (settingsColumn) {
-        const hasCenterPreview = toolObj?.engine === 'qr-generator';
-        settingsColumn.classList.toggle('lg:col-span-4', !noFiles || hasCenterPreview);
-        settingsColumn.classList.toggle('lg:col-span-12', noFiles && !hasCenterPreview);
+        settingsColumn.classList.toggle('lg:col-span-4', !noFiles);
+        settingsColumn.classList.toggle('lg:col-span-12', noFiles);
       }
       const showDemo = ['image-splitter', 'join-images'].includes(toolObj?.engine) && toolObj?.id !== 'photo-collage';
       [demoButton, demoEmptyButton].forEach(button => button?.classList.toggle('hidden', !showDemo || noFiles));
@@ -1254,21 +1254,19 @@
 
       document.getElementById('resultOutputBox').classList.add('hidden');
       document.getElementById('progressContainer').classList.add('hidden');
-      const previewEngines = ['resize-image','filters-image','shape-crop','crop-image','overlay-images','compress-image','crop-pdf','qr-generator','color-picker','split-pdf','watermark-image','image-splitter','join-images'];
-      const showToolPreview = previewEngines.includes(found.engine);
+      const visualWorkspaceEngines = ['resize-image','filters-image','shape-crop','crop-image','overlay-images','compress-image','crop-pdf','color-picker','split-pdf','watermark-image','image-splitter','join-images'];
+      const showVisualWorkspace = visualWorkspaceEngines.includes(found.engine);
       const fileColumn = document.getElementById('toolFileColumn');
       const previewColumn = document.getElementById('toolPreviewColumn');
+      const visualWorkspace = document.getElementById('toolVisualWorkspace');
       const settingsColumn = document.getElementById('toolSettingsColumn');
-      const hasFileInputColumn = found.engine !== 'qr-generator';
+      const needsFiles = !getToolInputRule(found).formats.includes('none');
       if (fileColumn) {
-        fileColumn.className = (showToolPreview ? (hasFileInputColumn ? 'lg:col-span-5' : 'hidden') : 'lg:col-span-8') + ' min-w-0 space-y-4';
+        fileColumn.className = (needsFiles ? 'lg:col-span-8' : 'hidden') + ' min-w-0 space-y-4';
       }
-      if (previewColumn) {
-        previewColumn.className = 'min-w-0 space-y-4';
-        previewColumn.classList.toggle('hidden', !showToolPreview);
-        if (showToolPreview) previewColumn.classList.add(hasFileInputColumn ? 'lg:col-span-3' : 'lg:col-span-8');
-      }
-      if (settingsColumn) settingsColumn.className = 'lg:col-span-4 min-w-0';
+      if (previewColumn) previewColumn.className = 'hidden';
+      if (visualWorkspace) visualWorkspace.classList.toggle('hidden', !showVisualWorkspace || !needsFiles);
+      if (settingsColumn) settingsColumn.className = (needsFiles ? 'lg:col-span-4' : 'lg:col-span-12') + ' min-w-0';
       document.getElementById('executeActionBtn')?.classList.toggle('hidden', found.engine === 'color-picker');
       renderEngineSettings(found);
       renderWorkspaceItems();
