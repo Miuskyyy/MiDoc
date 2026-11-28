@@ -3180,7 +3180,16 @@
         return;
       }
       if (engine === 'qr-generator') {
-        await runQrGenerator(baseName);
+        const button = document.getElementById('executeActionBtn');
+        if (button) button.disabled = true;
+        try {
+          await runQrGenerator(baseName);
+        } catch (error) {
+          console.error(error);
+          showToast('Gagal membuat kode: ' + error.message, 'error');
+        } finally {
+          if (button) button.disabled = false;
+        }
         return;
       }
       if (engine === 'password-gen') {
