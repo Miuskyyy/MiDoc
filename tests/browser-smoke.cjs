@@ -6,7 +6,9 @@ const fs = require('node:fs');
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage({ acceptDownloads: true });
   const errors = [];
+  const consoleMessages = [];
   page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') consoleMessages.push(message.text()); });
 
   const base = 'http://127.0.0.1:4173/';
   const openTool = async id => {
@@ -210,12 +212,9 @@ const fs = require('node:fs');
     const barcodeButtonState = await page.locator('#executeActionBtn').evaluate(el => ({ disabled: el.disabled, label: el.innerText }));
     assert.equal(barcodeButtonState.disabled, false, 'Barcode save button must be enabled.');
     await page.locator('#executeActionBtn').click();
-    await page.waitForFunction(() => {
-      const box = document.getElementById('resultOutputBox');
-      const toast = document.getElementById('toastContainer');
-      return (box && !box.classList.contains('hidden')) || (toast && toast.childElementCount > 0);
-    }, { timeout: 10000 });
+    await page.waitForTimeout(1200);
     const barcodeSaveState = await page.evaluate(() => ({
+      trace: window.__midocActionTrace || null,
       engine: state.activeEngine,
       toolId: state.activeToolObj?.id,
       itemCount: state.items.length,
@@ -223,7 +222,9 @@ const fs = require('node:fs');
       resultHidden: document.getElementById('resultOutputBox')?.classList.contains('hidden'),
       toast: document.getElementById('toastContainer')?.innerText
     }));
-    if (barcodeSaveState.resultHidden) throw new Error('QR/barcode save failed: ' + JSON.stringify(barcodeSaveState));
+    if (barcodeSaveState.resultHidden) {
+      throw new Error('QR/barcode save failed: ' + JSON.stringify({ state: barcodeSaveState, consoleMessages }));
+    }
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
     // Resize Image preserves aspect ratio and updates the original/result pixel dimensions live.
