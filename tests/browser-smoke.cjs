@@ -30,6 +30,54 @@ const fs = require('node:fs');
   const bluePng = await makePng('#0000ff');
 
   try {
+    // The home directory, category filters, mega menu, and tool cards follow the full reference structure.
+    await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await page.waitForSelector('#homeDirectoryView:not(.hidden)', { timeout: 20000 });
+    const referenceCategories = [
+      'Gabung, Pisah & Halaman',
+      'Edit & Optimasi PDF',
+      'Konversi ke PDF',
+      'Konversi dari PDF',
+      'Kompres & Konversi Gambar',
+      'Potong, Ukuran & Susun',
+      'Warna, Efek & Metadata',
+      'Utilitas & Batch Tools'
+    ];
+    assert.deepEqual(
+      await page.locator('#directoryGroupsContainer > section h2').allTextContents(),
+      referenceCategories,
+      'The directory must contain the eight reference-aligned tool groups.'
+    );
+    assert.match(await page.locator('#homeGroupFilters button[data-group="pdf"]').innerText(), /4 Sub-Grup/);
+    assert.match(await page.locator('#homeGroupFilters button[data-group="image"]').innerText(), /3 Sub-Grup/);
+    assert.match(await page.locator('#homeGroupFilters button[data-group="converter"]').innerText(), /Utilitas & Batch/);
+
+    await page.locator('#homeGroupFilters button[data-group="pdf"]').click();
+    assert.equal(await page.locator('#directoryGroupsContainer > section').count(), 4, 'The PDF filter must show four categories.');
+    await page.locator('#homeGroupFilters button[data-group="image"]').click();
+    assert.equal(await page.locator('#directoryGroupsContainer > section').count(), 3, 'The image filter must show three categories.');
+    await page.locator('#homeGroupFilters button[data-group="all"]').click();
+
+    const convertCard = page.locator('#directoryGroupsContainer a[href="?tool=convert-image"]');
+    assert.equal(await convertCard.count(), 1, 'The image converter must be reachable from a real tool-card link.');
+    assert.equal((await convertCard.evaluate(el => el.tagName)), 'A', 'Tool cards must support opening in another tab.');
+    await page.locator('#homeSearchInput').fill('barcode');
+    assert.equal(await page.locator('#directoryGroupsContainer > section').count(), 1, 'Directory search must filter tools by name.');
+    assert.match(await page.locator('#directoryGroupsContainer').innerText(), /QR & Barcode Generator/);
+    await page.locator('#homeSearchInput').fill('');
+
+    await page.locator('.nav-trigger[data-menu="image"]').click();
+    await page.waitForFunction(() => !document.getElementById('megaMenuContainer').classList.contains('hidden'));
+    assert.match(await page.locator('#megaMenuContent').innerText(), /Kompres & Konversi Gambar/);
+    await page.locator('.nav-trigger[data-menu="image"]').click();
+
+    // The restored image-conversion tool uses the existing conversion engine and strict file rules.
+    await openTool('convert-image');
+    assert.equal(await page.locator('#optTargetFormat').isVisible(), true);
+    assert.match(await page.locator('#fileInput').getAttribute('accept'), /\.png/);
+
+    // The workspace shell should follow the supplied studio layout.
+    await openTool('gif-tools');
     // The workspace shell should follow the supplied studio layout.
     await openTool('gif-tools');
     assert.equal(await page.locator('#floatingActionDock').evaluate(el => getComputedStyle(el).position), 'sticky');
