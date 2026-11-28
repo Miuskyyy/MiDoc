@@ -153,7 +153,7 @@ const fs = require('node:fs');
     await page.locator('#splitRangeRows [data-page-to]').dispatchEvent('input');
     await page.getByRole('button', { name: /Tambah Split/ }).click();
     await page.waitForFunction(() => document.querySelectorAll('#toolLivePreviewContent canvas').length === 4, { timeout: 15000 });
-    assert.match(await page.locator('#splitPdfRangePreview').innerText(), /Split 2/i);
+    assert.match(await page.locator('#splitPdfRangePreview').innerText(), /PDF 2: halaman 2–2/i);
     await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
