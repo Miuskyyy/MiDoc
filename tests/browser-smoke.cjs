@@ -234,14 +234,16 @@ const fs = require('node:fs');
     assert.match(await page.locator('#fileInput').getAttribute('accept'), /\.zip/);
     assert.equal(await page.locator('#fileInput').evaluate(el => el.multiple), false);
 
-    // QR and barcode share one generator and show a live preview before saving.
+    // QR/Barcode no longer reserve a middle preview column; generated output appears in the result panel.
     await openTool('qr-generator');
-    assert.equal(await page.locator('#toolPreviewColumn').evaluate(el => el.classList.contains('lg:col-span-8')), true, 'QR/Barcode preview should have a wide center area beside the settings.');
-    assert.equal(await page.locator('#toolSettingsColumn').evaluate(el => el.classList.contains('lg:col-span-4')), true, 'QR/Barcode settings should remain in a compact right-hand column.');
+    assert.equal(await page.locator('#toolPreviewColumn').evaluate(el => el.classList.contains('hidden')), true, 'The middle preview column must stay removed.');
+    assert.equal(await page.locator('#toolVisualWorkspace').evaluate(el => el.classList.contains('hidden')), true, 'QR/Barcode should not show a separate live preview.');
+    assert.equal(await page.locator('#toolSettingsColumn').evaluate(el => el.classList.contains('lg:col-span-12')), true, 'No-file tools should use the full settings width.');
     await page.waitForFunction(() => typeof window.QRCode === 'function', { timeout: 20000 });
-    await page.waitForFunction(() => !document.getElementById('toolLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
     await page.locator('#optQrText').fill('https://example.com/midoc-audit');
-    await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 15000 });
+    await page.locator('#executeActionBtn').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
     await page.locator('#optCodeType').selectOption('barcode');
     await page.locator('#optQrText').fill('MIDO-C2026');
     await page.waitForFunction(() => document.getElementById('toolLivePreviewMeta')?.innerText === 'Barcode', { timeout: 15000 });
@@ -267,6 +269,10 @@ const fs = require('node:fs');
 
     // Resize Image preserves aspect ratio and updates the original/result pixel dimensions live.
     await openTool('resize-pixel');
+    assert.equal(await page.locator('#toolFileColumn').evaluate(el => el.classList.contains('lg:col-span-8')), true, 'The file workspace must expand to eight columns.');
+    assert.equal(await page.locator('#toolSettingsColumn').evaluate(el => el.classList.contains('lg:col-span-4')), true, 'Tool settings must remain in the right four columns.');
+    assert.equal(await page.locator('#toolPreviewColumn').evaluate(el => el.classList.contains('hidden')), true, 'The middle preview column must stay removed.');
+    assert.equal(await page.locator('#toolVisualWorkspace').evaluate(el => el.parentElement.id === 'toolFileColumn'), true, 'Interactive editor canvas must stay inside the file workspace.');
     await page.locator('#fileInput').setInputFiles({ name: 'resize-source.png', mimeType: 'image/png', buffer: redPng });
     await page.waitForFunction(() => !document.getElementById('toolLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
     await page.locator('#optResizePercent').evaluate(el => { el.value = '200'; el.dispatchEvent(new Event('input', { bubbles: true })); });
@@ -349,7 +355,7 @@ const fs = require('node:fs');
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
     assert.deepEqual(errors, [], 'No uncaught browser exceptions should occur');
-    console.log('Browser smoke tests passed: GIF, PDF, automatic page cards, ZIP view/download, QR/barcode preview, resize/crop/shape/filter/compression, and image layer composition.');
+    console.log('Browser smoke tests passed: GIF, PDF, automatic page cards, ZIP view/download, QR/barcode result output, expanded file workspace, resize/crop/shape/filter/compression, and image layer composition.');
   } finally {
     await browser.close();
   }
