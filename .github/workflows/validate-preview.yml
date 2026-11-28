@@ -1,0 +1,71 @@
+name: MiDoc Preview Validation
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-static-app:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check inline JavaScript syntax
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import re
+
+          html = pathlib.Path("index.html").read_text(encoding="utf-8")
+          scripts = []
+          for match in re.finditer(r"<script\\b([^>]*)>([\\s\\S]*?)</script\\s*>", html, re.IGNORECASE):
+              attrs, body = match.groups()
+              if re.search(r"\\bsrc\\s*=", attrs, re.IGNORECASE):
+                  continue
+              if re.search(r"type\\s*=\\s*['\"]application/(?:ld\\+)?json", attrs, re.IGNORECASE):
+                  continue
+              scripts.append(body)
+
+          if not scripts:
+              raise SystemExit("No inline JavaScript blocks found.")
+
+          pathlib.Path("/tmp/midoc-inline.js").write_text("\\n;\\n".join(scripts), encoding="utf-8")
+          print(f"Checking {len(scripts)} inline script block(s).")
+          PY
+          node --check /tmp/midoc-inline.js
+
+      - name: Check duplicate static HTML IDs
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from collections import Counter
+          from pathlib import Path
+
+          class IdParser(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.ids = []
+              def handle_starttag(self, tag, attrs):
+                  for key, value in attrs:
+                      if key.lower() == "id" and value:
+                          self.ids.append(value)
+
+          parser = IdParser()
+          parser.feed(Path("index.html").read_text(encoding="utf-8"))
+          duplicates = [name for name, count in Counter(parser.ids).items() if count > 1]
+          if duplicates:
+              raise SystemExit("Duplicate static HTML IDs: " + ", ".join(duplicates))
+          print(f"Checked {len(parser.ids)} static HTML IDs; no duplicates.")
+          PY
