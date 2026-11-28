@@ -54,6 +54,11 @@
   </script>
 
   <style>
+    #toolWorkspaceView, #toolFileColumn, #toolSettingsColumn { min-width: 0; }
+    #toolSettingsContainer input, #toolSettingsContainer select, #toolSettingsContainer textarea { max-width: 100%; min-width: 0; }
+    .file-card { min-width: 0; overflow: hidden; }
+    #editorLivePreviewCanvas, #pdfCropCanvas { max-width: 100%; height: auto; touch-action: none; }
+    @media (max-width: 640px) { #toolSettingsColumn .sticky { position: static; } #toolSettingsColumn .grid { min-width: 0; } #toolSettingsContainer > * { min-width: 0; } #toolSettingsContainer input[type='number'] { width: 100%; } }
     /* Strict Flat Minimalism: No blur, no shadows, crisp 1px borders, sharp 2px-4px corners */
     * {
       box-shadow: none !important;
@@ -1026,7 +1031,14 @@
       previewDisplayMode: 'full', // 'full' | 'fit'
       previewZoom: 100,
       zipArchiveFiles: [],
-      zipArchiveSourceName: null
+      zipArchiveSourceName: null,
+      editorSelectedItemId: null,
+      overlayLayout: null,
+      overlayDragActive: false,
+      pdfCropPage: 1,
+      pdfCropSelections: {},
+      pdfCropDrag: null,
+      pdfCropBaseImage: null
     };
 
     let toolNavigationRequestId = 0;
@@ -1040,6 +1052,8 @@
       renderHomeDirectory('all', '');
       setupNavAndSearch();
       setupWorkspaceDragAndDrop();
+      document.getElementById('toolSettingsContainer')?.addEventListener('input', handleLiveEditorInput);
+      document.getElementById('toolSettingsContainer')?.addEventListener('change', handleLiveEditorInput);
       window.addEventListener('popstate', restoreRouteFromLocation);
       restoreRouteFromLocation();
       document.addEventListener('keydown', (e) => {
@@ -1161,6 +1175,13 @@
       closeMegaMenu();
       state.activeToolObj = found;
       state.activeEngine = found.engine;
+      state.editorSelectedItemId = null;
+      state.overlayLayout = null;
+      state.pdfCropPage = 1;
+      state.pdfCropSelections = {};
+      state.pdfCropDrag = null;
+      state.pdfCropBaseImage = null;
+      if (['overlay-images','shape-crop','crop-pixel','resize-pixel','color-filters','crop-pdf','organize-pdf','page-number-pdf','watermark-pdf'].includes(found.id)) state.viewMode = 'list';
       state.currentView = 'workspace';
       document.title = 'MiDoc - ' + found.name;
 
@@ -2100,7 +2121,6 @@
           <div id="zipModeDescription" class="p-3 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-200 dark:border-darkLine text-xs text-zinc-600 dark:text-zinc-300">
             Kemas semua file di workspace sesuai urutan kartu menjadi satu arsip ZIP.
           </div>
-          <div id="zipContentsPanel" class="hidden space-y-2"></div>
         `;
         updateZipToolMode();
       } else if (engine === 'color-picker') {
@@ -2711,6 +2731,10 @@
 
       renderWorkspaceItems();
       updateFilenamePreviewHint();
+      if (state.activeToolObj?.id === 'organize-pdf' && state.items.some(item => item.isPdf && item.singlePageIndex === null && item.pageCount > 1)) await explodeAllPdfsToPages();
+      refreshActiveToolPreview();
+      if (state.activeToolObj?.id === 'crop-pdf') await drawPdfCropPreview();
+      if (state.activeToolObj?.id === 'zip-tools' && document.getElementById('optZipMode')?.value === 'view') await readZipArchiveForAction('view');
       showToast(`${filesArray.length} file ditambahkan sesuai urutan.`, 'success');
     }
 
@@ -2875,7 +2899,7 @@
         emptyBox.classList.remove('hidden');
         grid.classList.add('hidden');
         bottomStrip.classList.add('hidden');
-        expandBtn.classList.add('hidden');
+        expandBtn?.classList.add('hidden');
         document.getElementById('splitterLivePreviewPanel').classList.add('hidden');
         document.getElementById('joinerLivePreviewPanel').classList.add('hidden');
         updateFilenamePreviewHint();
@@ -2887,14 +2911,13 @@
       bottomStrip.classList.remove('hidden');
 
       const hasMultiPagePdf = state.items.some(i => i.isPdf && i.singlePageIndex === null && i.pageCount > 1);
-      expandBtn.classList.toggle('hidden', !hasMultiPagePdf);
+      expandBtn?.classList.toggle('hidden', !hasMultiPagePdf);
 
       const totalBytes = state.items.reduce((s, it) => s + (it.size || 0), 0);
       document.getElementById('totalSummaryText').textContent = `${state.items.length} item • ${formatBytes(totalBytes)}`;
 
-      grid.className = state.viewMode === 'grid'
-        ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5'
-        : 'flex flex-col gap-2';
+      const editorRows = ['overlay-images','shape-crop','crop-pixel','resize-pixel','color-filters','crop-pdf','organize-pdf','page-number-pdf','watermark-pdf'].includes(state.activeToolObj?.id);
+      grid.className = state.viewMode === 'grid' && !editorRows ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5' : 'flex flex-col gap-2';
 
       const isPdfPageSimMode = (state.activeEngine === 'image-to-pdf' || state.activeEngine === 'merge-pdf-image');
 
@@ -2931,7 +2954,7 @@
               : `<img src="${item.thumbUrl}" style="transform: rotate(${item.rotation}deg);" class="max-h-full max-w-full object-contain" alt="${escapeHtml(item.name)}" />`)
           : `<span class="font-mono text-[10px] text-zinc-400">${typeLabel}</span>`;
 
-        if (state.viewMode === 'list') {
+        if (state.viewMode === 'list' || editorRows) {
           return `
             <div
               draggable="true"
@@ -2941,7 +2964,7 @@
             >
               <div class="flex items-center gap-3 min-w-0">
                 <span class="px-2 py-0.5 rounded-sm bg-accent text-white font-mono font-semibold text-xs shrink-0">#${pos}</span>
-                <div class="w-12 h-12 checkerboard border border-zinc-200 dark:border-darkLine flex items-center justify-center overflow-hidden shrink-0 p-0.5">
+                <div class="w-16 h-16 sm:w-20 sm:h-20 checkerboard border border-zinc-200 dark:border-darkLine flex items-center justify-center overflow-hidden shrink-0 p-1">
                   ${listThumbHtml}
                 </div>
                 <div class="min-w-0">
@@ -3998,6 +4021,461 @@
       if (!fullText.trim()) throw new Error('Tidak ditemukan lapisan teks pada PDF. Jika dokumen berupa hasil scan/foto, alat ini belum melakukan OCR.');
       const finalName = formatDownloadFilename({ baseName, ext: 'txt', isBulkOrZip: false });
       finishWithBlob(new Blob([fullText], { type: 'text/plain;charset=utf-8' }), finalName, `Teks berhasil diekstrak dari dokumen PDF.`);
+    }
+
+
+    function handleLiveEditorInput(event) {
+      const target = event?.target;
+      if (target?.id === 'optWmOpacity') {
+        const label = document.getElementById('optWmOpacityLabel');
+        if (label) label.textContent = target.value + '%';
+      }
+      if (target?.id === 'optResizeWidth') syncResizeFromWidth();
+      if (['optSplitParts','optPageRange'].includes(target?.id)) {
+        if (target.id === 'optSplitParts') updateSplitPdfPreview();
+        else updateExtractPdfPreview();
+      }
+      if (['optCodeText','optCodeType','optBarcodeFormat','optCodeBg','optCodeColor','optCodeSize','optCodeOutput','optBarWidth','optBarHeight','optBarMargin','optBarFontSize','optBarShowText','optBarBold','optBarItalic','optBarFont','optBarAlign'].includes(target?.id)) updateCodeGeneratorPreview();
+      if (['optResizePercent','optResizeWidth','optColorFilter','optShapeMask','optShapePreset','optCropX','optCropY','optCropW','optCropH','optOverlayScale','optOverlayOpacity'].includes(target?.id)) renderActiveEditorPreview();
+    }
+
+    function refreshActiveToolPreview() {
+      const id = state.activeToolObj?.id;
+      if (['shape-crop','crop-pixel','resize-pixel','color-filters','overlay-images'].includes(id)) {
+        document.getElementById('editorLivePreviewPanel')?.classList.remove('hidden');
+        renderActiveEditorPreview();
+      } else {
+        document.getElementById('editorLivePreviewPanel')?.classList.add('hidden');
+      }
+    }
+
+    function syncResizeFromWidth() {
+      const img = state.items.find(item => item.id === state.editorSelectedItemId && item.isImage) || state.items.find(item => item.isImage);
+      const width = Number(document.getElementById('optResizeWidth')?.value);
+      if (!img || !img.width || !Number.isFinite(width) || width < 1) return renderActiveEditorPreview();
+      const percent = Math.max(10, Math.min(500, Math.round(width / img.width * 100)));
+      const slider = document.getElementById('optResizePercent');
+      if (slider) slider.value = String(percent);
+      const label = document.getElementById('optResizePercentLabel');
+      if (label) label.textContent = percent + '%';
+      renderActiveEditorPreview();
+    }
+
+    function applyShapeCanvas(source, mask, preset) {
+      const presets = {
+        '3x4': [354,472],
+        '4x6': [472,709],
+        '3.5x4.5': [413,531],
+        '2x2': [600,600]
+      };
+      let w = source.width, h = source.height;
+      if (presets[preset]) { w = presets[preset][0]; h = presets[preset][1]; }
+      else if (mask === 'circle') { w = Math.min(source.width, source.height); h = w; }
+      const fitted = preset === 'free' && mask !== 'circle' ? source : resizeCanvas(source, w, h, 'cover');
+      const output = document.createElement('canvas');
+      output.width = fitted.width;
+      output.height = fitted.height;
+      const ctx = output.getContext('2d');
+      if (mask === 'circle') {
+        const side = Math.min(output.width, output.height);
+        output.width = side; output.height = side;
+        ctx.beginPath(); ctx.arc(side/2,side/2,side/2,0,Math.PI*2); ctx.clip();
+        ctx.drawImage(fitted,(side-fitted.width)/2,(side-fitted.height)/2);
+      } else if (mask === 'rounded') {
+        const radius = Math.min(output.width,output.height)*0.08;
+        ctx.beginPath(); ctx.roundRect(0,0,output.width,output.height,radius); ctx.clip();
+        ctx.drawImage(fitted,0,0);
+      } else {
+        ctx.drawImage(fitted,0,0);
+      }
+      return output;
+    }
+
+    async function renderActiveEditorPreview() {
+      const panel = document.getElementById('editorLivePreviewPanel');
+      const canvas = document.getElementById('editorPreviewCanvas');
+      const select = document.getElementById('editorPreviewTarget');
+      if (!panel || !canvas || !state.activeToolObj) return;
+      const id = state.activeToolObj.id;
+      const items = state.items.filter(item => item.isImage && item.thumbUrl);
+      if (!['shape-crop','crop-pixel','resize-pixel','color-filters','overlay-images'].includes(id)) {
+        panel.classList.add('hidden');
+        return;
+      }
+      panel.classList.remove('hidden');
+      const title = document.getElementById('editorPreviewTitle');
+      const hint = document.getElementById('editorPreviewHint');
+      const dims = document.getElementById('editorPreviewDimensions');
+      if (id === 'overlay-images') {
+        if (title) title.textContent = 'Pratinjau Overlay';
+        if (hint) hint.textContent = 'Gambar pertama adalah latar, gambar kedua adalah lapisan depan. Seret lapisan depan untuk menggeser posisinya.';
+        if (select) select.classList.add('hidden');
+        if (items.length < 2) {
+          canvas.width = 640; canvas.height = 160;
+          const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#777'; ctx.font='16px sans-serif'; ctx.fillText('Tambahkan gambar #1 (latar) dan #2 (lapisan depan).',12,80);
+          if (dims) dims.textContent = '2 gambar diperlukan';
+          return;
+        }
+        const base = await renderItemToCanvas(items[0]);
+        const overlay = await renderItemToCanvas(items[1]);
+        const scale = Number(document.getElementById('optOverlayScale')?.value || 28) / 100;
+        const opacity = Number(document.getElementById('optOverlayOpacity')?.value || 100) / 100;
+        const ow = Math.max(1,Math.round(base.width*scale));
+        const oh = Math.max(1,Math.round(overlay.height*(ow/overlay.width)));
+        if (!state.overlayLayout || state.overlayLayout.baseId !== items[0].id || state.overlayLayout.overlayId !== items[1].id) {
+          state.overlayLayout = {baseId:items[0].id,overlayId:items[1].id,x:Math.max(0,base.width-ow-20),y:Math.max(0,base.height-oh-20),w:ow,h:oh};
+        } else {
+          state.overlayLayout.w=ow; state.overlayLayout.h=oh;
+          state.overlayLayout.x=Math.max(0,Math.min(base.width-ow,state.overlayLayout.x));
+          state.overlayLayout.y=Math.max(0,Math.min(base.height-oh,state.overlayLayout.y));
+        }
+        canvas.width=base.width; canvas.height=base.height;
+        const ctx=canvas.getContext('2d');
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(base,0,0);
+        ctx.globalAlpha=opacity;
+        ctx.drawImage(overlay,state.overlayLayout.x,state.overlayLayout.y,ow,oh);
+        ctx.globalAlpha=1;
+        canvas.style.cursor='move';
+        canvas.onpointerdown=startOverlayDrag;
+        canvas.onpointermove=moveOverlayDrag;
+        canvas.onpointerup=finishOverlayDrag;
+        canvas.onpointercancel=finishOverlayDrag;
+        if (dims) dims.textContent=base.width+'×'+base.height+' px';
+        return;
+      }
+      if (select) {
+        select.classList.remove('hidden');
+        const current = items.find(item=>item.id===state.editorSelectedItemId) || items[0];
+        if (current && select.value !== current.id) state.editorSelectedItemId=current.id;
+        const options = items.map((item,index)=>'<option value="'+item.id+'">Gambar '+(index+1)+': '+escapeHtml(item.name)+'</option>').join('');
+        if (select.innerHTML !== options) select.innerHTML=options;
+        if (state.editorSelectedItemId) select.value=state.editorSelectedItemId;
+      }
+      const item = items.find(item=>item.id===state.editorSelectedItemId) || items[0];
+      if (!item) {
+        canvas.width=640; canvas.height=120;
+        const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,640,120); ctx.fillStyle='#777'; ctx.font='14px sans-serif'; ctx.fillText('Unggah gambar untuk melihat pratinjau.',12,60);
+        if (dims) dims.textContent='Belum ada gambar';
+        return;
+      }
+      state.editorSelectedItemId=item.id;
+      const source=await renderItemToCanvas(item);
+      let output=source;
+      if (id==='resize-pixel') {
+        const percent=Number(document.getElementById('optResizePercent')?.value||100)/100;
+        const widthInput=Number(document.getElementById('optResizeWidth')?.value);
+        const customWidth=Number.isFinite(widthInput)&&widthInput>0&&document.activeElement?.id==='optResizeWidth';
+        const w=Math.max(1,Math.min(12000,Math.round(customWidth?widthInput:source.width*percent)));
+        const h=Math.max(1,Math.min(12000,Math.round(source.height*(w/source.width))));
+        output=resizeCanvas(source,w,h,'stretch');
+        const heightLabel=document.getElementById('optResizeHeightResult');
+        if(heightLabel)heightLabel.textContent=h+' px';
+        const percentLabel=document.getElementById('optResizePercentLabel');
+        if(percentLabel&&!customWidth)percentLabel.textContent=Math.round(w/source.width*100)+'%';
+        if(dims)dims.textContent='Asli '+source.width+'×'+source.height+' → Hasil '+w+'×'+h+' px';
+        if(title)title.textContent='Pratinjau Resize Image';
+        if(hint)hint.textContent='Rasio asli dipertahankan; tidak ada crop, regang, atau margin.';
+      } else if (id==='color-filters') {
+        const filter=document.getElementById('optColorFilter')?.value||'none';
+        output=document.createElement('canvas'); output.width=source.width; output.height=source.height;
+        const ctx=output.getContext('2d'); ctx.filter=filter; ctx.drawImage(source,0,0);
+        if(dims)dims.textContent=source.width+'×'+source.height+' px';
+        if(title)title.textContent='Pratinjau Filter Warna';
+        if(hint)hint.textContent='Filter diterapkan langsung ke pratinjau gambar terpilih.';
+      } else if (id==='shape-crop') {
+        const mask=document.getElementById('optShapeMask')?.value||'circle';
+        const preset=document.getElementById('optShapePreset')?.value||'free';
+        output=applyShapeCanvas(source,mask,preset);
+        if(dims)dims.textContent=output.width+'×'+output.height+' px';
+        if(title)title.textContent='Pratinjau Shape Crop & Pas Foto';
+        if(hint)hint.textContent='Bentuk dan rasio hasil terlihat sebelum disimpan.';
+      } else if (id==='crop-pixel') {
+        const x=Math.max(0,Number(document.getElementById('optCropX')?.value||0));
+        const y=Math.max(0,Number(document.getElementById('optCropY')?.value||0));
+        const w=Math.max(1,Number(document.getElementById('optCropW')?.value||800));
+        const h=Math.max(1,Number(document.getElementById('optCropH')?.value||800));
+        const cropW=Math.max(1,Math.min(w,source.width-x));
+        const cropH=Math.max(1,Math.min(h,source.height-y));
+        output=document.createElement('canvas'); output.width=cropW; output.height=cropH;
+        output.getContext('2d').drawImage(source,x,y,cropW,cropH,0,0,cropW,cropH);
+        if(dims)dims.textContent='Crop '+cropW+'×'+cropH+' px · X '+x+' Y '+y;
+        if(title)title.textContent='Pratinjau Crop Image by Pixel';
+        if(hint)hint.textContent='Koordinat dihitung dari gambar asli. Area di luar batas otomatis dipotong ke tepi gambar.';
+      }
+      canvas.width=output.width; canvas.height=output.height;
+      const context=canvas.getContext('2d'); context.clearRect(0,0,canvas.width,canvas.height); context.drawImage(output,0,0);
+      canvas.style.cursor='default';
+    }
+
+    function startOverlayDrag(event) {
+      if (!state.overlayLayout) return;
+      const canvas=event.currentTarget;
+      const rect=canvas.getBoundingClientRect();
+      const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
+      const x=(event.clientX-rect.left)*scaleX, y=(event.clientY-rect.top)*scaleY;
+      state.overlayDragActive=true;
+      state.overlayDragOffset={x:x-state.overlayLayout.x,y:y-state.overlayLayout.y,scaleX,scaleY};
+      canvas.setPointerCapture?.(event.pointerId);
+      event.preventDefault();
+    }
+
+    function moveOverlayDrag(event) {
+      if (!state.overlayDragActive || !state.overlayLayout) return;
+      const canvas=event.currentTarget, rect=canvas.getBoundingClientRect(), offset=state.overlayDragOffset||{x:0,y:0,scaleX:1,scaleY:1};
+      const x=(event.clientX-rect.left)*offset.scaleX-offset.x;
+      const y=(event.clientY-rect.top)*offset.scaleY-offset.y;
+      state.overlayLayout.x=Math.max(0,Math.min(canvas.width-state.overlayLayout.w,x));
+      state.overlayLayout.y=Math.max(0,Math.min(canvas.height-state.overlayLayout.h,y));
+      const images=state.items.filter(item=>item.isImage&&item.thumbUrl);
+      if(images.length>=2){
+        renderItemToCanvas(images[0]).then(async base=>{
+          const over=await renderItemToCanvas(images[1]),ctx=canvas.getContext('2d');
+          ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(base,0,0);
+          ctx.globalAlpha=Number(document.getElementById('optOverlayOpacity')?.value||100)/100;
+          ctx.drawImage(over,state.overlayLayout.x,state.overlayLayout.y,state.overlayLayout.w,state.overlayLayout.h);ctx.globalAlpha=1;
+        });
+      }
+      event.preventDefault();
+    }
+
+    function finishOverlayDrag(event) {
+      state.overlayDragActive=false;
+      state.overlayDragOffset=null;
+      if(event?.currentTarget?.hasPointerCapture?.(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    function setPdfElementPosition(position) {
+      const input=document.getElementById('optPdfPosition');
+      if(input)input.value=position;
+      document.querySelectorAll('[data-pdf-position]').forEach(button=>{
+        const active=button.dataset.pdfPosition===position;
+        button.classList.toggle('bg-accent',active);button.classList.toggle('text-white',active);button.classList.toggle('border-accent',active);
+      });
+    }
+
+    function updatePdfExportMode() {
+      const mode=document.getElementById('optPdfExportMode')?.value||'pages';
+      const options=document.getElementById('pdfPageImageOptions');
+      if(options)options.classList.toggle('hidden',mode==='embedded');
+      const label=document.getElementById('executeBtnLabel');
+      if(label)label.textContent=mode==='embedded'?'Ekstrak Gambar Tertanam':'Ekspor Halaman ke Gambar';
+    }
+
+    function updateSplitPdfMode(mode) {
+      const box=document.getElementById('splitRangeBox');
+      if(box)box.classList.toggle('hidden',mode==='all');
+      const ext=document.getElementById('outputExtBadge');
+      if(ext)ext.textContent='.zip';
+      const summary=document.getElementById('splitPdfPreviewSummary');
+      if(summary&&mode==='all')summary.textContent='Setiap halaman akan menjadi satu PDF dan seluruh hasil dikemas ke ZIP.';
+      else updateSplitPdfPreview();
+    }
+
+    function updateSplitPdfPreview() {
+      const box=document.getElementById('splitPdfPreviewSummary');
+      if(!box)return;
+      const pdf=state.items.find(item=>item.isPdf&&item.pageCount);
+      const count=pdf?.pageCount||0;
+      const value=document.getElementById('optSplitParts')?.value||'';
+      if(!count){box.textContent='Unggah PDF untuk melihat jumlah halaman dan validasi rentang.';return;}
+      const groups=value.split(';').map(s=>s.trim()).filter(Boolean);
+      if(!groups.length){box.textContent='Masukkan rentang dengan format 1-10; 11-20.';return;}
+      const lines=[],used=new Set();
+      for(let i=0;i<groups.length;i++){
+        const indexes=parsePageRange(groups[i],count);
+        if(!indexes.length){lines.push('Bagian '+(i+1)+': rentang tidak valid');continue;}
+        const duplicates=indexes.filter(n=>used.has(n));
+        indexes.forEach(n=>used.add(n));
+        lines.push('PDF '+(i+1)+': halaman '+(indexes[0]+1)+'–'+(indexes[indexes.length-1]+1)+' ('+indexes.length+' halaman)'+(duplicates.length?' · rentang bertumpuk':''));
+      }
+      box.innerHTML='<strong>'+count+' halaman PDF</strong><br>'+lines.map(escapeHtml).join('<br>');
+    }
+
+    function updateExtractPdfPreview() {
+      const box=document.getElementById('extractPdfPreviewSummary');
+      if(!box)return;
+      const pdf=state.items.find(item=>item.isPdf&&item.pageCount);
+      if(!pdf){box.textContent='Unggah PDF untuk melihat daftar halaman.';return;}
+      const pages=parsePageRange(document.getElementById('optPageRange')?.value||'',pdf.pageCount);
+      box.textContent=pages.length+' halaman dipilih: '+pages.map(n=>n+1).join(', ')+'.';
+    }
+
+    function getPdfColor(value) {
+      const raw=String(value||'#222222').replace('#','');
+      const number=parseInt(raw.length===3?raw.split('').map(v=>v+v).join(''):raw,16);
+      return {r:((number>>16)&255)/255,g:((number>>8)&255)/255,b:(number&255)/255};
+    }
+
+    function getPdfFont(fontName) {
+      if(fontName==='TimesRoman')return PDFLib.StandardFonts.TimesRoman;
+      if(fontName==='Courier')return PDFLib.StandardFonts.Courier;
+      return PDFLib.StandardFonts.Helvetica;
+    }
+
+    function getPdfTextPosition(page,text,font,size,position) {
+      const width=font.widthOfTextAtSize(text,size), h=page.getHeight(), w=page.getWidth(), margin=18;
+      const left=position.endsWith('left'), right=position.endsWith('right');
+      const top=position.startsWith('top'), middle=position.startsWith('middle')||position==='center';
+      let x=left?margin:(right?w-width-margin:(w-width)/2);
+      let y=top?h-size-margin:(middle?(h-size)/2:margin);
+      return {x,y};
+    }
+
+    function handleImageCanvasExport(canvas,mime,quality) {
+      return new Promise((resolve,reject)=>{
+        canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Gagal membuat gambar hasil.')),mime,quality);
+      });
+    }
+
+    async function previewImageCompression() {
+      const images=state.items.filter(item=>item.isImage&&item.thumbUrl);
+      if(!images.length){showToast('Tambahkan gambar terlebih dahulu.','error');return;}
+      const quality=(Number(document.getElementById('optImgQuality')?.value||72))/100;
+      const mime=document.getElementById('optCompressFormat')?.value||'image/jpeg';
+      let original=0,compressed=0;
+      for(const item of images){
+        const canvas=await renderItemToCanvas(item);
+        let output=canvas;
+        if(mime==='image/jpeg'){
+          output=document.createElement('canvas');output.width=canvas.width;output.height=canvas.height;
+          const ctx=output.getContext('2d');ctx.fillStyle=document.getElementById('optCompressBgFill')?.value||'#fff';ctx.fillRect(0,0,output.width,output.height);ctx.drawImage(canvas,0,0);
+        }
+        const blob=await handleImageCanvasExport(output,mime,quality);
+        original+=item.size||0;compressed+=blob.size;
+      }
+      const saved=original?Math.max(0,(1-compressed/original)*100):0;
+      const target=document.getElementById('compressPreviewSize');
+      if(target)target.innerHTML='Ukuran asli: <strong>'+formatBytes(original)+'</strong><br>Estimasi hasil: <strong>'+formatBytes(compressed)+'</strong><br>Perubahan ukuran: <strong>'+saved.toFixed(1)+'%</strong> '+(compressed>original?'lebih besar':'lebih kecil');
+    }
+
+    async function runCropImagePixels(baseName) {
+      const images=state.items.filter(item=>item.isImage&&item.thumbUrl);
+      if(!images.length)throw new Error('Tambahkan setidaknya satu gambar.');
+      const x=Math.max(0,Number(document.getElementById('optCropX')?.value||0));
+      const y=Math.max(0,Number(document.getElementById('optCropY')?.value||0));
+      const w=Math.max(1,Number(document.getElementById('optCropW')?.value||1));
+      const h=Math.max(1,Number(document.getElementById('optCropH')?.value||1));
+      const zip=new JSZip(),first=images[0].name.replace(/\.[^.]+$/,'');
+      let single=null,ext='png';
+      for(let i=0;i<images.length;i++){
+        const source=await renderItemToCanvas(images[i]);
+        if(x>=source.width||y>=source.height)throw new Error('Koordinat X/Y berada di luar gambar '+images[i].name);
+        const cw=Math.min(w,source.width-x),ch=Math.min(h,source.height-y);
+        const output=document.createElement('canvas');output.width=cw;output.height=ch;
+        output.getContext('2d').drawImage(source,x,y,cw,ch,0,0,cw,ch);
+        const blob=await handleImageCanvasExport(output,'image/png',1);
+        zip.file(images[i].name.replace(/\.[^.]+$/,'')+'_crop.png',blob);
+        if(images.length===1)single=blob;
+      }
+      if(single)finishWithBlob(single,formatDownloadFilename({baseName,ext:'png',isBulkOrZip:false}),'Gambar berhasil dicrop menjadi area '+w+'×'+h+' px.',{isImageResult:true});
+      else finishWithBlob(await zip.generateAsync({type:'blob'}),formatDownloadFilename({baseName,ext:'zip',isBulkOrZip:true,firstFileName:first}),'Crop diterapkan pada '+images.length+' gambar.');
+    }
+
+    async function runPdfEmbeddedImages(baseName) {
+      const pdfItems=state.items.filter(item=>item.isPdf&&item.arrayBuffer);
+      if(!pdfItems.length)throw new Error('Tambahkan file PDF terlebih dahulu.');
+      const zip=new JSZip();let total=0;const format=document.getElementById('optImgFormat')?.value||'image/png';
+      const quality=document.getElementById('optPdfImageQuality')?.value||'high';
+      const jpegQuality=quality==='low'?0.55:(quality==='medium'?0.78:0.92);
+      for(const item of pdfItems){
+        const doc=await pdfjsLib.getDocument({data:item.arrayBuffer.slice(0)}).promise;
+        const base=item.name.replace(/\.pdf$/i,'');
+        for(let pageNumber=1;pageNumber<=doc.numPages;pageNumber++){
+          const page=await doc.getPage(pageNumber),ops=await page.getOperatorList(),seen=new Set();
+          for(let opIndex=0;opIndex<ops.fnArray.length;opIndex++){
+            const fn=ops.fnArray[opIndex],args=ops.argsArray[opIndex]||[];
+            const imageOps=[pdfjsLib.OPS.paintImageXObject,pdfjsLib.OPS.paintJpegXObject,pdfjsLib.OPS.paintInlineImageXObject];
+            if(!imageOps.includes(fn))continue;
+            let obj=args[0],imageData=null;
+            if(fn===pdfjsLib.OPS.paintInlineImageXObject)imageData=obj;
+            else if(typeof obj==='string'&&page.objs&&typeof page.objs.get==='function'&&!seen.has(obj)){
+              seen.add(obj);
+              imageData=await new Promise(resolve=>{try{page.objs.get(obj,resolve);}catch(_){resolve(null);}});
+            }
+            if(!imageData)continue;
+            const width=imageData.width||imageData.bitmap?.width,height=imageData.height||imageData.bitmap?.height;
+            if(!width||!height||width*height>30000000)continue;
+            const c=document.createElement('canvas');c.width=width;c.height=height;const ctx=c.getContext('2d');
+            try{
+              if(imageData.bitmap)ctx.drawImage(imageData.bitmap,0,0);
+              else if(imageData.data&&imageData.data.length===width*height*4)ctx.putImageData(new ImageData(new Uint8ClampedArray(imageData.data),width,height),0,0);
+              else if(imageData.data&&imageData.data.length===width*height*3){
+                const rgba=new Uint8ClampedArray(width*height*4);
+                for(let k=0,j=0;k<imageData.data.length;k+=3,j+=4){rgba[j]=imageData.data[k];rgba[j+1]=imageData.data[k+1];rgba[j+2]=imageData.data[k+2];rgba[j+3]=255;}
+                ctx.putImageData(new ImageData(rgba,width,height),0,0);
+              } else if(imageData.data&&imageData.data.length===width*height){
+                const rgba=new Uint8ClampedArray(width*height*4);
+                for(let k=0,j=0;k<imageData.data.length;k++,j+=4){rgba[j]=rgba[j+1]=rgba[j+2]=imageData.data[k];rgba[j+3]=255;}
+                ctx.putImageData(new ImageData(rgba,width,height),0,0);
+              } else continue;
+              const blob=await handleImageCanvasExport(c,format,jpegQuality);
+              total++;zip.file(base+'_page_'+pageNumber+'_image_'+total+'.'+(format==='image/jpeg'?'jpg':format==='image/webp'?'webp':'png'),blob);
+            }catch(error){console.warn('Objek PDF tidak dapat diekspor sebagai gambar:',error);}
+          }
+        }
+      }
+      if(!total)throw new Error('Tidak ditemukan objek gambar raster tertanam yang dapat diekspor pada PDF ini.');
+      finishWithBlob(await zip.generateAsync({type:'blob'}),formatDownloadFilename({baseName,ext:'zip',isBulkOrZip:true,firstFileName:pdfItems[0].name.replace(/\.pdf$/i,'')}),total+' gambar tertanam diekspor dari PDF.');
+    }
+
+    function updateCodeGeneratorUI() {
+      const barcode=document.getElementById('optCodeType')?.value==='barcode';
+      document.getElementById('barcodeCodeOptions')?.classList.toggle('hidden',!barcode);
+      const ext=document.getElementById('outputExtBadge');
+      if(ext)ext.textContent=document.getElementById('optCodeOutput')?.value==='svg'?'.svg':'.png';
+      const label=document.getElementById('executeBtnLabel');
+      if(label)label.textContent=barcode?'Simpan Barcode':'Simpan QR Code';
+      updateCodeGeneratorPreview();
+    }
+
+    function updateCodeGeneratorPreview() {
+      const holder=document.getElementById('codePreviewHolder');
+      if(!holder)return;
+      holder.innerHTML='';
+      const value=(document.getElementById('optCodeText')?.value||'').trim();
+      if(!value){holder.textContent='Masukkan teks untuk melihat pratinjau.';return;}
+      const type=document.getElementById('optCodeType')?.value||'qr';
+      if(type==='barcode'){
+        if(typeof window.JsBarcode!=='function'){holder.textContent='Library barcode belum termuat.';return;}
+        const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');holder.appendChild(svg);
+        try{
+          JsBarcode(svg,value,{format:document.getElementById('optBarcodeFormat')?.value||'CODE128',lineColor:document.getElementById('optCodeColor')?.value||'#000',background:document.getElementById('optCodeBg')?.value||'#fff',width:Number(document.getElementById('optBarWidth')?.value||2),height:Number(document.getElementById('optBarHeight')?.value||100),margin:Number(document.getElementById('optBarMargin')?.value||10),displayValue:document.getElementById('optBarShowText')?.checked!==false,fontSize:Number(document.getElementById('optBarFontSize')?.value||20),font:document.getElementById('optBarFont')?.value||'Monospace',textAlign:document.getElementById('optBarAlign')?.value||'center',fontOptions:(document.getElementById('optBarBold')?.checked?'bold ':'')+(document.getElementById('optBarItalic')?.checked?'italic':'')});
+        }catch(error){holder.textContent='Format/value barcode tidak valid: '+error.message;}
+        return;
+      }
+      if(typeof window.QRCode!=='function'){holder.textContent='Library QR Code sedang dimuat.';return;}
+      const wrap=document.createElement('div');wrap.id='qrPreviewCanvasHost';holder.appendChild(wrap);
+      const size=Math.max(128,Math.min(2048,Number(document.getElementById('optCodeSize')?.value||512)));
+      new QRCode(wrap,{text:value,width:Math.min(size,360),height:Math.min(size,360),colorDark:document.getElementById('optCodeColor')?.value||'#000',colorLight:document.getElementById('optCodeBg')?.value||'#fff',correctLevel:QRCode.CorrectLevel.M});
+    }
+
+    async function runCodeGenerator(baseName) {
+      const value=(document.getElementById('optCodeText')?.value||'').trim();
+      if(!value)throw new Error('Masukkan teks atau data untuk kode.');
+      const type=document.getElementById('optCodeType')?.value||'qr';
+      const output=document.getElementById('optCodeOutput')?.value||'png';
+      if(type==='barcode'){
+        if(typeof window.JsBarcode!=='function')throw new Error('Library JsBarcode belum berhasil dimuat.');
+        const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+        JsBarcode(svg,value,{format:document.getElementById('optBarcodeFormat')?.value||'CODE128',lineColor:document.getElementById('optCodeColor')?.value||'#000',background:document.getElementById('optCodeBg')?.value||'#fff',width:Number(document.getElementById('optBarWidth')?.value||2),height:Number(document.getElementById('optBarHeight')?.value||100),margin:Number(document.getElementById('optBarMargin')?.value||10),displayValue:document.getElementById('optBarShowText')?.checked!==false,fontSize:Number(document.getElementById('optBarFontSize')?.value||20),font:document.getElementById('optBarFont')?.value||'Monospace',textAlign:document.getElementById('optBarAlign')?.value||'center',fontOptions:(document.getElementById('optBarBold')?.checked?'bold ':'')+(document.getElementById('optBarItalic')?.checked?'italic':'')});
+        const svgText=new XMLSerializer().serializeToString(svg);
+        if(output==='svg'){finishWithBlob(new Blob([svgText],{type:'image/svg+xml'}),formatDownloadFilename({baseName,ext:'svg',isBulkOrZip:false}),'Barcode SVG berhasil dibuat.');return;}
+        const url=URL.createObjectURL(new Blob([svgText],{type:'image/svg+xml'}));
+        try{const image=new Image();await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;image.src=url;});const c=document.createElement('canvas');c.width=svg.viewBox.baseVal.width||svg.clientWidth||800;c.height=svg.viewBox.baseVal.height||svg.clientHeight||240;c.getContext('2d').fillStyle=document.getElementById('optCodeBg')?.value||'#fff';c.getContext('2d').fillRect(0,0,c.width,c.height);c.getContext('2d').drawImage(image,0,0,c.width,c.height);const blob=await handleImageCanvasExport(c,'image/png',1);finishWithBlob(blob,formatDownloadFilename({baseName,ext:'png',isBulkOrZip:false}),'Barcode PNG berhasil dibuat.',{isImageResult:true});}finally{URL.revokeObjectURL(url);}
+        return;
+      }
+      if(typeof window.QRCode!=='function')throw new Error('Library QR Code belum berhasil dimuat.');
+      const size=Math.max(128,Math.min(2048,Number(document.getElementById('optCodeSize')?.value||512)));
+      const host=document.createElement('div');host.style.cssText='position:fixed;left:-10000px;top:0;width:'+size+'px;height:'+size+'px;background:#fff';document.body.appendChild(host);
+      try{
+        new QRCode(host,{text:value,width:size,height:size,colorDark:document.getElementById('optCodeColor')?.value||'#000',colorLight:document.getElementById('optCodeBg')?.value||'#fff',correctLevel:QRCode.CorrectLevel.M});
+        await new Promise(resolve=>setTimeout(resolve,120));
+        let source=host.querySelector('canvas');
+        if(!source){const image=host.querySelector('img');if(!image)throw new Error('Pratinjau QR gagal dibuat.');source=document.createElement('canvas');source.width=size;source.height=size;await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;});source.getContext('2d').drawImage(image,0,0,size,size);}
+        const blob=await handleImageCanvasExport(source,'image/png',1);
+        finishWithBlob(blob,formatDownloadFilename({baseName,ext:'png',isBulkOrZip:false}),'QR Code berhasil dibuat.',{isImageResult:true});
+      }finally{host.remove();}
     }
 
     function updateCompressImageOptions() {
