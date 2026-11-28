@@ -663,7 +663,7 @@
           { id: 'merge-pdf-image', name: 'Merge PDF & Gambar', desc: 'Gabungkan PDF dan gambar raster JPG, PNG, WebP, AVIF, atau BMP dalam satu dokumen.', icon: 'layers', engine: 'merge-pdf-image' },
           { id: 'split-pdf', name: 'Split PDF', desc: 'Bagi halaman PDF menjadi beberapa file berdasarkan rentang halaman khusus atau satu halaman per file.', icon: 'scissors', engine: 'split-pdf' },
           { id: 'organize-pdf', name: 'Organize & Hapus Halaman PDF', desc: 'Susun ulang atau hapus halaman PDF dengan mengatur kartu halaman.', icon: 'layout-grid', engine: 'organize-pdf' },
-          { id: 'extract-pdf-pages', name: 'Ekstrak Halaman PDF', desc: 'Ambil nomor halaman tertentu menjadi PDF baru', icon: 'file-output', engine: 'split-pdf' },
+          { id: 'extract-pdf-pages', name: 'Ekstrak / Hapus Halaman PDF', desc: 'Ambil halaman tertentu atau keluarkan halaman yang dipilih dari PDF baru.', icon: 'file-output', engine: 'split-pdf' },
         ]
       },
       {
@@ -2247,7 +2247,7 @@
       }
       if (toolObj.id === 'extract-pdf-pages') {
         extBadge.textContent = '.pdf'; filenameInput.value = 'MiDoc_Halaman_Terpilih'; btnLabel.textContent = 'Simpan Halaman Terpilih';
-        box.innerHTML = '<label class="block font-semibold mb-1">Halaman yang diambil</label><input id="optPageRange" type="text" value="1-2" placeholder="1-3, 5, 8-10" oninput="updateExtractPdfPreview()" class="w-full px-3 py-2 border rounded-sm bg-white dark:bg-darkCanvas font-mono"><div id="extractPdfPreviewSummary" class="mt-2 p-2 border rounded-sm text-[11px]">Pilih halaman atau rentang yang ingin disimpan sebagai PDF baru.</div>';
+        box.innerHTML = '<div><label class="block font-semibold mb-1">Mode</label><select id="optExtractPageMode" onchange="updateExtractPdfPreview()" class="w-full px-3 py-2 border rounded-sm bg-white dark:bg-darkCanvas"><option value="extract">Ekstrak halaman yang dipilih</option><option value="remove">Hapus halaman yang dipilih</option></select></div><label class="block font-semibold mb-1">Nomor halaman</label><input id="optPageRange" type="text" value="1-2" placeholder="1-3, 5, 8-10" oninput="updateExtractPdfPreview()" class="w-full px-3 py-2 border rounded-sm bg-white dark:bg-darkCanvas font-mono"><div id="extractPdfPreviewSummary" class="mt-2 p-2 border rounded-sm text-[11px]">Pilih halaman atau rentang yang ingin disimpan atau dihapus.</div>';
       }
       if (toolObj.id === 'pdf-to-image') {
         extBadge.textContent = '.zip'; filenameInput.value = 'MiDoc_Ekspor_PDF'; btnLabel.textContent = 'Simpan Gambar';
@@ -3679,10 +3679,16 @@
       const source=await PDFLib.PDFDocument.load(pdfItem.arrayBuffer.slice(0));
       const total=source.getPageCount(),outputBase=pdfItem.name.replace(/\.pdf$/i,'').trim()||'Dokumen';
       if(state.activeToolObj?.id==='extract-pdf-pages'){
-        const indices=[...new Set(parsePageRange(document.getElementById('optPageRange')?.value||'',total))];
-        if(!indices.length)throw new Error('Rentang halaman tidak valid atau kosong.');
-        const out=await PDFLib.PDFDocument.create();(await out.copyPages(source,indices)).forEach(page=>out.addPage(page));
-        finishWithBlob(new Blob([await out.save()],{type:'application/pdf'}),formatDownloadFilename({baseName,ext:'pdf',isBulkOrZip:false}),indices.length+' halaman berhasil diekstrak.');return;
+        const selected=[...new Set(parsePageRange(document.getElementById('optPageRange')?.value||'',total))];
+        if(!selected.length)throw new Error('Pilih setidaknya satu halaman yang valid.');
+        const mode=document.getElementById('optExtractPageMode')?.value||'extract';
+        const indices=mode==='remove'?source.getPageIndices().filter(index=>!selected.includes(index)):selected;
+        if(!indices.length)throw new Error('Tidak bisa menghapus seluruh halaman. PDF harus memiliki minimal satu halaman.');
+        const out=await PDFLib.PDFDocument.create();
+        (await out.copyPages(source,indices)).forEach(page=>out.addPage(page));
+        const message=mode==='remove'?selected.length+' halaman dihapus. '+indices.length+' halaman tersisa.':indices.length+' halaman berhasil diekstrak.';
+        finishWithBlob(new Blob([await out.save()],{type:'application/pdf'}),formatDownloadFilename({baseName,ext:'pdf',isBulkOrZip:false}),message);
+        return;
       }
       const mode=document.getElementById('optSplitMode')?.value||'parts',zip=new JSZip();
       if(mode==='all'){
@@ -3772,7 +3778,7 @@
     function drawPdfCropSelection() {
       const canvas=document.getElementById('pdfCropCanvas'),base=state.pdfCropBaseImage;if(!canvas||!base)return;
       canvas.width=base.width;canvas.height=base.height;const ctx=canvas.getContext('2d');ctx.drawImage(base,0,0);
-      const selection=state.pdfCropSelections[state.pdfCropPage]||{x:0.05,y:0.05,w:0.9,h:0.9};
+      const selection=state.pdfCropSelections[state.pdfCropPage]||{x:0,y:0,w:1,h:1};
       const x=selection.x*canvas.width,y=selection.y*canvas.height,w=selection.w*canvas.width,h=selection.h*canvas.height;
       ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(0,0,canvas.width,canvas.height);
       ctx.clearRect(x,y,w,h);ctx.drawImage(base,x,y,w,h,x,y,w,h);
@@ -3803,10 +3809,10 @@
       const item=state.items.find(value=>value.isPdf&&value.arrayBuffer);if(!item)throw new Error('Tambahkan PDF terlebih dahulu.');
       const source=await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0)),out=await PDFLib.PDFDocument.create();
       const allPages=document.getElementById('optCropPdfAllPages')?.checked!==false;
-      const activeSelection=state.pdfCropSelections[state.pdfCropPage]||{x:0.05,y:0.05,w:0.9,h:0.9};
+      const activeSelection=state.pdfCropSelections[state.pdfCropPage]||{x:0,y:0,w:1,h:1};
       const copied=await out.copyPages(source,source.getPageIndices());
       copied.forEach((page,index)=>{
-        const selection=allPages?activeSelection:(state.pdfCropSelections[index+1]||{x:0.05,y:0.05,w:0.9,h:0.9});
+        const selection=allPages?activeSelection:(state.pdfCropSelections[index+1]||{x:0,y:0,w:1,h:1});
         const width=page.getWidth(),height=page.getHeight(),x=selection.x*width,y=(1-selection.y-selection.h)*height,w=selection.w*width,h=selection.h*height;
         if(w<=0||h<=0)throw new Error('Area crop tidak valid pada halaman '+(index+1)+'.');
         page.setCropBox(x,y,w,h);out.addPage(page);
@@ -4328,8 +4334,10 @@
       if(!box)return;
       const pdf=state.items.find(item=>item.isPdf&&item.pageCount);
       if(!pdf){box.textContent='Unggah PDF untuk melihat daftar halaman.';return;}
-      const pages=parsePageRange(document.getElementById('optPageRange')?.value||'',pdf.pageCount);
-      box.textContent=pages.length+' halaman dipilih: '+pages.map(n=>n+1).join(', ')+'.';
+      const pages=[...new Set(parsePageRange(document.getElementById('optPageRange')?.value||'',pdf.pageCount))];
+      const mode=document.getElementById('optExtractPageMode')?.value||'extract';
+      const output=mode==='remove'?pdf.pageCount-pages.length:pages.length;
+      box.textContent=mode==='remove'?pages.length+' halaman akan dihapus. PDF hasil menyisakan '+output+' halaman.':'Halaman yang akan diekstrak: '+pages.map(n=>n+1).join(', ')+' ('+output+' halaman).';
     }
 
     function getPdfColor(value) {
