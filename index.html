@@ -1828,7 +1828,7 @@
             <div id="splitRangeRows" class="space-y-2">
               <div class="split-range-row grid grid-cols-2 gap-2 border border-zinc-200 dark:border-darkLine p-2 rounded-sm">
                 <label class="text-xs font-semibold">Split 1 · Halaman dari<input data-page-from type="number" min="1" value="1" oninput="updateSplitPdfRangesPreview()" class="mt-1 w-full px-2 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine font-mono"></label>
-                <label class="text-xs font-semibold">Sampai halaman<input data-page-to type="number" min="1" value="5" oninput="updateSplitPdfRangesPreview()" class="mt-1 w-full px-2 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine font-mono"></label>
+                <label class="text-xs font-semibold">Sampai halaman<input data-page-to type="number" min="1" value="5" data-auto-end="true" oninput="this.dataset.autoEnd=&quot;false&quot;;updateSplitPdfRangesPreview()" class="mt-1 w-full px-2 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine font-mono"></label>
               </div>
             </div>
             <input id="optPageRanges" type="hidden" value="1-5">
@@ -2195,7 +2195,8 @@
 
     function syncSplitPdfRangeRows(){
       const rows=[...document.querySelectorAll('#splitRangeRows .split-range-row')];
-      const ranges=rows.map(row=>{const from=Math.max(1,Number(row.querySelector('[data-page-from]')?.value||1));const to=Math.max(from,Number(row.querySelector('[data-page-to]')?.value||from));return from===to?String(from):from+'-'+to;});
+      const pageTotal=state.items.find(i=>i.isPdf&&i.arrayBuffer)?.pageCount||0;
+      const ranges=rows.map(row=>{const fromInput=row.querySelector('[data-page-from]'),toInput=row.querySelector('[data-page-to]');const from=Math.max(1,Number(fromInput?.value||1));if(pageTotal&&toInput?.dataset.autoEnd==='true'&&Number(toInput.value)>pageTotal)toInput.value=String(pageTotal);const to=Math.max(from,Number(toInput?.value||from));return from===to?String(from):from+'-'+to;});
       const hidden=document.getElementById('optPageRanges');if(hidden)hidden.value=ranges.join('\n');
       return ranges;
     }
@@ -2207,7 +2208,7 @@
       const lastTo=Math.max(1,Number(last?.querySelector('[data-page-to]')?.value||5));
       const next=lastTo+1,mode=document.getElementById('optSplitMode')?.value||'parts';
       const row=document.createElement('div');row.className='split-range-row grid grid-cols-2 gap-2 border border-zinc-200 dark:border-darkLine p-2 rounded-sm';
-      row.innerHTML='<label class="text-xs font-semibold">Split '+(existing.length+1)+' · Halaman dari<input data-page-from type="number" min="1" value="'+next+'" oninput="updateSplitPdfRangesPreview()" class="mt-1 w-full px-2 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine font-mono"></label><label class="text-xs font-semibold">Sampai halaman<input data-page-to type="number" min="1" value="'+(next+4)+'" oninput="updateSplitPdfRangesPreview()" class="mt-1 w-full px-2 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine font-mono"></label><button type="button" onclick="this.closest(\'.split-range-row\').remove();document.querySelectorAll(\'#splitRangeRows .split-range-row\').forEach((r,i)=>{const l=r.querySelector(\'label\');if(l)l.firstChild.textContent=\'Split \'+(i+1)+\' · Halaman dari\';});updateSplitPdfRangesPreview();" class="col-span-2 justify-self-end text-[11px] text-red-500">Hapus split ini</button>';
+      row.innerHTML='<label class="text-xs font-semibold">Split '+(existing.length+1)+' · Halaman dari<input data-page-from type="number" min="1" value="'+next+'" oninput="updateSplitPdfRangesPreview()" class="mt-1 w-full px-2 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine font-mono"></label><label class="text-xs font-semibold">Sampai halaman<input data-page-to type="number" min="1" value="'+(next+4)+'" data-auto-end="true" oninput="this.dataset.autoEnd=&quot;false&quot;;updateSplitPdfRangesPreview()" class="mt-1 w-full px-2 py-2 rounded-sm bg-white dark:bg-darkCanvas border border-zinc-300 dark:border-darkLine font-mono"></label><button type="button" onclick="this.closest(\'.split-range-row\').remove();document.querySelectorAll(\'#splitRangeRows .split-range-row\').forEach((r,i)=>{const l=r.querySelector(\'label\');if(l)l.firstChild.textContent=\'Split \'+(i+1)+\' · Halaman dari\';});updateSplitPdfRangesPreview();" class="col-span-2 justify-self-end text-[11px] text-red-500">Hapus split ini</button>';
       rows.appendChild(row);syncSplitPdfRangeRows();updateSplitPdfRangesPreview();
     }
 
