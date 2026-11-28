@@ -45,7 +45,7 @@ const fs = require('node:fs');
     await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
     let downloadCount = 0;
     page.on('download', () => downloadCount++);
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => {
       const box = document.getElementById('resultOutputBox');
       return box && !box.classList.contains('hidden');
@@ -73,7 +73,7 @@ const fs = require('node:fs');
     assert.equal(await page.locator('#fileItemsGrid').evaluate(el => el.classList.contains('hidden')), true, 'PNG must be rejected in GIF extraction mode');
     await page.locator('#fileInput').setInputFiles(gifPath);
     await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => {
       const box = document.getElementById('resultOutputBox');
       return box && !box.classList.contains('hidden');
@@ -117,7 +117,7 @@ const fs = require('node:fs');
       { name: 'source-blue.png', mimeType: 'image/png', buffer: bluePng }
     ]);
     await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => {
       const box = document.getElementById('resultOutputBox');
       return box && !box.classList.contains('hidden');
@@ -134,7 +134,7 @@ const fs = require('node:fs');
     await openTool('pdf-to-image');
     await page.locator('#fileInput').setInputFiles(pdfPath);
     await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => {
       const box = document.getElementById('resultOutputBox');
       return box && !box.classList.contains('hidden');
@@ -149,7 +149,7 @@ const fs = require('node:fs');
       return cards.length === 2 && cards.some(card => card.innerText.includes('PDF HAL 1')) && cards.some(card => card.innerText.includes('PDF HAL 2'));
     }, { timeout: 15000 });
     assert.equal(await page.locator('#expandPdfPagesBtn').count(), 0, 'The manual split-per-page button must remain removed.');
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => {
       const box = document.getElementById('resultOutputBox');
       return box && !box.classList.contains('hidden');
@@ -163,7 +163,7 @@ const fs = require('node:fs');
       { name: 'beta.txt', mimeType: 'text/plain', buffer: Buffer.from('beta-content') }
     ]);
     await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => {
       const box = document.getElementById('resultOutputBox');
       return box && !box.classList.contains('hidden');
@@ -236,7 +236,7 @@ const fs = require('node:fs');
     await page.waitForFunction(() => !document.getElementById('toolLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
     await page.locator('#optResizePercent').evaluate(el => { el.value = '200'; el.dispatchEvent(new Event('input', { bubbles: true })); });
     await page.waitForFunction(() => document.getElementById('resizeDimensionPreview').innerText.includes('8 × 8 px'), { timeout: 10000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
@@ -248,7 +248,7 @@ const fs = require('node:fs');
     await page.locator('#optCropW').fill('2');
     await page.locator('#optCropH').fill('2');
     await page.waitForFunction(() => document.getElementById('cropPixelInfo').innerText.includes('2×2 px'), { timeout: 10000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
@@ -257,7 +257,7 @@ const fs = require('node:fs');
     await page.locator('#fileInput').setInputFiles({ name: 'shape-source.png', mimeType: 'image/png', buffer: redPng });
     await page.locator('#optShapeMode').selectOption('circle');
     await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 10000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
@@ -270,7 +270,7 @@ const fs = require('node:fs');
     await page.locator('#optColorFilter').selectOption('grayscale(100%)');
     await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 10000 });
     assert.match(await page.locator('#toolLivePreviewMeta').innerText(), /filter-blue\.png/);
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
@@ -279,7 +279,7 @@ const fs = require('node:fs');
     await page.locator('#fileInput').setInputFiles({ name: 'compress-source.png', mimeType: 'image/png', buffer: redPng });
     await page.locator('button[onclick="previewCompressImage()"]').click();
     await page.waitForFunction(() => document.getElementById('compressPreviewInfo').innerText.includes('→'), { timeout: 15000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.jpg$/i);
 
@@ -292,7 +292,7 @@ const fs = require('node:fs');
     await page.waitForFunction(() => !document.getElementById('toolLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
     assert.equal(await page.locator('#optOverlayBase option').count(), 2);
     assert.equal(await page.locator('#optOverlayFront option').count(), 2, 'Either uploaded image can be selected as the foreground layer.');
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.locator('#executeActionBtn').click();
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
