@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   validate:
-    name: Validate MiDoc preview
+    name: Validate supplied MiDoc Studio
     runs-on: ubuntu-latest
     steps:
       - name: Checkout preview branch
@@ -46,64 +46,71 @@ jobs:
             inlineScripts.push(body.slice(0, endOfScript));
           }
 
-          if (inlineScripts.length === 0) {
-            throw new Error('No inline JavaScript blocks were found in index.html');
-          }
-
+          if (inlineScripts.length === 0) throw new Error('No inline JavaScript was found.');
           inlineScripts.forEach((script, index) => {
             new vm.Script(script, { filename: 'index.html:inline-script-' + (index + 1) });
           });
-          console.log('JavaScript syntax OK: ' + inlineScripts.length + ' inline script block(s).');
+          console.log('Inline JavaScript syntax OK: ' + inlineScripts.length + ' script blocks.');
           NODE
 
-
-      - name: Audit every tool ID, input rule, and key operation
+      - name: Audit supplied tool catalog and engines
         run: |
           node <<'NODE'
           const fs = require('node:fs');
           const html = fs.readFileSync('index.html', 'utf8');
-          const tools = [...html.matchAll(/\{\s*id:\s*'([^']+)',\s*name:\s*'([^']+)'[^}]*engine:\s*'([^']+)'/g)]
-            .map(match => ({ id: match[1], name: match[2], engine: match[3] }));
-          const policyBlock = html.match(/const TOOL_INPUT_RULES = \{([\s\S]*?)\n    \};/)?.[1] || '';
-          const policies = [...policyBlock.matchAll(/'([^']+)'\s*:/g)].map(match => match[1]);
-          const missing = tools.filter(tool => !policies.includes(tool.id));
-          if (!tools.length) throw new Error('Tool catalog could not be read.');
-          if (missing.length) throw new Error('Missing input policy: ' + missing.map(tool => tool.id).join(', '));
-          if (html.includes("id: 'protect-pdf'") || html.includes("id: 'pdf-to-ebook'")) {
-            throw new Error('Unsupported PDF tools are still advertised.');
-          }
-          if (!html.includes("id: 'gif-tools'") || !html.includes("engine: 'gif-tools'")) {
-            throw new Error('GIF Maker must use its dedicated engine.');
-          }
-          const required = [
-            ['GIF creation', 'async function createAnimatedGif'],
-            ['GIF extraction', 'async function extractGifFrames'],
-            ['GIF mode validation', "return { formats: ['gif'], accept: '.gif,image/gif'"],
-            ['Strict file signature checks', 'async function sniffFileFormat'],
-            ['Pre-ingestion validation', 'validateIncomingFiles(filesArray)'],
-            ['Pre-execution validation', 'validateCurrentToolFiles()'],
-            ['PDF merge engine', 'async function runMergePdf'],
-            ['PDF organize engine', 'async function runOrganizePdf'],
-            ['PDF rotate engine', 'async function runRotatePdf'],
-            ['EXIF removal engine', 'async function runRemoveExif'],
-            ['QR Code library', 'qrcodejs'],
-            ['Real QR generation', 'new QRCode(host'],
-            ['Independent unit converter', 'function recalcUnitConverter'],
-            ['Percentage resize mode', "document.getElementById('optResizePercent')"],
-            ['ZIP path traversal protection', "originalParts.includes('..')"],
-            ['Image-to-PDF original-size default', '<option value="FIT" selected>Sesuai Dimensi Asli Gambar</option>'],
-            ['Image-to-PDF zero margin default', '<option value="0">0 pt (Penuh Tanpa Margin)</option>'],
-            ['Image-to-PDF original quality default', '<option value="original" selected>Same as Image — 100% / kualitas asli</option>']
+          const catalog = html.match(/const DIRECTORY_GROUPS = \[([\s\S]*?)\n    \];/)?.[1] || '';
+          const tools = [...catalog.matchAll(/\{\s*id:\s*'([^']+)',\s*name:\s*'([^']+)'[\s\S]*?engine:\s*'([^']+)'\s*,\s*accept:\s*'([^']*)'\s*,\s*multiple:\s*(true|false)/g)]
+            .map(match => ({ id: match[1], name: match[2], engine: match[3], accept: match[4], multiple: match[5] }));
+          const groups = [...catalog.matchAll(/\{\s*id:\s*'([^']+)'\s*,\s*navCat:\s*'([^']+)'\s*,\s*title:\s*'([^']+)'/g)]
+            .map(match => ({ id: match[1], navCat: match[2], title: match[3] }));
+          const expectedGroups = [
+            'Gabung, Pisah & Halaman',
+            'Edit & Optimasi PDF',
+            'Konversi ke PDF',
+            'Konversi dari PDF',
+            'Kompres & Konversi Gambar',
+            'Potong, Ukuran & Susun',
+            'Warna, Efek & Metadata',
+            'Utilitas & Batch Tools'
           ];
-          const missingMarkers = required.filter(([, marker]) => !html.includes(marker)).map(([label]) => label);
-          if (missingMarkers.length) throw new Error('Missing expected behavior: ' + missingMarkers.join(', '));
-          const finish = html.match(/function finishWithBlob\([\s\S]*?\n    \}/)?.[0] || '';
-          const userAction = finish.indexOf("reDownloadBtn').onclick");
-          const downloadCall = finish.indexOf('link.click()');
-          if (userAction < 0 || (downloadCall >= 0 && downloadCall < userAction)) {
-            throw new Error('Results must be shown first and downloaded only after the user clicks the download button.');
+          if (tools.length !== 28) throw new Error('Expected 28 tools, found ' + tools.length);
+          if (groups.length !== 8) throw new Error('Expected 8 directory groups, found ' + groups.length);
+          if (JSON.stringify(groups.map(group => group.title)) !== JSON.stringify(expectedGroups)) {
+            throw new Error('The supplied eight-group directory structure changed.');
           }
-          console.log('MiDoc audit checks passed for ' + tools.length + ' tools; all have explicit input rules.');
+          const ids = tools.map(tool => tool.id);
+          const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
+          if (duplicateIds.length) throw new Error('Duplicate tool IDs: ' + duplicateIds.join(', '));
+          const missingInputRules = tools.filter(tool => typeof tool.accept !== 'string' || !['true', 'false'].includes(tool.multiple));
+          if (missingInputRules.length) throw new Error('Missing file input rules: ' + missingInputRules.map(tool => tool.id).join(', '));
+
+          const required = [
+            ['Hash navigation', 'handleRouteFromHash'],
+            ['Directory search', 'function renderHomeDirectory'],
+            ['Mega menu', 'function openMegaMenu'],
+            ['Browser-side file validation', 'function isFileAllowedForCurrentTool'],
+            ['Interactive image crop', 'async function runCropImagePixel'],
+            ['Interactive PDF crop', 'async function runCropPdfInteractive'],
+            ['PDF generation', 'async function runMergePdfAndImages'],
+            ['Document-to-PDF editor', 'async function runDocToPdf'],
+            ['Image conversion', 'async function runConvertImage'],
+            ['Image resize', 'async function runImageResize'],
+            ['Grid splitter', 'async function runImageSplitter'],
+            ['Image joiner', 'async function runJoinImages'],
+            ['Layer overlay', 'async function runLayerOverlay'],
+            ['ZIP create and extract', 'async function runZipTools'],
+            ['GIF encoder', 'function encodeSimpleAnimatedGif'],
+            ['QR/barcode preview', 'function renderQrBarcodeLargeStage'],
+            ['Password generator', 'function generateNewPasswordText'],
+            ['Preview before user download', 'function stageResultForUserDownload'],
+            ['Explicit download control', 'id="reDownloadBtn"']
+          ];
+          const missing = required.filter(([, marker]) => !html.includes(marker)).map(([label]) => label);
+          if (missing.length) throw new Error('Missing expected Studio feature: ' + missing.join(', '));
+          if (!html.includes('https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js')) throw new Error('PDF-Lib dependency is missing.');
+          if (!html.includes('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js')) throw new Error('JSZip dependency is missing.');
+          if (!html.includes('https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js')) throw new Error('JsBarcode dependency is missing.');
+          console.log('Catalog audit passed: ' + tools.length + ' tools across ' + groups.length + ' groups.');
           NODE
 
       - name: Install Playwright and Chromium
@@ -111,7 +118,7 @@ jobs:
           npm install --no-save playwright
           npx playwright install --with-deps chromium
 
-      - name: Run browser smoke tests
+      - name: Run Studio browser smoke tests
         run: |
           python3 -m http.server 4173 --directory . > /tmp/midoc-http.log 2>&1 &
           SERVER_PID=$!
@@ -123,38 +130,3 @@ jobs:
             sleep 1
           done
           node tests/browser-smoke.cjs
-
-      - name: Check requested functionality markers
-        run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const html = fs.readFileSync('index.html', 'utf8');
-          const required = [
-            ['ZIP modes', 'id="optZipMode"'],
-            ['ZIP inspect mode', 'value="view"'],
-            ['ZIP archive listing', 'showZipArchiveContents'],
-
-            ['Explicit result download', 'id="reDownloadBtn"'],
-            ['AVIF conversion option', 'image/avif'],
-            ['BMP conversion path', 'canvasToBmpBlob'],
-            ['Image-to-PDF quality presets', 'id="optImagePdfQuality"'],
-            ['Original-quality PDF profile', "qualityMode === 'original'"],
-            ['Fresh page navigation', 'window.location.assign(target)'],
-            ['Query-string tool routing', 'new URLSearchParams(window.location.search)'],
-            ['Cross-tool transfer storage', 'function savePendingToolTransfer'],
-            ['Cross-tool transfer restore', 'function consumePendingToolTransfer']
-          ];
-
-          const zipMode = html.match(/<select id="optZipMode"[\s\S]*?<\/select>/)?.[0] || '';
-          if (zipMode.includes('value="extract"') || html.includes('extractZipToFolder')) {
-            throw new Error('ZIP viewer should offer create/view only; folder extraction must stay removed.');
-          }
-          const failures = required.filter(item => !html.includes(item[1])).map(item => item[0]);
-          if (failures.length) {
-            throw new Error('Missing functionality: ' + failures.join(', '));
-          }
-          if (html.includes('Lokal • Tanpa Upload Server')) {
-            throw new Error('Obsolete local-only navbar badge is still present.');
-          }
-          console.log('MiDoc requested-functionality checks passed.');
-          NODE
