@@ -189,6 +189,26 @@ const fs = require('node:fs');
     await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
 
+    // The same tool can remove selected pages and keep the remaining pages.
+    await openTool('extract-pdf-pages');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optExtractPageMode').selectOption('remove');
+    await page.locator('#optPageRange').fill('1');
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    const deletePdfDownloadPromise = page.waitForEvent('download', { timeout: 10000 });
+    await page.locator('#reDownloadBtn').click();
+    const deletePdfDownload = await deletePdfDownloadPromise;
+    const deletePdfPath = '/tmp/midoc-delete-page-test.pdf';
+    await deletePdfDownload.saveAs(deletePdfPath);
+    const remainingPages = await page.evaluate(async base64 => {
+      const binary = atob(base64);
+      const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+      return (await PDFLib.PDFDocument.load(bytes)).getPageCount();
+    }, fs.readFileSync(deletePdfPath).toString('base64'));
+    assert.equal(remainingPages, 1, 'Removing page 1 from a 2-page PDF should leave one page.');
+
     // Crop PDF should render its first page immediately and accept a draggable crop rectangle.
     await openTool('crop-pdf');
     await page.locator('#fileInput').setInputFiles(pdfPath);
