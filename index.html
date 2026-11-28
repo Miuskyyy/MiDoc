@@ -2116,10 +2116,6 @@
             <div><label class="block text-xs font-semibold mb-1">Warna Kode</label><input id="optCodeFg" type="color" value="#111827" oninput="renderQrBarcodePreview()" class="w-full h-9 rounded-sm border border-zinc-300 dark:border-darkLine bg-transparent" /></div>
             <div><label class="block text-xs font-semibold mb-1">Latar</label><input id="optCodeBg" type="color" value="#ffffff" oninput="renderQrBarcodePreview()" class="w-full h-9 rounded-sm border border-zinc-300 dark:border-darkLine bg-transparent" /></div>
           </div>
-          <div class="border border-zinc-200 dark:border-darkLine rounded-sm bg-white p-3">
-            <div class="text-[11px] font-semibold text-zinc-500 mb-2">PRATINJAU LANGSUNG</div>
-            <div id="qrBarcodePreviewArea" class="min-h-[150px] flex items-center justify-center overflow-auto"></div>
-          </div>
         `;
         updateBarcodeSubControls();
         renderQrBarcodePreview();
@@ -2804,24 +2800,185 @@
       };
     }
 
+    async function renderCropWorkspaceStage() {
+      const stage = document.getElementById('activeWorkspaceStage');
+      const item = state.items[0];
+      if (!stage || !item) return;
+      state.inspectorItemId = item.id;
+      stage.innerHTML = '<div class="py-14 text-center text-xs text-zinc-500">Menyiapkan pratinjau resolusi asli...</div>';
+
+      try {
+        if (state.activeEngine === 'image-crop-pixel' && item.isImage) {
+          const canvas = await renderItemToCanvas(item);
+          if (state.items[0]?.id !== item.id || state.activeEngine !== 'image-crop-pixel') return;
+          state.inspectorSourceWidth = canvas.width;
+          state.inspectorSourceHeight = canvas.height;
+          const rect = state.cropImgRect;
+          stage.innerHTML = `
+            <div class="space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-zinc-200 dark:border-darkLine">
+                <div>
+                  <div class="text-xs font-bold text-ink dark:text-white">Pilih Area Crop Gambar</div>
+                  <div id="workspaceCropSummary" class="text-[11px] font-mono text-zinc-500 mt-0.5">Dimensi asli: ${canvas.width} × ${canvas.height} px</div>
+                </div>
+                <span class="px-2 py-1 rounded-sm bg-accent/10 text-accent text-[10px] font-mono font-bold">IMAGE CROP</span>
+              </div>
+              <div class="flex flex-col items-center space-y-2">
+                <p class="text-xs text-zinc-500">Geser kotak biru untuk memindahkan area. Tarik salah satu sudut untuk mengubah ukurannya.</p>
+                <div class="w-full checkerboard border border-zinc-300 dark:border-darkLine p-3 sm:p-4 flex items-center justify-center overflow-auto">
+                  <div id="cropWorkspaceFrame" class="relative inline-block max-w-full select-none" style="width:min(100%, ${canvas.width}px);aspect-ratio:${canvas.width}/${canvas.height};">
+                    ${inspectorCropMarkup(rect)}
+                  </div>
+                </div>
+                <div class="text-[11px] text-zinc-500 font-mono">Hasil: ${Math.max(1,Math.round(rect.w*canvas.width))} × ${Math.max(1,Math.round(rect.h*canvas.height))} px</div>
+              </div>
+            </div>
+          `;
+          canvas.id = 'cropWorkspaceSourceCanvas';
+          canvas.className = 'block w-full h-auto max-h-[65vh] object-contain pointer-events-none';
+          const frame = document.getElementById('cropWorkspaceFrame');
+          frame.prepend(canvas);
+          initInspectorCropBoxDrag(frame, frame.querySelector('#inspectorCropSelection'), state.cropImgRect, () => {
+            updateWorkspaceCropSummary();
+          });
+          const inputW = document.getElementById('optCropPxW');
+          const inputH = document.getElementById('optCropPxH');
+          if (inputW) inputW.value = Math.round(state.cropImgRect.w * canvas.width);
+          if (inputH) inputH.value = Math.round(state.cropImgRect.h * canvas.height);
+          updateWorkspaceCropSummary();
+        } else if (state.activeEngine === 'crop-pdf' && item.isPdf && item.arrayBuffer && window.pdfjsLib) {
+          const pdf = await pdfjsLib.getDocument({ data: item.arrayBuffer.slice(0) }).promise;
+          const pageCount = Number.isInteger(item.singlePageIndex) ? 1 : pdf.numPages;
+          state.inspectorPageCount = pageCount;
+          state.inspectorPage = Math.max(1, Math.min(pageCount, state.inspectorPage));
+          const sourcePage = Number.isInteger(item.singlePageIndex) ? item.singlePageIndex + 1 : state.inspectorPage;
+          const page = await pdf.getPage(sourcePage);
+          const viewport = page.getViewport({ scale: 1.25, rotation: page.rotate });
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.ceil(viewport.width);
+          canvas.height = Math.ceil(viewport.height);
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+          if (state.items[0]?.id !== item.id || state.activeEngine !== 'crop-pdf') return;
+          state.inspectorSourceWidth = canvas.width;
+          state.inspectorSourceHeight = canvas.height;
+          stage.innerHTML = `
+            <div class="space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-zinc-200 dark:border-darkLine">
+                <div>
+                  <div class="text-xs font-bold text-ink dark:text-white">Pilih Area Crop PDF</div>
+                  <div id="workspaceCropSummary" class="text-[11px] font-mono text-zinc-500 mt-0.5">Halaman ${state.inspectorPage} / ${pageCount}</div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="changeInspectorPage(-1)" ${state.inspectorPage<=1?'disabled':''} class="px-2.5 py-1.5 border border-zinc-300 dark:border-darkLine rounded-sm text-xs hover:border-accent disabled:opacity-30"><i data-lucide="chevron-left" class="w-3 h-3"></i></button>
+                  <span class="text-[11px] font-mono text-zinc-500">Halaman ${state.inspectorPage} / ${pageCount}</span>
+                  <button type="button" onclick="changeInspectorPage(1)" ${state.inspectorPage>=pageCount?'disabled':''} class="px-2.5 py-1.5 border border-zinc-300 dark:border-darkLine rounded-sm text-xs hover:border-accent disabled:opacity-30"><i data-lucide="chevron-right" class="w-3 h-3"></i></button>
+                </div>
+              </div>
+              <div class="flex flex-col items-center space-y-2">
+                <p class="text-xs text-zinc-500">Geser kotak biru dan tarik sudutnya untuk memilih area halaman yang ingin dipertahankan.</p>
+                <div class="w-full checkerboard border border-zinc-300 dark:border-darkLine p-3 sm:p-4 flex items-center justify-center overflow-auto">
+                  <div id="cropWorkspaceFrame" class="relative inline-block max-w-full select-none" style="width:min(100%, ${canvas.width}px);aspect-ratio:${canvas.width}/${canvas.height};">
+                    ${inspectorCropMarkup(state.cropPdfRect)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          canvas.id = 'cropWorkspaceSourceCanvas';
+          canvas.className = 'block w-full h-auto max-h-[68vh] object-contain pointer-events-none';
+          const frame = document.getElementById('cropWorkspaceFrame');
+          frame.prepend(canvas);
+          initInspectorCropBoxDrag(frame, frame.querySelector('#inspectorCropSelection'), state.cropPdfRect, updateWorkspaceCropSummary);
+          updateWorkspaceCropSummary();
+          lucide.createIcons();
+        }
+      } catch (error) {
+        console.error(error);
+        stage.innerHTML = '<div class="py-12 text-center text-xs text-red-500">Pratinjau gagal dimuat: ' + escapeHtml(error.message || 'kesalahan tidak diketahui') + '</div>';
+      }
+    }
+
+    function updateWorkspaceCropSummary() {
+      const item = getInspectorItem();
+      const out = document.getElementById('workspaceCropSummary');
+      if (!item || !out) return;
+      const rect = item.isPdf ? state.cropPdfRect : state.cropImgRect;
+      const width = Math.round(rect.w * state.inspectorSourceWidth);
+      const height = Math.round(rect.h * state.inspectorSourceHeight);
+      out.textContent = item.isPdf
+        ? `Area terpilih: ${Math.round(rect.w*100)}% × ${Math.round(rect.h*100)}% halaman • ${width} × ${height} px pratinjau`
+        : `Dimensi asli: ${state.inspectorSourceWidth} × ${state.inspectorSourceHeight} px • Area crop: ${width} × ${height} px`;
+      const inputW = document.getElementById('optCropPxW');
+      const inputH = document.getElementById('optCropPxH');
+      if (!item.isPdf && inputW && inputH) {
+        inputW.value = width;
+        inputH.value = height;
+      }
+    }
+
     function renderWorkspaceItems() {
       const emptyBox = document.getElementById('emptyStateBox');
       const grid = document.getElementById('fileItemsGrid');
       const bottomStrip = document.getElementById('bottomAddStrip');
       const expandBtn = document.getElementById('expandPdfPagesBtn');
+      const stage = document.getElementById('activeWorkspaceStage');
+      const cropTool = ['image-crop-pixel', 'crop-pdf'].includes(state.activeEngine);
+      const noFileTool = getToolInputRule(state.activeToolObj).formats.includes('none');
+
+      if (state.items.length === 0 && (state.activeEngine === 'qr-barcode' || noFileTool)) {
+        emptyBox.classList.add('hidden');
+        grid.classList.add('hidden');
+        bottomStrip.classList.add('hidden');
+        expandBtn.classList.add('hidden');
+        stage.classList.remove('hidden');
+        document.getElementById('splitterLivePreviewPanel')?.classList.add('hidden');
+        document.getElementById('joinerLivePreviewPanel')?.classList.add('hidden');
+        if (state.activeEngine === 'qr-barcode') renderQrBarcodeWorkspaceStage();
+        else if (state.activeEngine === 'password-gen') {
+          stage.innerHTML = '<div class="min-h-[250px] flex items-center justify-center"><div class="max-w-lg p-6 border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-center space-y-2"><i data-lucide="key-round" class="w-7 h-7 text-accent mx-auto"></i><div class="font-display font-bold text-sm">Password Generator</div><p class="text-xs text-zinc-500">Atur panjang karakter pada bar pengaturan di atas, lalu tekan tombol Generate.</p></div></div>';
+          lucide.createIcons();
+        } else if (state.activeEngine === 'unit-converter' || state.activeEngine === 'dpi-calc') {
+          stage.innerHTML = '<div class="min-h-[250px] flex items-center justify-center"><div class="max-w-lg p-6 border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-center space-y-2"><i data-lucide="calculator" class="w-7 h-7 text-accent mx-auto"></i><div class="font-display font-bold text-sm">Kalkulator MiDoc</div><p class="text-xs text-zinc-500">Masukkan nilai pada bar pengaturan di atas untuk melihat hasil perhitungan.</p></div></div>';
+          lucide.createIcons();
+        } else {
+          stage.innerHTML = '<div class="min-h-[250px] flex items-center justify-center"><div class="max-w-lg p-6 border border-zinc-300 dark:border-darkLine bg-white dark:bg-darkCanvas text-center text-xs text-zinc-500">Atur parameter alat di atas untuk memulai.</div></div>';
+        }
+        document.getElementById('totalSummaryText').textContent = '0 file';
+        updateFilenamePreviewHint();
+        return;
+      }
 
       if (state.items.length === 0) {
         emptyBox.classList.remove('hidden');
         grid.classList.add('hidden');
         bottomStrip.classList.add('hidden');
         expandBtn.classList.add('hidden');
+        stage.classList.add('hidden');
+        stage.innerHTML = '';
         document.getElementById('splitterLivePreviewPanel').classList.add('hidden');
         document.getElementById('joinerLivePreviewPanel').classList.add('hidden');
+        document.getElementById('totalSummaryText').textContent = '0 file';
         updateFilenamePreviewHint();
         return;
       }
 
       emptyBox.classList.add('hidden');
+      if (cropTool && state.items.length) {
+        grid.classList.add('hidden');
+        bottomStrip.classList.add('hidden');
+        expandBtn.classList.add('hidden');
+        stage.classList.remove('hidden');
+        document.getElementById('splitterLivePreviewPanel').classList.add('hidden');
+        document.getElementById('joinerLivePreviewPanel').classList.add('hidden');
+        const totalBytes = state.items.reduce((sum, item) => sum + (item.size || 0), 0);
+        document.getElementById('totalSummaryText').textContent = `${state.items.length} file • ${formatBytes(totalBytes)}`;
+        renderCropWorkspaceStage();
+        updateFilenamePreviewHint();
+        return;
+      }
+
+      stage.classList.add('hidden');
+      stage.innerHTML = '';
       grid.classList.remove('hidden');
       bottomStrip.classList.remove('hidden');
 
@@ -2829,10 +2986,12 @@
       expandBtn.classList.toggle('hidden', !hasMultiPagePdf);
 
       const totalBytes = state.items.reduce((s, it) => s + (it.size || 0), 0);
-      document.getElementById('totalSummaryText').textContent = `${state.items.length} item • ${formatBytes(totalBytes)}`;
+      document.getElementById('totalSummaryText').textContent = `${state.items.length} file • ${formatBytes(totalBytes)}`;
+      const bottomCount = document.getElementById('bottomWorkspaceCount');
+      if (bottomCount) bottomCount.textContent = `${state.items.length} file • ${formatBytes(totalBytes)}`;
 
       grid.className = state.viewMode === 'grid'
-        ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5'
+        ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5'
         : 'flex flex-col gap-2';
 
       const isPdfPageSimMode = (state.activeEngine === 'image-to-pdf' || state.activeEngine === 'merge-pdf-image');
@@ -3103,7 +3262,11 @@
 
     function changeInspectorPage(delta) {
       state.inspectorPage = Math.max(1, Math.min(state.inspectorPageCount, state.inspectorPage + delta));
-      renderInspectorPreview();
+      if (['image-crop-pixel', 'crop-pdf'].includes(state.activeEngine) && document.getElementById('activeWorkspaceStage') && !document.getElementById('activeWorkspaceStage').classList.contains('hidden')) {
+        renderCropWorkspaceStage();
+      } else {
+        renderInspectorPreview();
+      }
     }
 
     function setInspectorZoom(value) {
@@ -3116,10 +3279,13 @@
 
     function updateInspectorCropSummary() {
       const item = getInspectorItem();
+      const rect = item?.isPdf ? state.cropPdfRect : state.cropImgRect;
+      if (!item || !rect) return;
+      const label = `Area: x ${Math.round(rect.x * 100)}%, y ${Math.round(rect.y * 100)}%, lebar ${Math.round(rect.w * 100)}%, tinggi ${Math.round(rect.h * 100)}%`;
       const out = document.getElementById('inspectorCropSummary');
-      if (!item || !out) return;
-      const rect = item.isPdf ? state.cropPdfRect : state.cropImgRect;
-      out.textContent = `Area: x ${Math.round(rect.x * 100)}%, y ${Math.round(rect.y * 100)}%, lebar ${Math.round(rect.w * 100)}%, tinggi ${Math.round(rect.h * 100)}%`;
+      const workspaceOut = document.getElementById('workspaceCropSummary');
+      if (out) out.textContent = label;
+      if (workspaceOut && state.inspectorSourceWidth && state.inspectorSourceHeight) updateWorkspaceCropSummary();
     }
 
     function inspectorCropMarkup(rect) {
@@ -3356,7 +3522,8 @@
         rect.h = px / state.inspectorSourceHeight;
         rect.y = Math.min(rect.y, 1 - rect.h);
       }
-      renderInspectorPreview();
+      if (state.activeEngine === 'image-crop-pixel' && !document.getElementById('inspectorModal').classList.contains('hidden')) renderInspectorPreview();
+      else renderCropWorkspaceStage();
     }
 
     function closeInspectorModal() {
@@ -5197,26 +5364,32 @@
       document.getElementById('barcodeExtraControls')?.classList.toggle('hidden', type === 'QR');
     }
 
-    function renderQrBarcodePreview() {
-      const host = document.getElementById('qrBarcodePreviewArea');
-      if (!host) return;
+    function renderQrBarcodeWorkspaceStage() {
+      const stage = document.getElementById('activeWorkspaceStage');
+      if (!stage) return;
       const type = document.getElementById('optCodeType')?.value || 'QR';
       const value = (document.getElementById('optCodeValue')?.value || '').trim();
       const fg = document.getElementById('optCodeFg')?.value || '#111827';
       const bg = document.getElementById('optCodeBg')?.value || '#ffffff';
-      host.innerHTML = '';
+      stage.innerHTML = `
+        <div class="min-h-[300px] flex flex-col items-center justify-center py-6 space-y-3">
+          <div id="qrWorkspaceCodeFrame" class="min-w-[220px] min-h-[220px] p-5 rounded-sm border border-zinc-300 dark:border-darkLine bg-white flex items-center justify-center overflow-auto"></div>
+          <span class="font-mono text-xs text-zinc-500">Pratinjau Real-Time (${type}) • Tekan Generate untuk menyiapkan unduhan</span>
+        </div>`;
+      const host = document.getElementById('qrWorkspaceCodeFrame');
       if (!value) {
-        host.innerHTML = '<span class="text-xs text-zinc-500">Masukkan isi kode untuk menampilkan pratinjau.</span>';
+        host.innerHTML = '<span class="text-xs text-zinc-500">Masukkan teks atau angka pada pengaturan di atas.</span>';
         return;
       }
       try {
         if (type === 'QR') {
-          if (typeof window.QRCode !== 'function') throw new Error('Library QR belum siap.');
+          if (typeof window.QRCode !== 'function') throw new Error('Library QR belum berhasil dimuat.');
           const node = document.createElement('div');
           host.appendChild(node);
-          new QRCode(node, { text: value, width: 220, height: 220, colorDark: fg, colorLight: bg, correctLevel: QRCode.CorrectLevel.H });
+          new QRCode(node, { text: value, width: 320, height: 320, colorDark: fg, colorLight: bg, correctLevel: QRCode.CorrectLevel.H });
+          node.classList.add('max-w-full');
         } else {
-          if (typeof window.JsBarcode !== 'function') throw new Error('Library barcode belum siap.');
+          if (typeof window.JsBarcode !== 'function') throw new Error('Library barcode belum berhasil dimuat.');
           const canvas = document.createElement('canvas');
           host.appendChild(canvas);
           window.JsBarcode(canvas, value, {
@@ -5227,7 +5400,7 @@
             textAlign: document.getElementById('optBarAlign')?.value || 'center',
             lineColor: fg,
             background: bg,
-            margin: 14
+            margin: 24
           });
           canvas.style.maxWidth = '100%';
           canvas.style.height = 'auto';
@@ -5236,6 +5409,13 @@
         host.innerHTML = '<span class="text-xs text-red-500">' + escapeHtml(error.message || 'Format kode tidak valid.') + '</span>';
       }
     }
+
+    function renderQrBarcodePreview() {
+      if (!document.getElementById('optCodeType')) return;
+      renderQrBarcodeWorkspaceStage();
+    }
+
+
 
     async function runImageCropPixel(baseName) {
       const item = state.items.find(entry => entry.isImage);
