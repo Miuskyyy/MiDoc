@@ -690,7 +690,7 @@
         subtitle: 'Konversi lintas format antara gambar, PDF, teks dokumen, lembar kerja, dan eBook.',
         tools: [
           { id: 'image-to-pdf', name: 'Gambar ke PDF', desc: 'Ubah gambar JPG, PNG, WebP, AVIF, atau BMP menjadi PDF.', icon: 'file-image', engine: 'image-to-pdf' },
-          { id: 'pdf-to-image', name: 'PDF ke Gambar', desc: 'Render tiap halaman PDF menjadi file PNG, JPG, atau WebP dalam ZIP.', icon: 'image', engine: 'pdf-to-image' },
+          { id: 'pdf-to-image', name: 'Page to Image', desc: 'Ekspor halaman PDF ke gambar atau ambil gambar yang tertanam di dalam PDF.', icon: 'image', engine: 'pdf-to-image' },
           { id: 'word-to-pdf', name: 'DOCX / RTF ke PDF (Ekstrak Teks)', desc: 'Ambil teks dari DOCX atau RTF lalu susun ke PDF baru. Tata letak, tabel kompleks, dan gambar dokumen tidak dipertahankan.', icon: 'file-text', engine: 'doc-to-pdf' },
           { id: 'pdf-to-word', name: 'PDF ke TXT (Ekstrak Teks)', desc: 'Ekstrak lapisan teks PDF ke TXT. PDF scan tanpa OCR tidak menghasilkan teks.', icon: 'file-type', engine: 'pdf-to-text' },
           { id: 'excel-to-pdf', name: 'XLSX / CSV / TSV ke PDF (Data Sel)', desc: 'Ekstrak nilai sel menjadi teks berbaris pada PDF. Format tabel, rumus tampilan, dan styling spreadsheet tidak dipertahankan.', icon: 'table', engine: 'doc-to-pdf' },
@@ -775,7 +775,7 @@
         id: 'pdf-view-edit',
         label: 'View & Edit',
         icon: 'file-pen-line',
-        description: 'Atur tata letak halaman, putar orientasi, potong margin, ekstrak halaman, dan tambahkan elemen PDF.',
+        description: 'Atur tata letak halaman, putar orientasi, hapus halaman terpilih, dan tambahkan nomor atau watermark PDF.',
         toolIds: ['crop-pdf', 'organize-pdf', 'rotate-pdf', 'page-number-pdf', 'watermark-pdf', 'pdf-copy']
       },
       {
@@ -789,7 +789,7 @@
         id: 'pdf-from',
         label: 'Convert from PDF',
         icon: 'file-output',
-        description: 'Ekspor isi PDF menjadi gambar atau format teks.',
+        description: 'Ekspor halaman menjadi gambar atau ambil objek gambar yang tertanam.',
         toolIds: ['pdf-to-image', 'pdf-to-word']
       },
       {
@@ -818,7 +818,7 @@
         id: 'image-edit',
         label: 'Edit Image',
         icon: 'sliders-horizontal',
-        description: 'Atur layer, crop, putar, beri efek warna, dan watermark gambar.',
+        description: 'Atur layer, crop piksel atau shape, putar, beri efek warna, dan watermark gambar.',
         toolIds: ['overlay-images', 'shape-crop', 'crop-image', 'rotate-flip', 'watermark-image', 'color-filters']
       },
       {
@@ -875,8 +875,8 @@
       'image-splitter': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'resize-pixel': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
       'crop-image': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
-      'shape-crop': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
-      'color-filters': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
+      'shape-crop': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'color-filters': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'remove-exif': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'join-images': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar raster statis' },
       'compress-image': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
@@ -1635,7 +1635,7 @@
               <button type="button" onclick="setSplitterGrid(1, 2)" class="py-1.5 px-2 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-mono font-semibold">1×2 (Bawah)</button>
               <button type="button" onclick="setSplitterGrid(3, 1)" class="py-1.5 px-2 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-mono font-semibold">3×1 Panorama</button>
               <button type="button" onclick="setSplitterGrid(2, 2)" class="py-1.5 px-2 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-mono font-semibold">2×2 Grid</button>
-              <button type="button" onclick="setSplitterGrid(3, 3)" class="py-1.5 px-2 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-mono font-semibold">3×3 IG Grid</button>
+              <button type="button" onclick="setSplitterGrid(3, 3)" class="py-1.5 px-2 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-mono font-semibold">3×3 Grid</button>
               <button type="button" onclick="setSplitterGrid(4, 4)" class="py-1.5 px-2 rounded-sm border border-zinc-300 dark:border-darkLine hover:border-accent text-xs font-mono font-semibold">4×4 Grid</button>
             </div>
           </div>
@@ -1949,7 +1949,7 @@
               <option value="none">Normal</option><option value="grayscale(100%)">Grayscale</option><option value="sepia(85%)">Sepia</option><option value="contrast(140%)">Kontras Tinggi</option><option value="brightness(120%)">Lebih Cerah</option><option value="brightness(80%)">Lebih Gelap</option><option value="saturate(160%)">Saturasi Tinggi</option><option value="saturate(60%)">Saturasi Rendah</option><option value="invert(100%)">Invert</option><option value="hue-rotate(90deg)">Hue 90°</option><option value="blur(2px)">Blur 2 px</option><option value="blur(4px)">Blur 4 px</option>
             </select>
           </div>
-          <p class="text-[11px] text-zinc-500">Hasil filter langsung terlihat pada pratinjau gambar. File sumber tidak diubah sampai tombol simpan ditekan.</p>
+          <p class="text-[11px] text-zinc-500">Masukkan beberapa gambar sekaligus, lalu pilih satu kartu untuk mengedit dan menyimpan gambar itu saja. Hasil filter langsung terlihat sebelum disimpan.</p>
         `;
       } else if (engine === 'shape-crop') {
         extBadge.textContent = '.png';
@@ -2843,7 +2843,7 @@
                 <button onclick="event.stopPropagation(); moveItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="px-2 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-mono disabled:opacity-30">▲</button>
                 <button onclick="event.stopPropagation(); moveItem(${idx}, 1)" ${idx === state.items.length - 1 ? 'disabled' : ''} class="px-2 py-1 rounded-sm border border-zinc-300 dark:border-darkLine text-xs font-mono disabled:opacity-30">▼</button>
                 <button onclick="event.stopPropagation(); rotateItem('${item.id}', 90)" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine"><i data-lucide="rotate-cw" class="w-3 h-3"></i></button>
-                <button onclick="event.stopPropagation(); removeItem('${item.id}')" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-red-600"><i data-lucide="x" class="w-3 h-3"></i></button>
+                <button onclick="event.stopPropagation(); removeItem('${item.id}')" class="p-2.5 min-w-10 min-h-10 flex items-center justify-center rounded-sm border border-zinc-300 dark:border-darkLine text-red-600" aria-label="Hapus file"><i data-lucide="x" class="w-3 h-3"></i></button>
               </div>
             </div>
           `;
@@ -2865,7 +2865,7 @@
                 <button onclick="event.stopPropagation(); inspectItem('${item.id}')" class="p-2.5 min-w-10 min-h-10 flex items-center justify-center text-zinc-500 hover:text-accent" title="Perbesar Pratinjau File">
                   <i data-lucide="search" class="w-4 h-4"></i>
                 </button>
-                <button onclick="event.stopPropagation(); removeItem('${item.id}')" class="p-1 text-zinc-500 hover:text-red-600" title="Hapus">
+                <button onclick="event.stopPropagation(); removeItem('${item.id}')" class="p-2.5 min-w-10 min-h-10 flex items-center justify-center text-zinc-500 hover:text-red-600" title="Hapus file">
                   <i data-lucide="x" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
@@ -4098,8 +4098,11 @@
 
     // --- ENGINE 11: BATCH IMAGE OPERATIONS ---
     async function runBatchImageProcess(baseName, mode) {
-      const imgItems = state.items.filter(i => i.isImage && i.thumbUrl);
-      if (!imgItems.length) { showToast('Tambahkan minimal 1 file gambar.', 'error'); return; }
+      const allImageItems = state.items.filter(i => i.isImage && i.thumbUrl);
+      const imgItems = ['filters-image','shape-crop'].includes(mode) && state.selectedEditItemId
+        ? allImageItems.filter(item => item.id === state.selectedEditItemId)
+        : allImageItems;
+      if (!imgItems.length) { showToast('Pilih gambar yang ingin diedit.', 'error'); return; }
 
       const zip = new JSZip();
       let singleBlob = null;
