@@ -4970,7 +4970,7 @@
       for(let i=0;i<valid.length;i++){
         const r=valid[i],group=document.createElement('section');group.className='w-full border border-zinc-200 dark:border-darkLine rounded-sm p-3 space-y-3';
         const heading=document.createElement('h4');heading.className='text-xs font-bold';heading.textContent=mode==='pages'?'Halaman '+(r.indices[0]+1):'Split '+(i+1)+' · PDF halaman '+(r.indices[0]+1)+'–'+(r.indices[r.indices.length-1]+1);group.appendChild(heading);
-        const grid=document.createElement('div');grid.className='grid grid-cols-2 gap-3';
+        const grid=document.createElement('div');grid.className='grid grid-cols-1 gap-3';
         const endpoints=mode==='pages'?[r.indices[0]]:[r.indices[0],r.indices[r.indices.length-1]];
         for(let j=0;j<endpoints.length;j++){
           const pageNo=endpoints[j]+1,card=document.createElement('div');card.className='min-w-0 border border-zinc-200 dark:border-darkLine rounded-sm p-2 bg-white dark:bg-darkCanvas';
