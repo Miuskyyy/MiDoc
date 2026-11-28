@@ -139,18 +139,14 @@ const fs = require('node:fs');
     }, { timeout: 45000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
 
-    // Organize PDF must require splitting the source into page cards before processing.
+    // Organize PDF automatically expands every page into an editable card as soon as a PDF is added.
     await openTool('organize-pdf');
     await page.locator('#fileInput').setInputFiles(pdfPath);
     await page.waitForFunction(() => {
-      const card = document.querySelector('#fileItemsGrid .file-card');
-      return card && card.innerText.includes('PDF 2 HAL');
+      const cards = [...document.querySelectorAll('#fileItemsGrid .file-card')];
+      return cards.length === 2 && cards.some(card => card.innerText.includes('PDF 1 HAL')) && cards.some(card => card.innerText.includes('PDF 2 HAL'));
     }, { timeout: 15000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
-    await page.waitForTimeout(500);
-    assert.equal(await page.locator('#resultOutputBox').evaluate(el => el.classList.contains('hidden')), true, 'Organize PDF must not silently return an unchanged file before page cards are split');
-    await page.locator('#expandPdfPagesBtn').click();
-    await page.waitForFunction(() => document.querySelectorAll('#fileItemsGrid .file-card').length === 2, { timeout: 15000 });
+    assert.equal(await page.locator('#expandPdfPagesBtn').count(), 0, 'The manual split-per-page button must remain removed.');
     await page.locator('button[onclick="executeCurrentTool()"]').click();
     await page.waitForFunction(() => {
       const box = document.getElementById('resultOutputBox');
@@ -178,47 +174,39 @@ const fs = require('node:fs');
     await zipDownload.saveAs(zipPath);
     assert.equal(fs.readFileSync(zipPath).subarray(0, 2).toString('ascii'), 'PK', 'ZIP Maker must create a real ZIP file.');
 
-    // ZIP Viewer and Extractor must load archive contents and expose per-file download.
+    // ZIP viewer opens its contents in the central workspace immediately and offers individual downloads.
     await openTool('zip-tools');
     await page.locator('#optZipMode').selectOption('view');
     await page.locator('#fileInput').setInputFiles(zipPath);
-    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
     await page.waitForFunction(() => {
-      const panel = document.getElementById('zipContentsPanel');
+      const panel = document.getElementById('zipContentsCenter');
       return panel && !panel.classList.contains('hidden');
     }, { timeout: 20000 });
-    const zipContents = await page.locator('#zipContentsPanel').innerText();
+    const zipContents = await page.locator('#zipContentsCenter').innerText();
     assert.match(zipContents, /alpha\.txt/);
     assert.match(zipContents, /beta\.txt/);
-
-    await openTool('zip-tools');
-    await page.locator('#optZipMode').selectOption('extract');
-    await page.locator('#fileInput').setInputFiles(zipPath);
-    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
-    await page.waitForFunction(() => {
-      const panel = document.getElementById('zipContentsPanel');
-      return panel && !panel.classList.contains('hidden');
-    }, { timeout: 20000 });
     const fileDownloadPromise = page.waitForEvent('download', { timeout: 10000 });
-    await page.locator('#zipContentsPanel button[data-zip-entry-download="0"]').click();
+    await page.locator('#zipContentsCenter button[data-zip-entry-download="0"]').click();
     const extractedFile = await fileDownloadPromise;
     assert.equal(extractedFile.suggestedFilename(), 'alpha.txt');
 
-    // ZIP modes must change the file picker rules.
+    // ZIP exposes only create/view modes and updates the file picker for the selected mode.
     await openTool('zip-tools');
     assert.equal(await page.locator('#optZipMode').inputValue(), 'create');
+    assert.deepEqual(await page.locator('#optZipMode option').evaluateAll(options => options.map(option => option.value)), ['create','view']);
     await page.locator('#optZipMode').selectOption('view');
     assert.match(await page.locator('#fileInput').getAttribute('accept'), /\.zip/);
     assert.equal(await page.locator('#fileInput').evaluate(el => el.multiple), false);
-    await page.locator('#optZipMode').selectOption('extract');
-    assert.match(await page.locator('#fileInput').getAttribute('accept'), /\.zip/);
 
-    // QR generator must create a standards-compatible PNG result from supplied text.
+    // QR and barcode share one generator and show a live preview before saving.
     await openTool('qr-generator');
     await page.waitForFunction(() => typeof window.QRCode === 'function', { timeout: 20000 });
+    await page.waitForFunction(() => !document.getElementById('toolLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
     await page.locator('#optQrText').fill('https://example.com/midoc-audit');
+    await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 15000 });
+    await page.locator('#optCodeType').selectOption('barcode');
+    await page.locator('#optQrText').fill('MIDO-C2026');
+    await page.waitForSelector('#toolLivePreviewContent canvas', { timeout: 15000 });
     await page.locator('button[onclick="executeCurrentTool()"]').click();
     await page.waitForFunction(() => {
       const box = document.getElementById('resultOutputBox');
@@ -227,7 +215,7 @@ const fs = require('node:fs');
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
     assert.deepEqual(errors, [], 'No uncaught browser exceptions should occur');
-    console.log('Browser smoke tests passed: GIF create/extract, strict PDF input guard, Image-to-PDF defaults/export, valid PDF-to-image export, ZIP create/view/extract/download, QR output.');
+    console.log('Browser smoke tests passed: GIF create/extract, strict PDF input guard, Image-to-PDF defaults/export, valid PDF-to-image export, automatic PDF page cards, ZIP create/view/download, and live QR/barcode output.');
   } finally {
     await browser.close();
   }
