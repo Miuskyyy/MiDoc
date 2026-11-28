@@ -4434,7 +4434,10 @@
       }
 
       const archive = await JSZip.loadAsync(zipItem.file);
-      const entries = Object.values(archive.files).filter(entry => !entry.dir);
+      const entries = Object.values(archive.files).filter(entry => {
+        const originalParts = String(entry.name || '').replace(/\\\\/g, '/').split('/');
+        return !entry.dir && !originalParts.includes('..') && !String(entry.name || '').startsWith('/');
+      });
       const MAX_ZIP_FILES = 1000;
       const MAX_ZIP_ENTRY_BYTES = 100 * 1024 * 1024;
       const MAX_ZIP_TOTAL_BYTES = 500 * 1024 * 1024;
