@@ -4809,12 +4809,9 @@
             [['optPdfCropX',now.x],['optPdfCropY',now.y],['optPdfCropW',now.w],['optPdfCropH',now.h]].forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.value=Math.round(v*100);});
           };
           canvas.onpointerdown=e=>{const b=canvas.getBoundingClientRect(),px=(e.clientX-b.left)/b.width,py=(e.clientY-b.top)/b.height,rr=state.cropPdfRect;drag={px,py,rect:{...rr},resize:px>rr.x+rr.w-.05&&py>rr.y+rr.h-.05};canvas.setPointerCapture(e.pointerId);};
-          canvas.onpointermove=e=>{if(!drag)return;const b=canvas.getBoundingClientRect(),dx=(e.clientX-b.left)/b.width-drag.px,dy=(e.clientY-b.top)/b.height-drag.py;const rr={...drag.rect};
-            if(drag.resize){rr.w=Math.max(.08,Math.min(1-rr.x,drag.rect.w+dx));rr.h=Math.max(.08,Math.min(1-rr.y,drag.rect.h+dy));}
-            else{rr.x=Math.max(0,Math.min(1-rr.w,drag.rect.x+dx));rr.y=Math.max(0,Math.min(1-rr.h,drag.rect.y+dy));}
-            state.cropPdfRect=rr;state.cropPdfRects[state.cropPdfPage]={...rr};writeRect();
-            const rctx=canvas.getContext('2d');rctx.clearRect(0,0,canvas.width,canvas.height);page.render({canvasContext:rctx,viewport}).promise.then(()=>{const xx=rr.x*canvas.width,yy=rr.y*canvas.height,ww=rr.w*canvas.width,hh=rr.h*canvas.height;rctx.save();rctx.strokeStyle='#EF4444';rctx.lineWidth=3;rctx.setLineDash([8,5]);rctx.strokeRect(xx,yy,ww,hh);rctx.setLineDash([]);rctx.restore();});
-          };
+          const pageBackground=document.createElement('canvas');pageBackground.width=canvas.width;pageBackground.height=canvas.height;pageBackground.getContext('2d').drawImage(canvas,0,0);
+          const drawCropOverlay=rr=>{const rctx=canvas.getContext('2d');rctx.clearRect(0,0,canvas.width,canvas.height);rctx.drawImage(pageBackground,0,0);const xx=rr.x*canvas.width,yy=rr.y*canvas.height,ww=rr.w*canvas.width,hh=rr.h*canvas.height;rctx.save();rctx.strokeStyle='#EF4444';rctx.lineWidth=3;rctx.setLineDash([8,5]);rctx.strokeRect(xx,yy,ww,hh);rctx.setLineDash([]);rctx.strokeStyle='rgba(239,68,68,.65)';rctx.lineWidth=1;rctx.beginPath();rctx.moveTo(xx+ww/3,yy);rctx.lineTo(xx+ww/3,yy+hh);rctx.moveTo(xx+ww*2/3,yy);rctx.lineTo(xx+ww*2/3,yy+hh);rctx.moveTo(xx,yy+hh/3);rctx.lineTo(xx+ww,yy+hh/3);rctx.moveTo(xx,yy+hh*2/3);rctx.lineTo(xx+ww,yy+hh*2/3);rctx.stroke();rctx.restore();};
+          canvas.onpointermove=e=>{if(!drag)return;const b=canvas.getBoundingClientRect(),dx=(e.clientX-b.left)/b.width-drag.px,dy=(e.clientY-b.top)/b.height-drag.py;const rr={...drag.rect};if(drag.resize){rr.w=Math.max(.08,Math.min(1-rr.x,drag.rect.w+dx));rr.h=Math.max(.08,Math.min(1-rr.y,drag.rect.h+dy));}else{rr.x=Math.max(0,Math.min(1-rr.w,drag.rect.x+dx));rr.y=Math.max(0,Math.min(1-rr.h,drag.rect.y+dy));}state.cropPdfRect=rr;state.cropPdfRects[state.cropPdfPage]={...rr};writeRect();drawCropOverlay(rr);};
           canvas.onpointerup=()=>{drag=null;};canvas.onpointercancel=()=>{drag=null;};
           if(meta)meta.textContent='Seret area merah untuk memindahkan; tarik sudut kanan bawah untuk mengubah ukuran';
           return;
@@ -4839,7 +4836,7 @@
           content.appendChild(hint);
           let drag=null;
           display.onpointerdown=e=>{const b=display.getBoundingClientRect(),px=(e.clientX-b.left)/b.width,py=(e.clientY-b.top)/b.height,rx=state.overlayX,ry=state.overlayY,rw=scale,rh=(height/baseCanvas.height);if(px>=rx&&px<=rx+rw&&py>=ry&&py<=ry+rh){drag={dx:px-rx,dy:py-ry};display.setPointerCapture(e.pointerId);}};
-          display.onpointermove=e=>{if(!drag)return;const b=display.getBoundingClientRect();state.overlayX=Math.max(0,Math.min(1-scale,(e.clientX-b.left)/b.width-drag.dx));state.overlayY=Math.max(0,Math.min(1-height/baseCanvas.height,(e.clientY-b.top)/b.height-drag.dy));const xi=document.getElementById('optOverlayX'),yi=document.getElementById('optOverlayY');if(xi)xi.value=Math.round(state.overlayX*100);if(yi)yi.value=Math.round(state.overlayY*100);drawToolLivePreview();};
+          display.onpointermove=e=>{if(!drag)return;const b=display.getBoundingClientRect();state.overlayX=Math.max(0,Math.min(1-scale,(e.clientX-b.left)/b.width-drag.dx));state.overlayY=Math.max(0,Math.min(1-height/baseCanvas.height,(e.clientY-b.top)/b.height-drag.dy));const xi=document.getElementById('optOverlayX'),yi=document.getElementById('optOverlayY');if(xi)xi.value=Math.round(state.overlayX*100);if(yi)yi.value=Math.round(state.overlayY*100);const px=baseCanvas.width*state.overlayX,py=baseCanvas.height*state.overlayY;ctx.clearRect(0,0,display.width,display.height);ctx.drawImage(baseCanvas,0,0,display.width,display.height);ctx.drawImage(frontCanvas,px*sx,py*sx,width*sx,height*sx);};
           display.onpointerup=()=>{drag=null;};display.onpointercancel=()=>{drag=null;};
           if(meta)meta.textContent='Latar: '+base.name+' · Depan: '+front.name;
           return;
@@ -4890,14 +4887,17 @@
     async function runColorPicker() {
       const img = state.items.find(i => i.isImage && i.thumbUrl);
       if (!img) { showToast('Tambahkan minimal 1 gambar.', 'error'); return; }
-      const c = resizeCanvas(await renderItemToCanvas(img), 36, 36, 'stretch');
-      const data = c.getContext('2d').getImageData(0, 0, 36, 36).data;
+      const source = await renderItemToCanvas(img);
+      const c = resizeCanvas(source, 160, 160, 'stretch');
+      const data = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
       const map = {};
-      for (let i = 0; i < data.length; i += 16) {
-        const hex = '#' + [data[i], data[i + 1], data[i + 2]].map(v => (Math.round(v / 24) * 24).toString(16).padStart(2, '0')).join('').toUpperCase();
-        map[hex] = (map[hex] || 0) + 1;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] < 32) continue;
+        const channels=[data[i],data[i+1],data[i+2]].map(v=>Math.max(0,Math.min(255,Math.round(v/32)*32)));
+        const hex='#'+channels.map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
+        map[hex]=(map[hex]||0)+1;
       }
-      const top = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 8).map(e => e[0]);
+      const top = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,16).map(e=>e[0]);
       document.getElementById('extractedPaletteSwatches').innerHTML = top.map(hex => `
         <button onclick="copyTextFallback('${hex}'); showToast('Disalin: ${hex}', 'info')" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-center">
           <div class="w-full h-6 mb-1" style="background:${hex}"></div>
