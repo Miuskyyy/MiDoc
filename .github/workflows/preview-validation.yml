@@ -146,8 +146,8 @@ jobs:
           ];
 
           const zipMode = html.match(/<select id="optZipMode"[\s\S]*?<\/select>/)?.[0] || '';
-          if (zipMode.includes('value="extract"') || html.includes('extractZipToFolder')) {
-            throw new Error('ZIP viewer should offer create/view only; folder extraction must stay removed.');
+          if (!zipMode.includes('value="extract"') || !html.includes('async function extractZipToFolder') || !html.includes("originalParts.includes('..')")) {
+            throw new Error('ZIP extraction mode must remain available and reject unsafe traversal paths.');
           }
           const failures = required.filter(item => !html.includes(item[1])).map(item => item[0]);
           if (failures.length) {
