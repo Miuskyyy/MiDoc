@@ -5253,7 +5253,7 @@
       }
     }
 
-    function runPasswordGenerator() {    async function runQrBarcodeGenerator(baseName) {
+    async function runQrBarcodeGenerator(baseName) {
       const type = document.getElementById('optCodeType')?.value || 'QR';
       const value = (document.getElementById('optCodeValue')?.value || '').trim();
       if (!value) throw new Error('Masukkan teks atau angka untuk membuat kode.');
@@ -5369,6 +5369,8 @@
     }
 
 
+
+    function runPasswordGenerator() {
       const len = Number(document.getElementById('optPassLen')?.value || '16');
       if (!Number.isInteger(len) || len < 8 || len > 128) throw new Error('Panjang kata sandi harus antara 8 dan 128 karakter.');
       if (!window.crypto || !crypto.getRandomValues) throw new Error('Browser tidak menyediakan generator acak kriptografis yang aman.');
