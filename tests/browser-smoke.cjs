@@ -293,6 +293,7 @@ const fs = require('node:fs');
       { name: 'foreground-blue.png', mimeType: 'image/png', buffer: bluePng }
     ]);
     await page.waitForFunction(() => !document.getElementById('toolLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
+    await page.waitForFunction(() => document.querySelectorAll('#optOverlayBase option').length === 2 && document.querySelectorAll('#optOverlayFront option').length === 2, { timeout: 10000 });
     assert.equal(await page.locator('#optOverlayBase option').count(), 2);
     assert.equal(await page.locator('#optOverlayFront option').count(), 2, 'Either uploaded image can be selected as the foreground layer.');
     await page.locator('#executeActionBtn').click();
