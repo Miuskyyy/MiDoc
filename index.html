@@ -4958,6 +4958,41 @@
           const images=state.items.filter(i=>i.isImage&&i.thumbUrl);
           const base=images.find(i=>i.id===document.getElementById('optOverlayBase')?.value)||images[0];
           const front=images.find(i=>i.id===document.getElementById('optOverlayFront')?.value)||images.find(i=>i.id!==base?.id);
+          if(!base||!front){content.innerHTML='<p class="text-xs text-zinc-500">Tambahkan dua gambar untuk mulai: satu sebagai latar dan satu sebagai layer depan.</p>';return;}
+          const baseCanvas=await renderItemToCanvas(base),frontCanvas=await renderItemToCanvas(front);if(token!==state.livePreviewToken)return;
+          const sourceRow=document.createElement('div');sourceRow.className='grid grid-cols-2 gap-2 w-full';
+          [[baseCanvas,'Gambar 1 · Latar / Belakang',base.name],[frontCanvas,'Gambar 2 · Depan / Overlay',front.name]].forEach(([source,label,name])=>{
+            const card=document.createElement('div');card.className='min-w-0 border border-zinc-200 dark:border-darkLine rounded-sm p-2';
+            const heading=document.createElement('div');heading.className='text-[11px] font-bold mb-2 truncate';heading.textContent=label;card.appendChild(heading);
+            const img=document.createElement('canvas');img.width=source.width;img.height=source.height;img.getContext('2d').drawImage(source,0,0);img.className='block w-full h-32 object-contain bg-zinc-100 dark:bg-darkCanvas';img.title=name;card.appendChild(img);
+            const nameLabel=document.createElement('div');nameLabel.className='text-[10px] text-zinc-500 mt-1 truncate';nameLabel.textContent=name;card.appendChild(nameLabel);sourceRow.appendChild(card);
+          });
+          content.appendChild(sourceRow);
+          const controls=document.createElement('div');controls.className='w-full grid grid-cols-1 sm:grid-cols-3 gap-2 border border-zinc-200 dark:border-darkLine rounded-sm p-2';
+          controls.innerHTML='<label class="text-[11px] font-semibold">Ukuran layer <span id="overlayPreviewScaleLabel" class="text-accent">'+(document.getElementById('optOverlayScale')?.value||28)+'%</span><input id="overlayPreviewScale" type="range" min="5" max="100" value="'+(document.getElementById('optOverlayScale')?.value||28)+'" class="w-full accent-accent"></label><label class="text-[11px] font-semibold">Posisi horizontal <span id="overlayPreviewXLabel" class="text-accent">'+Math.round(state.overlayX*100)+'%</span><input id="overlayPreviewX" type="range" min="0" max="100" value="'+Math.round(state.overlayX*100)+'" class="w-full accent-accent"></label><label class="text-[11px] font-semibold">Posisi vertikal <span id="overlayPreviewYLabel" class="text-accent">'+Math.round(state.overlayY*100)+'%</span><input id="overlayPreviewY" type="range" min="0" max="100" value="'+Math.round(state.overlayY*100)+'" class="w-full accent-accent"></label>';
+          content.appendChild(controls);
+          const resultTitle=document.createElement('div');resultTitle.className='w-full text-xs font-bold';resultTitle.textContent='Pratinjau hasil gabungan · seret layer pada gambar';content.appendChild(resultTitle);
+          const display=createPreviewCanvas(baseCanvas.width,baseCanvas.height,1400);display.className='block w-full h-auto border border-zinc-300 dark:border-darkLine rounded-sm';display.style.maxHeight='65vh';display.style.touchAction='none';content.appendChild(display);
+          const scaleValue=()=>Math.max(.05,Math.min(1,Number(document.getElementById('overlayPreviewScale')?.value||document.getElementById('optOverlayScale')?.value||28)/100));
+          let layerBox={x:0,y:0,w:0,h:0};
+          const drawComposite=()=>{const factor=Math.min((baseCanvas.width*scaleValue())/frontCanvas.width,baseCanvas.width/frontCanvas.width,baseCanvas.height/frontCanvas.height);const w=frontCanvas.width*factor,h=frontCanvas.height*factor;const x=(baseCanvas.width-w)*state.overlayX,y=(baseCanvas.height-h)*state.overlayY;const k=display.width/baseCanvas.width;const dctx=display.getContext('2d');dctx.clearRect(0,0,display.width,display.height);dctx.drawImage(baseCanvas,0,0,display.width,display.height);dctx.drawImage(frontCanvas,x*k,y*k,w*k,h*k);layerBox={x:x/baseCanvas.width,y:y/baseCanvas.height,w:w/baseCanvas.width,h:h/baseCanvas.height};
+            const scaleEl=document.getElementById('optOverlayScale'),xEl=document.getElementById('optOverlayX'),yEl=document.getElementById('optOverlayY');if(scaleEl)scaleEl.value=Math.round(scaleValue()*100);if(xEl)xEl.value=Math.round(state.overlayX*100);if(yEl)yEl.value=Math.round(state.overlayY*100);
+            const scaleLabel=document.getElementById('overlayPreviewScaleLabel'),xLabel=document.getElementById('overlayPreviewXLabel'),yLabel=document.getElementById('overlayPreviewYLabel');if(scaleLabel)scaleLabel.textContent=Math.round(scaleValue()*100)+'%';if(xLabel)xLabel.textContent=Math.round(state.overlayX*100)+'%';if(yLabel)yLabel.textContent=Math.round(state.overlayY*100)+'%';
+            const xRange=document.getElementById('overlayPreviewX'),yRange=document.getElementById('overlayPreviewY');if(xRange)xRange.value=Math.round(state.overlayX*100);if(yRange)yRange.value=Math.round(state.overlayY*100);
+          };
+          document.getElementById('overlayPreviewScale').oninput=e=>{const input=document.getElementById('optOverlayScale');if(input)input.value=e.target.value;drawComposite();};
+          document.getElementById('overlayPreviewX').oninput=e=>{state.overlayX=Number(e.target.value)/100;drawComposite();};
+          document.getElementById('overlayPreviewY').oninput=e=>{state.overlayY=Number(e.target.value)/100;drawComposite();};
+          let drag=null;
+          display.onpointerdown=e=>{const b=display.getBoundingClientRect(),px=(e.clientX-b.left)/b.width,py=(e.clientY-b.top)/b.height,box=layerBox;if(px<box.x||px>box.x+box.w||py<box.y||py>box.y+box.h)return;drag={dx:px-box.x,dy:py-box.y};display.setPointerCapture(e.pointerId);};
+          display.onpointermove=e=>{if(!drag)return;const b=display.getBoundingClientRect(),px=(e.clientX-b.left)/b.width,py=(e.clientY-b.top)/b.height;state.overlayX=Math.max(0,Math.min(1-layerBox.w,(px-drag.dx)/(1-layerBox.w||1)));state.overlayY=Math.max(0,Math.min(1-layerBox.h,(py-drag.dy)/(1-layerBox.h||1)));drawComposite();};
+          display.onpointerup=()=>{drag=null;};display.onpointercancel=()=>{drag=null;};
+          drawComposite();if(meta)meta.textContent='Kiri: latar · kanan: layer depan · posisi dan hasil ekspor memakai koordinat yang sama';
+          return;
+        }
+        const images=state.items.filter(i=>i.isImage&&i.thumbUrl);
+          const base=images.find(i=>i.id===document.getElementById('optOverlayBase')?.value)||images[0];
+          const front=images.find(i=>i.id===document.getElementById('optOverlayFront')?.value)||images.find(i=>i.id!==base?.id);
           if(!base||!front){content.textContent='Tambahkan minimal dua gambar untuk mulai mengatur layer.';return;}
           const baseCanvas=await renderItemToCanvas(base),frontCanvas=await renderItemToCanvas(front);
           if(token!==state.livePreviewToken)return;
@@ -4983,6 +5018,20 @@
         if(!item){panel.classList.add('hidden');return;}
         state.selectedEditItemId=item.id;
         const src=await renderItemToCanvas(item);if(token!==state.livePreviewToken)return;
+        if(engine==='crop-image'){
+          if(state.cropImageItemId!==item.id){state.cropImageItemId=item.id;state.cropImageRect={x:.05,y:.05,w:.9,h:.9};}
+          const display=createPreviewCanvas(src.width,src.height,1400),bg=document.createElement('canvas');
+          display.getContext('2d').drawImage(src,0,0,display.width,display.height);bg.width=display.width;bg.height=display.height;bg.getContext('2d').drawImage(display,0,0);
+          const rect=state.cropImageRect||{x:.05,y:.05,w:.9,h:.9};paintCropGrid(display,bg,rect);
+          display.className='block w-full h-auto border border-zinc-300 dark:border-darkLine rounded-sm';display.style.maxHeight='70vh';display.style.touchAction='none';content.appendChild(display);
+          syncCropImageHidden(item);
+          let drag=null;
+          display.onpointerdown=e=>{const b=display.getBoundingClientRect(),px=(e.clientX-b.left)/b.width,py=(e.clientY-b.top)/b.height,mode=getCropDragMode(px,py,state.cropImageRect);if(!mode)return;drag={px,py,rect:{...state.cropImageRect},mode};display.setPointerCapture(e.pointerId);};
+          display.onpointermove=e=>{if(!drag)return;const b=display.getBoundingClientRect(),px=(e.clientX-b.left)/b.width,py=(e.clientY-b.top)/b.height;state.cropImageRect=applyCropDrag(drag.rect,drag.mode,px-drag.px,py-drag.py);paintCropGrid(display,bg,state.cropImageRect);syncCropImageHidden(item);};
+          display.onpointerup=()=>{drag=null;};display.onpointercancel=()=>{drag=null;};
+          if(meta)meta.textContent=item.name+' · '+Math.round(state.cropImageRect.w*src.width)+' × '+Math.round(state.cropImageRect.h*src.height)+' px · tarik titik sudut/sisi untuk mengubah ukuran';
+          return;
+        }
         let sx=0,sy=0,sw=src.width,sh=src.height;
         let targetW=src.width,targetH=src.height,shape='rect';
         if(engine==='resize-image'){
@@ -5006,10 +5055,11 @@
         }
         if(engine==='filters-image')shape='filter';
         if(engine==='compress-image')shape='compress';
+        if(engine==='watermark-image')shape='watermark';
         const output=createPreviewCanvas(targetW,targetH,1400),ctx=output.getContext('2d');
         if(shape==='circle'){const size=Math.min(output.width,output.height);output.width=size;output.height=size;const c=output.getContext('2d');c.beginPath();c.arc(size/2,size/2,size/2,0,Math.PI*2);c.clip();c.drawImage(src,sx,sy,sw,sh,0,0,size,size);}
         else if(shape==='rounded'){const radius=Math.min(output.width,output.height)*Number(document.getElementById('optShapeRadius')?.value||12)/100;ctx.beginPath();ctx.roundRect(0,0,output.width,output.height,radius);ctx.clip();ctx.drawImage(src,sx,sy,sw,sh,0,0,output.width,output.height);}
-        else{if(engine==='filters-image')ctx.filter=document.getElementById('optColorFilter')?.value||'none';ctx.drawImage(src,sx,sy,sw,sh,0,0,output.width,output.height);}
+        else{if(engine==='filters-image')ctx.filter=document.getElementById('optColorFilter')?.value||'none';ctx.drawImage(src,sx,sy,sw,sh,0,0,output.width,output.height);if(engine==='watermark-image'){const txt=document.getElementById('optImgWatermarkText')?.value||'MiDoc',pos=document.getElementById('optImgWatermarkPosition')?.value||'br',fs=Math.max(8,Math.min(240,Number(document.getElementById('optImgWatermarkSize')?.value||36))),margin=Math.max(10,Math.round(fs*.55)),horizontal=pos.endsWith('l')?'left':(pos.endsWith('r')?'right':'center'),vertical=pos.startsWith('t')?'top':(pos.startsWith('b')?'bottom':'middle'),x=horizontal==='left'?margin:(horizontal==='right'?output.width-margin:output.width/2),y=vertical==='top'?margin+fs:(vertical==='bottom'?output.height-margin:output.height/2+fs/3);ctx.save();ctx.globalAlpha=Math.max(5,Math.min(100,Number(document.getElementById('optImgWatermarkOpacity')?.value||70)))/100;ctx.font='bold '+fs+'px \"'+(document.getElementById('optImgWatermarkFont')?.value||'Arial')+'\"';ctx.fillStyle=document.getElementById('optImgWatermarkColor')?.value||'#FFFFFF';ctx.strokeStyle='#111827';ctx.lineWidth=Math.max(1,Math.round(fs*.08));ctx.textAlign=horizontal;ctx.strokeText(txt,x,y);ctx.fillText(txt,x,y);ctx.restore();}}
         output.className='max-w-full h-auto border border-zinc-300 dark:border-darkLine rounded-sm shadow-sm';output.style.maxHeight='70vh';content.appendChild(output);
         if(meta)meta.textContent=item.name+' · '+src.width+'×'+src.height+' px';
         if(engine==='compress-image'){
