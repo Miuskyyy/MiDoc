@@ -2818,10 +2818,12 @@
       const totalBytes = state.items.reduce((s, it) => s + (it.size || 0), 0);
       document.getElementById('totalSummaryText').textContent = `${state.items.length} item • ${formatBytes(totalBytes)}`;
 
-      const verticalEditors = ['organize-pdf','crop-pdf','compress-image','resize-image','filters-image','shape-crop','crop-image','overlay-images','rotate-flip','watermark-image'].includes(state.activeEngine);
+      const fileEditingTools = ['crop-pdf','compress-image','resize-image','filters-image','shape-crop','crop-image','overlay-images','rotate-flip','watermark-image'];
+      const verticalEditors = [...fileEditingTools,'organize-pdf'].includes(state.activeEngine);
       const fourColumnTools = ['organize-pdf','image-to-pdf','merge-pdf-image','join-images','image-splitter'];
       const twoColumnTools = ['filters-image'];
-      const isSingleLargeEditor = ['crop-pdf','shape-crop','crop-image'].includes(state.activeEngine) && state.items.length === 1;
+      const isSingleLargeEditor = fileEditingTools.includes(state.activeEngine) && state.items.length === 1;
+      const isDoubleLargeEditor = fileEditingTools.includes(state.activeEngine) && state.items.length === 2;
       if (verticalEditors && !state.items.some(item => item.id === state.selectedEditItemId)) state.selectedEditItemId = state.items.find(item => item.isImage)?.id || state.items[0]?.id || null;
       if (fourColumnTools.includes(state.activeEngine)) {
         grid.className = 'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2';
@@ -2918,7 +2920,7 @@
               </div>
             </div>
 
-            <div class="${isSingleLargeEditor ? 'h-[430px]' : (verticalEditors ? 'h-56' : 'h-36')} file-card-preview checkerboard flex items-center justify-center overflow-hidden">
+            <div class="${isSingleLargeEditor ? 'h-[430px]' : (isDoubleLargeEditor ? 'h-[340px]' : (fileEditingTools.includes(state.activeEngine) ? 'h-56' : 'h-36'))} file-card-preview checkerboard flex items-center justify-center overflow-hidden">
               ${thumbHtml}
             </div>
 
