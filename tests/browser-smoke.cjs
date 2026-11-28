@@ -158,6 +158,67 @@ const fs = require('node:fs');
     }, { timeout: 30000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
 
+    // PDF splitting: custom page ranges should generate multiple PDFs in one ZIP.
+    await openTool('split-pdf');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optSplitParts').fill('1; 2');
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.zip$/i);
+
+    // Extract Pages should still save only the selected range as a PDF.
+    await openTool('extract-pdf-pages');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optPageRange').fill('2');
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
+
+    // Crop PDF should render its first page immediately and accept a draggable crop rectangle.
+    await openTool('crop-pdf');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => {
+      const panel = document.getElementById('pdfCropPreviewPanel');
+      const canvas = document.getElementById('pdfCropCanvas');
+      return panel && !panel.classList.contains('hidden') && canvas && canvas.width > 0;
+    }, { timeout: 20000 });
+    const cropCanvas = await page.locator('#pdfCropCanvas').boundingBox();
+    await page.mouse.move(cropCanvas.x + cropCanvas.width * 0.12, cropCanvas.y + cropCanvas.height * 0.12);
+    await page.mouse.down();
+    await page.mouse.move(cropCanvas.x + cropCanvas.width * 0.82, cropCanvas.y + cropCanvas.height * 0.82, { steps: 5 });
+    await page.mouse.up();
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
+
+    // Page numbering and watermark expose configurable controls and produce a PDF.
+    await openTool('page-number-pdf');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optPdfStartFrom').fill('7');
+    await page.locator('#optPdfFrom').fill('2');
+    await page.locator('#optPdfTo').fill('2');
+    await page.locator('[data-pdf-position="top-right"]').click();
+    assert.equal(await page.locator('#optPdfPosition').inputValue(), 'top-right');
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
+
+    await openTool('watermark-pdf');
+    await page.locator('#fileInput').setInputFiles(pdfPath);
+    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optPdfWatermarkText').fill('MIDOC TEST');
+    await page.locator('#optWmFrom').fill('1');
+    await page.locator('#optWmTo').fill('1');
+    await page.locator('#optWmOpacity').fill('60');
+    await page.locator('#optWmFormat').selectOption('diagonal');
+    await page.locator('[data-pdf-position="center"]').click();
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.pdf$/i);
+
     // ZIP Maker creates a real archive while preserving source names.
     await openTool('zip-tools');
     await page.locator('#fileInput').setInputFiles([
@@ -178,12 +239,12 @@ const fs = require('node:fs');
     await zipDownload.saveAs(zipPath);
     assert.equal(fs.readFileSync(zipPath).subarray(0, 2).toString('ascii'), 'PK', 'ZIP Maker must create a real ZIP file.');
 
-    // ZIP Viewer and Extractor must load archive contents and expose per-file download.
+    // ZIP Viewer automatically opens its central, scrollable contents after the archive is selected.
     await openTool('zip-tools');
     await page.locator('#optZipMode').selectOption('view');
+    assert.match(await page.locator('#fileInput').getAttribute('accept'), /\.zip/);
+    assert.equal(await page.locator('#fileInput').evaluate(el => el.multiple), false);
     await page.locator('#fileInput').setInputFiles(zipPath);
-    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
     await page.waitForFunction(() => {
       const panel = document.getElementById('zipContentsPanel');
       return panel && !panel.classList.contains('hidden');
@@ -191,39 +252,66 @@ const fs = require('node:fs');
     const zipContents = await page.locator('#zipContentsPanel').innerText();
     assert.match(zipContents, /alpha\.txt/);
     assert.match(zipContents, /beta\.txt/);
-
-    await openTool('zip-tools');
-    await page.locator('#optZipMode').selectOption('extract');
-    await page.locator('#fileInput').setInputFiles(zipPath);
-    await page.waitForFunction(() => !document.getElementById('fileItemsGrid').classList.contains('hidden'), { timeout: 10000 });
-    await page.locator('button[onclick="executeCurrentTool()"]').click();
-    await page.waitForFunction(() => {
-      const panel = document.getElementById('zipContentsPanel');
-      return panel && !panel.classList.contains('hidden');
-    }, { timeout: 20000 });
     const fileDownloadPromise = page.waitForEvent('download', { timeout: 10000 });
     await page.locator('#zipContentsPanel button[data-zip-entry-download="0"]').click();
     const extractedFile = await fileDownloadPromise;
     assert.equal(extractedFile.suggestedFilename(), 'alpha.txt');
 
-    // ZIP modes must change the file picker rules.
+    // ZIP no longer exposes a folder extraction mode.
     await openTool('zip-tools');
-    assert.equal(await page.locator('#optZipMode').inputValue(), 'create');
-    await page.locator('#optZipMode').selectOption('view');
-    assert.match(await page.locator('#fileInput').getAttribute('accept'), /\.zip/);
-    assert.equal(await page.locator('#fileInput').evaluate(el => el.multiple), false);
-    await page.locator('#optZipMode').selectOption('extract');
-    assert.match(await page.locator('#fileInput').getAttribute('accept'), /\.zip/);
+    const zipModes = await page.locator('#optZipMode option').evaluateAll(options => options.map(option => option.value));
+    assert.deepEqual(zipModes, ['create', 'view']);
 
-    // QR generator must create a standards-compatible PNG result from supplied text.
-    await openTool('qr-generator');
-    await page.waitForFunction(() => typeof window.QRCode === 'function', { timeout: 20000 });
-    await page.locator('#optQrText').fill('https://example.com/midoc-audit');
+    // Resize Image updates the preview as the user slides the percentage before saving.
+    await openTool('resize-pixel');
+    await page.locator('#fileInput').setInputFiles({ name: 'resize-source.png', mimeType: 'image/png', buffer: redPng });
+    await page.waitForFunction(() => !document.getElementById('editorLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optResizePercent').fill('50');
+    await page.waitForFunction(() => document.getElementById('optResizeResultDimensions').innerText.includes('2 × 2'), { timeout: 10000 });
     await page.locator('button[onclick="executeCurrentTool()"]').click();
-    await page.waitForFunction(() => {
-      const box = document.getElementById('resultOutputBox');
-      return box && !box.classList.contains('hidden');
-    }, { timeout: 20000 });
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
+
+    // Shape Crop, Crop by Pixel and Color Filter all show a live preview in the workspace.
+    await openTool('shape-crop');
+    await page.locator('#fileInput').setInputFiles({ name: 'shape-source.png', mimeType: 'image/png', buffer: redPng });
+    await page.waitForFunction(() => !document.getElementById('editorLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
+    assert.ok(await page.locator('#editorPreviewCanvas').evaluate(canvas => canvas.width > 0));
+    await page.locator('#optShapeMask').selectOption('rounded');
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$|\.zip$/i);
+
+    await openTool('crop-pixel');
+    await page.locator('#fileInput').setInputFiles({ name: 'crop-source.png', mimeType: 'image/png', buffer: redPng });
+    await page.waitForFunction(() => !document.getElementById('editorLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optCropW').fill('2');
+    await page.locator('#optCropH').fill('2');
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 30000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
+
+    await openTool('color-filters');
+    await page.locator('#fileInput').setInputFiles({ name: 'filter-source.png', mimeType: 'image/png', buffer: redPng });
+    await page.waitForFunction(() => !document.getElementById('editorLivePreviewPanel').classList.contains('hidden'), { timeout: 10000 });
+    await page.locator('#optColorFilter').selectOption('grayscale(100%)');
+    assert.ok(await page.locator('#editorPreviewCanvas').evaluate(canvas => canvas.width > 0));
+
+    // QR and barcode share one generator and both preview before the Save button is pressed.
+    await openTool('code-generator');
+    await page.waitForFunction(() => typeof window.QRCode === 'function' && typeof window.JsBarcode === 'function', { timeout: 20000 });
+    await page.locator('#optCodeText').fill('https://example.com/midoc-audit');
+    await page.waitForFunction(() => document.querySelector('#codePreviewHolder canvas, #codePreviewHolder img'), { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
+    assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
+
+    await openTool('code-generator');
+    await page.locator('#optCodeType').selectOption('barcode');
+    await page.locator('#optCodeText').fill('123456789012');
+    await page.waitForFunction(() => document.querySelector('#codePreviewHolder svg'), { timeout: 10000 });
+    await page.locator('button[onclick="executeCurrentTool()"]').click();
+    await page.waitForFunction(() => !document.getElementById('resultOutputBox').classList.contains('hidden'), { timeout: 20000 });
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
     assert.deepEqual(errors, [], 'No uncaught browser exceptions should occur');
