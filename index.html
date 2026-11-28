@@ -4172,7 +4172,9 @@
           outCanvas=document.createElement('canvas'); outCanvas.width=Math.round(sw); outCanvas.height=Math.round(sh);
           outCanvas.getContext('2d').drawImage(baseCanvas,sx,sy,sw,sh,0,0,outCanvas.width,outCanvas.height); mime='image/png';
         } else if (mode === 'shape-crop') {
-          const ratioValue=document.getElementById('optShapeRatio')?.value||'free';
+          const shape=document.getElementById('optShapeMode')?.value||'rect';
+          const selectedRatio=document.getElementById('optShapeRatio')?.value||'free';
+          const ratioValue=shape==='circle'?'1:1':selectedRatio;
           let ratio=baseCanvas.width/baseCanvas.height;
           if(ratioValue!=='free'){const parts=ratioValue.split(':').map(Number); if(parts.length===2&&parts.every(Number.isFinite))ratio=parts[0]/parts[1];}
           let sx=0,sy=0,sw=baseCanvas.width,sh=baseCanvas.height;
@@ -4180,7 +4182,6 @@
           else{sh=baseCanvas.width/ratio;sy=(baseCanvas.height-sh)/2;}
           outCanvas=document.createElement('canvas');outCanvas.width=Math.max(1,Math.round(sw));outCanvas.height=Math.max(1,Math.round(sh));
           const ctx=outCanvas.getContext('2d');
-          const shape=document.getElementById('optShapeMode')?.value||'rect';
           if(shape==='circle'){const size=Math.min(outCanvas.width,outCanvas.height);const square=document.createElement('canvas');square.width=size;square.height=size;const sctx=square.getContext('2d');sctx.beginPath();sctx.arc(size/2,size/2,size/2,0,Math.PI*2);sctx.clip();sctx.drawImage(baseCanvas,sx,sy,sw,sh,0,0,size,size);outCanvas=square;}
           else if(shape==='rounded'){const radius=Math.min(outCanvas.width,outCanvas.height)*(Number(document.getElementById('optShapeRadius')?.value||12)/100);ctx.beginPath();ctx.roundRect(0,0,outCanvas.width,outCanvas.height,radius);ctx.clip();ctx.drawImage(baseCanvas,sx,sy,sw,sh,0,0,outCanvas.width,outCanvas.height);}
           else ctx.drawImage(baseCanvas,sx,sy,sw,sh,0,0,outCanvas.width,outCanvas.height);
@@ -4869,9 +4870,10 @@
           const info=document.getElementById('cropPixelInfo');if(info)info.textContent='Asli '+src.width+'×'+src.height+' px · Area crop X '+sx+', Y '+sy+' · Output '+Math.round(sw)+'×'+Math.round(sh)+' px';
         }
         if(engine==='shape-crop'){
-          const ratioVal=document.getElementById('optShapeRatio')?.value||'free';
+          shape=document.getElementById('optShapeMode')?.value||'rect';
+          const ratioVal=shape==='circle'?'1:1':(document.getElementById('optShapeRatio')?.value||'free');
           if(ratioVal!=='free'){const parts=ratioVal.split(':').map(Number),ratio=parts[0]/parts[1];if(src.width/src.height>ratio){sw=src.height*ratio;sx=(src.width-sw)/2;}else{sh=src.width/ratio;sy=(src.height-sh)/2;}}
-          targetW=sw;targetH=sh;shape=document.getElementById('optShapeMode')?.value||'rect';
+          targetW=sw;targetH=sh;
         }
         if(engine==='filters-image')shape='filter';
         if(engine==='compress-image')shape='compress';
