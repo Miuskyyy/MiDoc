@@ -2154,31 +2154,58 @@
     }
 
     function updateSplitPdfMode(mode) {
-      const rangeMode = mode === 'range';
-      document.getElementById('splitRangeBox')?.classList.toggle('hidden', !rangeMode);
+      const rangeBox = document.getElementById('splitRangeBox');
+      const singleBox = document.getElementById('splitSingleRangeBox');
+      rangeBox?.classList.toggle('hidden', mode === 'pages');
+      singleBox?.classList.toggle('hidden', mode !== 'range');
       const ext = document.getElementById('outputExtBadge');
       const label = document.getElementById('executeBtnLabel');
-      if (ext) ext.textContent = rangeMode ? '.pdf' : '.zip';
-      if (label) label.textContent = rangeMode ? 'Ekstrak Halaman Terpilih ke PDF' : 'Pisahkan Semua Halaman ke ZIP';
+      if (ext) ext.textContent = mode === 'range' ? '.pdf' : '.zip';
+      if (label) label.textContent = mode === 'range' ? 'Simpan Rentang sebagai PDF' : 'Buat Bagian PDF (ZIP)';
+      updateSplitPdfRangesPreview();
       updateFilenamePreviewHint();
     }
 
-    function updateResizeMode(mode) {
-      const percentMode = mode === 'percent';
-      document.getElementById('resizeDimensionsGroup')?.classList.toggle('hidden', percentMode);
-      document.getElementById('resizePercentGroup')?.classList.toggle('hidden', !percentMode);
-      document.getElementById('optResizePreset')?.closest('div')?.classList.toggle('hidden', percentMode);
+    function parseSplitRangesInput(raw, total) {
+      const lines = String(raw || '').split(/[\n;]+/).map(x => x.trim()).filter(Boolean);
+      const ranges = [];
+      const occupied = new Set();
+      for (const line of lines) {
+        const indices = [...new Set(parsePageRange(line, total))].sort((a,b) => a-b);
+        if (!indices.length) throw new Error('Rentang "' + line + '" tidak valid atau di luar jumlah halaman.');
+        for (const idx of indices) {
+          if (occupied.has(idx)) throw new Error('Halaman ' + (idx + 1) + ' muncul di lebih dari satu bagian.');
+          occupied.add(idx);
+        }
+        ranges.push({ label: line, indices });
+      }
+      return ranges;
     }
 
-    function applyResizePreset(val) {
-      if (val === 'custom') return;
-      const [w, h] = val.split('x');
-      document.getElementById('optResizeW').value = w;
-      document.getElementById('optResizeH').value = h;
+    async function updateSplitPdfRangesPreview() {
+      const target = document.getElementById('splitPdfRangePreview');
+      if (!target) return;
+      const item = state.items.find(i => i.isPdf && i.arrayBuffer);
+      if (!item) { target.textContent = 'Tambahkan PDF untuk melihat jumlah halaman dan hasil pembagiannya.'; return; }
+      const mode = document.getElementById('optSplitMode')?.value || 'parts';
+      const total = item.pageCount || 0;
+      if (mode === 'pages') {
+        target.innerHTML = '<strong>' + total + ' halaman</strong> akan menghasilkan ' + total + ' file PDF satu halaman, dikemas dalam ZIP.';
+        return;
+      }
+      const raw = mode === 'range' ? (document.getElementById('optPageRange')?.value || '') : (document.getElementById('optPageRanges')?.value || '');
+      try {
+        const ranges = mode === 'range' ? [{label:raw,indices:[...new Set(parsePageRange(raw,total))]}] : parseSplitRangesInput(raw,total);
+        target.innerHTML = '<strong>' + total + ' halaman sumber.</strong><div class="mt-1 space-y-1">' + ranges.map((r,i)=>'<div>PDF ' + (i+1) + ': halaman ' + (r.indices[0]+1) + '–' + (r.indices[r.indices.length-1]+1) + ' (' + r.indices.length + ' halaman)</div>').join('') + '</div>';
+      } catch (error) {
+        target.textContent = error.message;
+      }
     }
 
+    function updateResizeMode(mode) { /* replaced by aspect-preserving Resize Image */ }
+    function applyResizePreset(val) { /* legacy preset handler intentionally unused */ }
 
-    function recalcUnitConverter() {
+    function recalcUnitConverter() {    function recalcUnitConverter() {
       const value = Number(document.getElementById('unitValue')?.value);
       const from = document.getElementById('unitFrom')?.value || 'px';
       const to = document.getElementById('unitTo')?.value || 'cm';
@@ -3504,65 +3531,105 @@
     // --- ENGINE 4: SPLIT PDF ---
     async function runSplitPdf(baseName) {
       const pdfItem = state.items.find(i => i.isPdf && i.arrayBuffer);
-      if (!pdfItem) { showToast('Tambahkan minimal 1 file PDF.', 'error'); return; }
-
-      const mode = document.getElementById('optSplitMode').value;
+      if (!pdfItem) throw new Error('Tambahkan satu file PDF terlebih dahulu.');
+      const mode = document.getElementById('optSplitMode')?.value || 'parts';
       const srcPdf = await PDFLib.PDFDocument.load(pdfItem.arrayBuffer.slice(0));
       const total = srcPdf.getPageCount();
-      const firstPdfClean = pdfItem.name.replace(/\.pdf$/i, '').trim();
+      const firstClean = pdfItem.name.replace(/\.pdf$/i, '').trim() || 'PDF';
 
       if (mode === 'range') {
-        const indices = [...new Set(parsePageRange(document.getElementById('optPageRange').value || '1', total))];
+        const raw = document.getElementById('optPageRange')?.value || '';
+        const indices = [...new Set(parsePageRange(raw, total))].sort((a,b)=>a-b);
         if (!indices.length || indices.some(index => index < 0 || index >= total)) throw new Error('Rentang halaman kosong atau di luar jumlah halaman PDF.');
-        const newPdf = await PDFLib.PDFDocument.create();
-        const pages = await newPdf.copyPages(srcPdf, indices);
-        pages.forEach(p => newPdf.addPage(p));
-        const bytes = await newPdf.save();
+        const part = await PDFLib.PDFDocument.create();
+        const pages = await part.copyPages(srcPdf, indices);
+        pages.forEach(p => part.addPage(p));
         const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
-        finishWithBlob(new Blob([bytes], { type: 'application/pdf' }), finalName, `${indices.length} halaman diekstrak.`);
-      } else {
-        const zip = new JSZip();
-        for (let i = 0; i < total; i++) {
-          const single = await PDFLib.PDFDocument.create();
-          const [p] = await single.copyPages(srcPdf, [i]);
-          single.addPage(p);
-          zip.file(`${firstPdfClean}_${String(i + 1).padStart(2, '0')}.pdf`, await single.save());
-        }
-        const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstPdfClean });
-        finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${total} halaman PDF dipecah menjadi file satuan.`);
+        finishWithBlob(new Blob([await part.save()], { type: 'application/pdf' }), finalName, indices.length + ' halaman diekspor menjadi satu PDF.');
+        return;
       }
+
+      const ranges = mode === 'pages'
+        ? Array.from({length: total}, (_,i)=>({label:String(i+1),indices:[i]}))
+        : parseSplitRangesInput(document.getElementById('optPageRanges')?.value || '', total);
+      if (!ranges.length) throw new Error('Tambahkan minimal satu rentang halaman.');
+      const zip = new JSZip();
+      for (let i = 0; i < ranges.length; i++) {
+        const range = ranges[i];
+        const part = await PDFLib.PDFDocument.create();
+        const pages = await part.copyPages(srcPdf, range.indices);
+        pages.forEach(p => part.addPage(p));
+        const suffix = mode === 'pages' ? 'Hal_' + (range.indices[0] + 1) : 'Bagian_' + (i + 1) + '_Hal_' + range.label.replace(/[^0-9-]+/g,'_');
+        zip.file(firstClean + '_' + suffix + '.pdf', await part.save());
+        updateProgress(((i + 1) / ranges.length) * 90, 'Menyusun bagian PDF ' + (i + 1) + '/' + ranges.length);
+      }
+      const zipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
+      finishWithBlob(await zip.generateAsync({type:'blob'}), zipName, ranges.length + ' file PDF berhasil dibuat dari ' + total + ' halaman sumber.');
     }
 
-    // --- ENGINE 5: PDF TO IMAGES ---
+    // --- ENGINE 5: PDF TO IMAGES ---    // --- ENGINE 5: PDF TO IMAGES ---
     async function runPdfToImages(baseName) {
       const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
-      if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
-      const fmt = document.getElementById('optImgFormat').value;
-      const scale = parseFloat(document.getElementById('optRenderScale').value) || 2.0;
+      if (!pdfItems.length) throw new Error('Tambahkan file PDF terlebih dahulu.');
+      const fmt = document.getElementById('optImgFormat')?.value || 'image/png';
+      const mode = document.getElementById('optPdfImageMode')?.value || 'pages';
+      const quality = document.getElementById('optPdfImageQuality')?.value || 'high';
+      const scale = quality === 'high' ? 3 : quality === 'medium' ? 2 : 1.35;
+      const jpegQuality = quality === 'high' ? 0.94 : quality === 'medium' ? 0.82 : 0.65;
       const ext = fmt === 'image/png' ? 'png' : (fmt === 'image/webp' ? 'webp' : 'jpg');
       const zip = new JSZip();
       let count = 0;
-      const firstClean = pdfItems[0].name.replace(/\.pdf$/i, '').trim();
+      const firstClean = pdfItems[0].name.replace(/\.pdf$/i, '').trim() || 'PDF';
 
       for (const item of pdfItems) {
         const doc = await pdfjsLib.getDocument({ data: item.arrayBuffer.slice(0) }).promise;
         for (let p = 1; p <= doc.numPages; p++) {
-          count++;
           const page = await doc.getPage(p);
-          const vp = page.getViewport({ scale, rotation: item.rotation });
-          const c = document.createElement('canvas');
-          c.width = vp.width;
-          c.height = vp.height;
-          await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
-          const blob = await new Promise(r => c.toBlob(r, fmt, 0.92));
-          zip.file(`${firstClean}_${String(count).padStart(2, '0')}.${ext}`, blob);
+          if (mode === 'embedded') {
+            const ops = await page.getOperatorList();
+            const imageOps = new Set([pdfjsLib.OPS.paintImageXObject, pdfjsLib.OPS.paintJpegXObject, pdfjsLib.OPS.paintInlineImageXObject].filter(v=>v!==undefined));
+            const seen = new Set();
+            for (let op = 0; op < ops.fnArray.length; op++) {
+              if (!imageOps.has(ops.fnArray[op])) continue;
+              const imageId = ops.argsArray[op]?.[0];
+              if (!imageId || seen.has(imageId)) continue;
+              seen.add(imageId);
+              const imageObj = await new Promise(resolve => {
+                try { page.objs.get(imageId, resolve); } catch (error) { resolve(null); }
+              });
+              if (!imageObj) continue;
+              const width = imageObj.width || imageObj.bitmap?.width;
+              const height = imageObj.height || imageObj.bitmap?.height;
+              if (!width || !height || width * height > 50000000) continue;
+              const canvas = document.createElement('canvas');
+              canvas.width = width; canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              if (imageObj.bitmap) ctx.drawImage(imageObj.bitmap,0,0,width,height);
+              else if (imageObj.data && imageObj.data.length >= width * height * 4) ctx.putImageData(new ImageData(new Uint8ClampedArray(imageObj.data),width,height),0,0);
+              else continue;
+              const blob = await new Promise(resolve=>canvas.toBlob(resolve,fmt,jpegQuality));
+              if (!blob) continue;
+              count++;
+              zip.file(firstClean + '_Embedded_' + String(count).padStart(2,'0') + '.' + ext, blob);
+            }
+          } else {
+            const viewport = page.getViewport({ scale, rotation: item.rotation || 0 });
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, fmt, jpegQuality));
+            if (!blob) throw new Error('Halaman PDF ke-' + p + ' gagal dirender menjadi gambar.');
+            count++;
+            zip.file(firstClean + '_Hal_' + String(p).padStart(2,'0') + '.' + ext, blob);
+          }
         }
       }
+      if (!count) throw new Error(mode === 'embedded' ? 'Tidak ditemukan objek gambar tertanam yang dapat diekspor pada PDF ini.' : 'Tidak ada halaman yang berhasil dirender.');
       const finalZipName = formatDownloadFilename({ baseName, ext: 'zip', isBulkOrZip: true, firstFileName: firstClean });
-      finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, `${count} halaman PDF dirender menjadi ${ext.toUpperCase()}.`);
+      finishWithBlob(await zip.generateAsync({ type: 'blob' }), finalZipName, mode === 'embedded' ? count + ' gambar tertanam berhasil diekspor.' : count + ' halaman PDF diekspor menjadi ' + ext.toUpperCase() + ' pada kualitas ' + quality + '.');
     }
 
-    // --- ENGINE 6: COMPRESS PDF ---
+    // --- ENGINE 6: COMPRESS PDF ---    // --- ENGINE 6: COMPRESS PDF ---
     async function runCompressPdf(baseName) {
       const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
       if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
@@ -3590,57 +3657,76 @@
     // --- ENGINE 7: CROP PDF ---
     async function runCropPdf(baseName) {
       const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
-      if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
-      const margin = Number(document.getElementById('optPdfCropMargin').value);
-      if (!Number.isFinite(margin) || margin < 0) throw new Error('Margin crop harus berupa angka nol atau lebih.');
+      if (!pdfItems.length) throw new Error('Tambahkan satu file PDF terlebih dahulu.');
+      const xPct = Math.max(0, Math.min(99, Number(document.getElementById('optPdfCropX')?.value ?? 6))) / 100;
+      const yPct = Math.max(0, Math.min(99, Number(document.getElementById('optPdfCropY')?.value ?? 6))) / 100;
+      const wPct = Math.max(1, Math.min(100 - xPct * 100, Number(document.getElementById('optPdfCropW')?.value ?? 88))) / 100;
+      const hPct = Math.max(1, Math.min(100 - yPct * 100, Number(document.getElementById('optPdfCropH')?.value ?? 88))) / 100;
+      const cropAll = Boolean(document.getElementById('optPdfCropAll')?.checked);
+      const selectedPage = Math.max(1, Number(state.cropPdfPage || 1));
       const outPdf = await PDFLib.PDFDocument.create();
       for (const item of pdfItems) {
         const src = await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0));
         const pages = await outPdf.copyPages(src, src.getPageIndices());
-        pages.forEach(p => {
-          const { width, height } = p.getSize();
-          if (margin * 2 >= width || margin * 2 >= height) throw new Error('Margin ' + margin + ' pt terlalu besar untuk halaman PDF berukuran ' + width.toFixed(1) + ' × ' + height.toFixed(1) + ' pt.');
-          p.setCropBox(margin, margin, width - margin * 2, height - margin * 2);
-          outPdf.addPage(p);
+        pages.forEach((page,index) => {
+          const {width,height}=page.getSize();
+          if (cropAll || index === selectedPage - 1) {
+            const left = xPct * width;
+            const bottom = (1 - yPct - hPct) * height;
+            page.setCropBox(left, bottom, wPct * width, hPct * height);
+          }
+          outPdf.addPage(page);
         });
       }
       const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
-      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, `Margin PDF dipotong sebesar ${margin} pt.`);
+      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, cropAll ? 'Area crop diterapkan pada seluruh halaman PDF.' : 'Area crop diterapkan pada halaman ' + selectedPage + '.');
     }
 
-    // --- ENGINE 8: WATERMARK PDF ---
+    // --- ENGINE 8: WATERMARK PDF ---    // --- ENGINE 8: WATERMARK PDF ---
     async function runWatermarkPdf(baseName) {
       const pdfItems = state.items.filter(i => i.isPdf && i.arrayBuffer);
-      if (!pdfItems.length) { showToast('Tambahkan file PDF terlebih dahulu.', 'error'); return; }
+      if (!pdfItems.length) throw new Error('Tambahkan file PDF terlebih dahulu.');
       const pageNumberOnly = state.activeToolObj?.id === 'page-number-pdf';
       const wm = pageNumberOnly ? '' : (document.getElementById('optPdfWatermarkText')?.value || '').trim();
-      const addNum = pageNumberOnly || Boolean(document.getElementById('optPdfPageNumbers')?.checked);
-      if (!wm && !addNum) throw new Error('Masukkan teks watermark atau aktifkan nomor halaman sebelum memproses.');
+      if (!pageNumberOnly && !wm) throw new Error('Masukkan teks watermark terlebih dahulu.');
+      const from = Math.max(1, Number(document.getElementById('optPdfFrom')?.value || 1));
+      const to = Math.max(from, Number(document.getElementById('optPdfTo')?.value || 99999));
+      const startNumber = Math.max(1, Number(document.getElementById('optPdfStartFrom')?.value || 1));
+      const size = Math.max(6, Math.min(72, Number(document.getElementById('optPdfTextSize')?.value || 14)));
+      const opacity = Math.max(0, Math.min(100, Number(document.getElementById('optPdfTextOpacity')?.value ?? (pageNumberOnly ? 100 : 60)))) / 100;
+      const hex = (document.getElementById('optPdfTextColor')?.value || '#333333').replace('#','');
+      const color = PDFLib.rgb(parseInt(hex.slice(0,2),16)/255,parseInt(hex.slice(2,4),16)/255,parseInt(hex.slice(4,6),16)/255);
+      const fontName = document.getElementById('optPdfFont')?.value || 'Helvetica';
+      const fontMap = {Helvetica:PDFLib.StandardFonts.Helvetica,TimesRoman:PDFLib.StandardFonts.TimesRoman,Courier:PDFLib.StandardFonts.Courier};
       const outPdf = await PDFLib.PDFDocument.create();
-      const font = await outPdf.embedFont(PDFLib.StandardFonts.HelveticaBold);
-
+      const font = await outPdf.embedFont(fontMap[fontName] || PDFLib.StandardFonts.Helvetica);
       for (const item of pdfItems) {
         const src = await PDFLib.PDFDocument.load(item.arrayBuffer.slice(0));
         const pages = await outPdf.copyPages(src, src.getPageIndices());
         pages.forEach(p => outPdf.addPage(p));
       }
-
       const pages = outPdf.getPages();
-      pages.forEach((p, idx) => {
-        const { width, height } = p.getSize();
-        if (wm) {
-          p.drawText(wm, { x: width * 0.2, y: height * 0.5, size: 26, font, color: PDFLib.rgb(0.15, 0.39, 0.92), opacity: 0.25, rotate: PDFLib.degrees(30) });
-        }
-        if (addNum) {
-          p.drawText(`Halaman ${idx + 1} / ${pages.length}`, { x: width / 2 - 40, y: 18, size: 10, font, color: PDFLib.rgb(0.2, 0.2, 0.2) });
-        }
+      const position = document.getElementById('optPdfTextPosition')?.value || 'bc';
+      const rotate = !pageNumberOnly && !document.getElementById('optPdfNoRotate')?.checked
+        ? Number(document.getElementById('optPdfRotate')?.value || 0) : 0;
+      pages.forEach((page,idx) => {
+        const pageNo = idx + 1;
+        if (pageNo < from || pageNo > to) return;
+        const {width,height}=page.getSize();
+        const text = pageNumberOnly ? String(startNumber + pageNo - from) : wm;
+        const textWidth = font.widthOfTextAtSize(text,size);
+        const margin = Math.max(18,size*1.25);
+        const hAlign = position.endsWith('l') ? 'left' : position.endsWith('r') ? 'right' : 'center';
+        const vAlign = position.startsWith('t') ? 'top' : position.startsWith('m') ? 'middle' : 'bottom';
+        const x = hAlign === 'left' ? margin : hAlign === 'right' ? width - margin - textWidth : (width-textWidth)/2;
+        const y = vAlign === 'top' ? height - margin - size : vAlign === 'middle' ? (height-size)/2 : margin;
+        page.drawText(text,{x,y,size,font,color,opacity,rotate:PDFLib.degrees(rotate)});
       });
       const finalName = formatDownloadFilename({ baseName, ext: 'pdf', isBulkOrZip: false });
-      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, `Watermark & nomor halaman diterapkan.`);
+      finishWithBlob(new Blob([await outPdf.save()], { type: 'application/pdf' }), finalName, pageNumberOnly ? 'Nomor halaman ditambahkan dari ' + startNumber + ' pada halaman ' + from + '–' + Math.min(to,pages.length) + '.' : 'Watermark diterapkan pada halaman ' + from + '–' + Math.min(to,pages.length) + '.');
     }
 
-
-    function parseXmlDocument(xmlText, label) {
+    function parseXmlDocument(xmlText, label) {    function parseXmlDocument(xmlText, label) {
       const parsed = new DOMParser().parseFromString(xmlText, 'application/xml');
       if (parsed.getElementsByTagName('parsererror').length) throw new Error('Struktur XML pada ' + label + ' tidak valid.');
       return parsed;
