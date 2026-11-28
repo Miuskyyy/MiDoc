@@ -222,11 +222,10 @@ const fs = require('node:fs');
       buttonDisabled: document.getElementById('executeActionBtn')?.disabled,
       resultHidden: document.getElementById('resultOutputBox')?.classList.contains('hidden'),
       toast: document.getElementById('toastContainer')?.innerText,
-      browserErrors: errors.slice(-5),
-      consoleMessages: consoleMessages.slice(-5)
+      pageReadyState: document.readyState
     }));
     if (barcodeSaveState.resultHidden) {
-      throw new Error('QR/barcode save failed: ' + JSON.stringify({ state: barcodeSaveState, consoleMessages }));
+      throw new Error('QR/barcode save failed: ' + JSON.stringify({ state: barcodeSaveState, browserErrors: errors.slice(-5), consoleMessages: consoleMessages.slice(-5) }));
     }
     assert.match(await page.locator('#resultSavedFilename').innerText(), /\.png$/i);
 
