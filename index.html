@@ -661,7 +661,7 @@
         id: 'group-pdf-merge',
         navCat: 'pdf',
         title: 'Kelompok 1: PDF — Gabung & Pisah',
-        subtitle: 'Susun ulang, gabungkan PDF maupun gambar, pecah per halaman, dan ekstrak isi dokumen.',
+        subtitle: 'Gabungkan dokumen, pisahkan rentang halaman, atau pilih halaman yang ingin dipertahankan.',
         tools: [
           { id: 'merge-pdf', name: 'Merge PDF', desc: 'Gabungkan dua atau lebih dokumen PDF sesuai urutan.', icon: 'file-plus-2', engine: 'merge-pdf' },
           { id: 'merge-pdf-image', name: 'Merge PDF & Gambar', desc: 'Gabungkan PDF dan gambar raster JPG, PNG, WebP, AVIF, atau BMP dalam satu dokumen.', icon: 'layers', engine: 'merge-pdf-image' },
@@ -714,9 +714,9 @@
         id: 'group-img-resize',
         navCat: 'image',
         title: 'Kelompok 5: Gambar — Optimasi & Ubah Ukuran',
-        subtitle: 'Kompres ukuran KB, atur piksel/persentase, ukuran pas foto resmi, dan pengecekan DPI.',
+        subtitle: 'Kompres gambar, pertahankan rasio saat resize, dan hitung kebutuhan DPI.',
         tools: [
-          { id: 'compress-image', name: 'Compress Gambar & Target KB', desc: 'Kompres gambar raster JPG, PNG, WebP, AVIF, atau BMP menjadi JPG/WebP dengan kontrol kualitas dan batas lebar.', icon: 'shrink', engine: 'compress-image' },
+          { id: 'compress-image', name: 'Compress Gambar', desc: 'Kompres gambar dengan kontrol kualitas dan pratinjau estimasi ukuran sebelum menyimpan.', icon: 'shrink', engine: 'compress-image' },
           { id: 'resize-pixel', name: 'Resize Image', desc: 'Ubah ukuran gambar dengan persentase sambil mempertahankan rasio aslinya dan lihat dimensi hasil secara langsung.', icon: 'maximize-2', engine: 'resize-image' },
           { id: 'dpi-checker', name: 'Kalkulator Dimensi Cetak', desc: 'Hitung kebutuhan piksel dari ukuran cetak dan DPI.', icon: 'ruler', engine: 'dpi-calc' }
         ]
@@ -725,7 +725,7 @@
         id: 'group-img-edit',
         navCat: 'image',
         title: 'Kelompok 6: Gambar — Edit, Warna & Efek',
-        subtitle: 'Potong lingkaran, sudut melengkung, tanda tangan digital, filter warna, dan hapus EXIF.',
+        subtitle: 'Crop piksel, Shape Crop, atur layer, filter warna, dan hapus metadata gambar.',
         tools: [
           { id: 'crop-image', name: 'Crop Image (Pixel)', desc: 'Potong area gambar dengan koordinat X, Y, lebar, dan tinggi dalam piksel.', icon: 'crop', engine: 'crop-image' },
           { id: 'shape-crop', name: 'Shape Crop & Pas Foto', desc: 'Bentuk lingkaran, sudut membulat, dan rasio pas foto 3×4, 4×6, atau 3,5×4,5 cm.', icon: 'shapes', engine: 'shape-crop' },
@@ -739,7 +739,7 @@
         id: 'group-utilities',
         navCat: 'converter',
         title: 'Kelompok 7: Utilitas & Batch Tools',
-        subtitle: 'Penamaan massal berurutan, pengarsipan ZIP, palet warna HEX, QR Code, generator kata sandi, dan konverter satuan.',
+        subtitle: 'Penamaan massal, ZIP, palet warna, QR/barcode, generator kata sandi, dan konverter satuan.',
         tools: [
           { id: 'batch-rename', name: 'Batch Rename File', desc: 'Ganti nama puluhan file sekaligus dengan nomor urut rapi', icon: 'edit-3', engine: 'batch-rename' },
           { id: 'gif-tools', name: 'GIF Maker & Ekstrak Frame GIF', desc: 'Buat animasi GIF dari rangkaian gambar, atau ekstrak frame dari satu file GIF.', icon: 'film', engine: 'gif-tools' },
@@ -776,7 +776,7 @@
         label: 'View & Edit',
         icon: 'file-pen-line',
         description: 'Atur tata letak halaman, putar orientasi, potong margin, ekstrak halaman, dan tambahkan elemen PDF.',
-        toolIds: ['crop-pdf', 'organize-pdf', 'rotate-pdf', 'page-number-pdf', 'watermark-pdf']
+        toolIds: ['crop-pdf', 'organize-pdf', 'rotate-pdf', 'page-number-pdf', 'watermark-pdf', 'pdf-copy']
       },
       {
         id: 'pdf-to',
@@ -793,12 +793,6 @@
         toolIds: ['pdf-to-image', 'pdf-to-word']
       },
       {
-        id: 'pdf-utilities',
-        label: 'PDF Utilities',
-        icon: 'file-check',
-        description: 'Salin ulang struktur PDF tanpa klaim password atau enkripsi.',
-        toolIds: ['pdf-copy']
-      },
       {
         id: 'image-optimize',
         label: 'Optimize Image',
@@ -840,7 +834,7 @@
       {
         id: 'pdf',
         label: 'Alat PDF',
-        categoryIds: ['pdf-optimize', 'pdf-merge-split', 'pdf-view-edit', 'pdf-to', 'pdf-from', 'pdf-utilities']
+        categoryIds: ['pdf-optimize', 'pdf-merge-split', 'pdf-view-edit', 'pdf-to', 'pdf-from']
       },
       {
         id: 'image',
@@ -879,10 +873,10 @@
       'txt-to-pdf': { formats: ['txt', 'md'], accept: '.txt,.md', min: 0, max: 1, label: 'satu file TXT atau Markdown' },
       'doc-to-pdf': { formats: ['docx', 'rtf', 'txt', 'md', 'html', 'csv', 'tsv', 'xlsx', 'pptx', 'epub'], accept: '.docx,.rtf,.txt,.md,.html,.htm,.csv,.tsv,.xlsx,.pptx,.epub', min: 0, max: 1, label: 'DOCX, RTF, TXT, Markdown, HTML, CSV, TSV, XLSX, PPTX, atau EPUB' },
       'image-splitter': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
-      'resize-pixel': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'resize-pixel': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
       'crop-image': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
       'shape-crop': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
-      'color-filters': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
+      'color-filters': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, max: 1, label: 'satu gambar raster statis' },
       'remove-exif': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
       'join-images': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 2, label: 'minimal dua gambar raster statis' },
       'compress-image': { formats: ['static-image'], accept: '.jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp', min: 1, label: 'gambar raster statis' },
@@ -1701,7 +1695,7 @@
         extBadge.textContent = '.pdf';
         filenameInput.value = 'MiDoc_PDF_Tersusun';
         btnLabel.textContent = 'Simpan Susunan Halaman PDF';
-        box.innerHTML = '<p class="text-xs text-zinc-600 dark:text-zinc-400">Unggah satu PDF lalu tekan Pecah Per Halaman PDF. Geser kartu untuk mengubah urutan, gunakan tombol putar, atau hapus kartu. Urutan kartu menjadi urutan halaman PDF baru.</p>';
+        box.innerHTML = '<p class="text-xs text-zinc-600 dark:text-zinc-400">Saat PDF ditambahkan, setiap halaman langsung ditampilkan sebagai kartu. Hapus halaman yang tidak diperlukan atau geser kartu untuk mengubah urutan. Simpan untuk membuat PDF baru.</p>';
       } else if (engine === 'rotate-pdf') {
         extBadge.textContent = '.pdf';
         filenameInput.value = 'MiDoc_PDF_Rotasi';
@@ -2773,6 +2767,8 @@
         bottomStrip.classList.add('hidden');
         document.getElementById('splitterLivePreviewPanel').classList.add('hidden');
         document.getElementById('joinerLivePreviewPanel').classList.add('hidden');
+        document.getElementById('toolLivePreviewPanel')?.classList.add('hidden');
+        document.getElementById('zipContentsCenter')?.classList.add('hidden');
         updateFilenamePreviewHint();
         return;
       }
@@ -2788,7 +2784,7 @@
       grid.className = verticalEditors
         ? 'tool-edit-vertical'
         : (state.viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5' : 'flex flex-col gap-2');
-      if (verticalEditors && !state.selectedEditItemId) state.selectedEditItemId = state.items.find(item => item.isImage)?.id || state.items[0]?.id || null;
+      if (verticalEditors && !state.items.some(item => item.id === state.selectedEditItemId)) state.selectedEditItemId = state.items.find(item => item.isImage)?.id || state.items[0]?.id || null;
 
       const isPdfPageSimMode = (state.activeEngine === 'image-to-pdf' || state.activeEngine === 'merge-pdf-image');
 
@@ -4894,16 +4890,16 @@
       const img = state.items.find(i => i.isImage && i.thumbUrl);
       if (!img) { showToast('Tambahkan minimal 1 gambar.', 'error'); return; }
       const source = await renderItemToCanvas(img);
-      const c = resizeCanvas(source, 160, 160, 'stretch');
+      const c = resizeCanvas(source, 192, 192, 'stretch');
       const data = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
       const map = {};
       for (let i = 0; i < data.length; i += 4) {
         if (data[i + 3] < 32) continue;
-        const channels=[data[i],data[i+1],data[i+2]].map(v=>Math.max(0,Math.min(255,Math.round(v/32)*32)));
+        const channels=[data[i],data[i+1],data[i+2]].map(v=>Math.max(0,Math.min(255,Math.floor(v/16)*16+8)));
         const hex='#'+channels.map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
         map[hex]=(map[hex]||0)+1;
       }
-      const top = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,16).map(e=>e[0]);
+      const top = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,20).map(e=>e[0]);
       document.getElementById('extractedPaletteSwatches').innerHTML = top.map(hex => `
         <button onclick="copyTextFallback('${hex}'); showToast('Disalin: ${hex}', 'info')" class="p-1.5 rounded-sm border border-zinc-300 dark:border-darkLine text-center">
           <div class="w-full h-6 mb-1" style="background:${hex}"></div>
